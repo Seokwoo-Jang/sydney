@@ -157,7 +157,6 @@ export interface PreludeActivity extends RowMeta {
   peopleNote: string;
   status: PreludeStatus;
   itineraryItemId: string | null;
-  resourceId: string | null;
   sortOrder: number;
   isExample: boolean;
 }

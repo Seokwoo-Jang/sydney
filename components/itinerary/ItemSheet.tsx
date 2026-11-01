@@ -38,7 +38,7 @@ import type {
   TimeKind,
   TripDay,
 } from '@/lib/types';
-import { activityPatchesForItem, itemResourceIds, libraryLinkChanges, type ActivityPatch } from './logic';
+import { activityPatchesForItem, itemResourceIds, libraryLinkChanges, planResourceIds, type ActivityPatch } from './logic';
 import styles from './ItemSheet.module.css';
 
 export type SheetTarget = { kind: 'add'; date: string } | { kind: 'edit'; item: ItineraryItem };
@@ -82,6 +82,8 @@ interface FormState {
   tried: boolean;
   /** The item's own Library links when the form opened (changes are written against these). */
   openedLinks: string[];
+  /** The chosen plan's own links when it was chosen (or the form opened): carried into the form. */
+  carriedLinks: string[];
 }
 
 const CATEGORIES: ItineraryCategory[] = ['transport', 'explore', 'dining', 'rest', 'business'];
@@ -144,6 +146,7 @@ function initForm(target: SheetTarget | null, tripTz: string, activities: Prelud
     confirm: null,
     tried: false,
     openedLinks: row ? links.filter((l) => l.itineraryItemId === row.id).map((l) => l.resourceId) : [],
+    carriedLinks: planResourceIds(draft.activityId || null, links),
   };
 }
 
@@ -301,8 +304,9 @@ export function ItemSheet({
   }
 
   // ── writes ────────────────────────────────────────────────────
-  // Library links are written so a failure never loses one: new links first, then the
-  // Prelude plan's own link is cleared (it moved onto this item), then removals.
+  // Library links are written so a failure never loses one: new links first (including
+  // the chosen plan's own links, carried into the form), then the plan, then removals
+  // (which also drop the plan's own copies, now on this item).
   const linkChanges = (itemId: string, opened: string[], wanted: string[]) => {
     const live = new Set(resources.map((r) => r.id));
     return libraryLinkChanges(itemId, opened, wanted.filter((id) => live.has(id)), resourceLinks);
@@ -316,26 +320,18 @@ export function ItemSheet({
     return true;
   }
 
-  /** The chosen plan's own Library link has moved onto this item: clear it on the plan (latest version). */
-  async function clearPlanLink(planId: string | null, latest: Map<string, PreludeActivity>): Promise<boolean> {
-    const plan = planId ? (latest.get(planId) ?? activities.find((a) => a.id === planId && !a.deletedAt)) : undefined;
-    if (!plan?.resourceId) return true;
-    let res = await activityOps.update(plan.id, { resourceId: null }, plan.version);
-    if (!res.ok && res.reason === 'conflict' && res.latest) {
-      if (!res.latest.resourceId) return true;
-      res = await activityOps.update(res.latest.id, { resourceId: null }, res.latest.version);
-    }
-    return res.ok;
-  }
-
-  /** Links the chosen plan (its status follows the item) and clears its own Library link, now on the item. */
+  /** Links the chosen plan (its status follows the item). */
   async function linkPlan(itemId: string, itemStatus: ItineraryStatus, selected: string | null): Promise<boolean> {
     const saved = await applyActivityPatches(activityPatchesForItem(itemId, itemStatus, activities, selected, serverManaged), itemId, itemStatus, selected);
-    return saved !== null && (await clearPlanLink(selected, saved));
+    return saved !== null;
   }
 
-  async function removeLibraryLinks(itemId: string, opened: string[], wanted: string[], planId: string | null): Promise<boolean> {
-    const copies = planId ? resourceLinks.filter((l) => l.preludeActivityId === planId).map((l) => l.id) : [];
+  async function removeLibraryLinks(itemId: string, opened: string[], wanted: string[], planId: string | null, carried: string[]): Promise<boolean> {
+    // The plan's own rows that moved onto this item, or that the form showed and the user took out.
+    // One the other person added after that is left for the next save.
+    const copies = planId
+      ? resourceLinks.filter((l) => l.preludeActivityId === planId && (wanted.includes(l.resourceId) || carried.includes(l.resourceId))).map((l) => l.id)
+      : [];
     for (const id of [...linkChanges(itemId, opened, wanted).remove, ...copies]) {
       const r = await library.unlinkResource(id);
       if (!r.ok) return false;
@@ -427,9 +423,14 @@ export function ItemSheet({
     const selected = d.activityId || null;
     const itemId = res.row.id;
     const ok =
-      (await addLibraryLinks(itemId, f.openedLinks, d.resourceIds)) &&
+      // A carried plan link the other person removed meanwhile (now on neither) is not put back.
+      (await addLibraryLinks(
+        itemId,
+        f.openedLinks,
+        d.resourceIds.filter((id) => !f.carriedLinks.includes(id) || resourceLinks.some((l) => l.resourceId === id && (l.preludeActivityId === selected || l.itineraryItemId === itemId))),
+      )) &&
       (await linkPlan(itemId, res.row.status, selected)) &&
-      (await removeLibraryLinks(itemId, f.openedLinks, d.resourceIds, selected));
+      (await removeLibraryLinks(itemId, f.openedLinks, d.resourceIds, selected, f.carriedLinks));
     if (!ok) {
       setForm((s) => ({ ...s, save: 'error' }));
       return;
@@ -686,15 +687,15 @@ export function ItemSheet({
             options={planOptions}
             onChange={(e) => {
               const id = e.target.value;
-              // The plan's own Library link comes along to this item; the previous plan's goes back.
-              const carried = activities.find((a) => a.id === id)?.resourceId;
+              // The plan's own Library links come along to this item; the previous plan's go back.
+              const carried = planResourceIds(id || null, resourceLinks);
               setForm((f) => {
-                const previous = activities.find((a) => a.id === f.draft.activityId)?.resourceId;
-                let resourceIds = f.draft.resourceIds;
-                if (previous && previous !== carried && !f.openedLinks.includes(previous)) resourceIds = resourceIds.filter((x) => x !== previous);
-                if (carried && !resourceIds.includes(carried)) resourceIds = [...resourceIds, carried];
+                const previous = planResourceIds(f.draft.activityId || null, resourceLinks);
+                let resourceIds = f.draft.resourceIds.filter((x) => !previous.includes(x) || carried.includes(x) || f.openedLinks.includes(x));
+                for (const c of carried) if (!resourceIds.includes(c)) resourceIds = [...resourceIds, c];
                 return {
                   ...f,
+                  carriedLinks: carried,
                   // New item + plan chosen → Amy · Business by default (still editable).
                   draft: f.row || !id ? { ...f.draft, activityId: id, resourceIds } : { ...f.draft, activityId: id, resourceIds, participants: 'amy', category: 'business' },
                 };

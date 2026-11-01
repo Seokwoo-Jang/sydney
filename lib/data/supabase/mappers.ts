@@ -92,7 +92,6 @@ const PRELUDE: Cols<EditableFields<PreludeActivity>> = {
   peopleNote: 'people_note',
   status: 'status',
   itineraryItemId: 'itinerary_item_id',
-  resourceId: 'resource_id',
   sortOrder: 'sort_order',
   isExample: 'is_example',
 };

@@ -2,7 +2,7 @@
 // Amy's Prelude (plan §7.3). Board: a 4-column piano card with the goal and the
 // next two plans. Tabs: the Itinerary tab's second view with every plan.
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
-import { itemResourceIds } from '@/components/itinerary/logic';
+import { itemResourceIds, planResourceIds } from '@/components/itinerary/logic';
 import { useShellNav } from '@/components/shell/ShellNav';
 import { Button, EmptyState, Icon, IconButton, SaveStatus, TextInput, type SaveState } from '@/components/ui';
 import { usePrelude } from '@/lib/data';
@@ -92,9 +92,7 @@ export function PreludeBody({ layout, data }: { layout: 'board' | 'tabs'; data: 
       item={a.itineraryItemId ? (itemsById.get(a.itineraryItemId) ?? null) : null}
       resources={(a.itineraryItemId && itemsById.has(a.itineraryItemId)
         ? itemResourceIds(a.itineraryItemId, data.links, data.activities)
-        : a.resourceId
-          ? [a.resourceId]
-          : []
+        : planResourceIds(a.id, data.links)
       )
         .map((id) => resourcesById.get(id))
         .filter((r): r is Resource => !!r)}

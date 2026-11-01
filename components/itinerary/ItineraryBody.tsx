@@ -138,8 +138,11 @@ export function ItineraryBody({
       m.set(itemId, list);
     };
     for (const l of data.resourceLinks) if (l.itineraryItemId) add(l.itineraryItemId, l.resourceId);
-    // A Prelude plan's older single link shows on its item until the item is saved again.
-    for (const [itemId, a] of activityByItem) add(itemId, a.resourceId);
+    // Links a Prelude plan still holds itself show on its item until the item is saved again.
+    for (const l of data.resourceLinks) {
+      if (!l.preludeActivityId) continue;
+      for (const [itemId, a] of activityByItem) if (a.id === l.preludeActivityId) add(itemId, l.resourceId);
+    }
     return m;
   }, [liveResources, data.resourceLinks, activityByItem]);
   const expensesByItem = useMemo(() => {

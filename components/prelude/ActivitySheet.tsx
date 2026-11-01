@@ -1,8 +1,9 @@
 'use client';
 // Add / edit a Prelude plan (plan §7.3): kind, title, notes, who to meet,
-// Library link, status. Date, time, place and, once it is on the itinerary,
-// its Library links belong to the linked itinerary item and are only shown
-// here (owner, 2026-11-01). No "Add to itinerary" by design.
+// Library links (several), status. Date, time and place belong to the linked
+// itinerary item. Library links can be added here too (owner, 2026-11-01): on the
+// itinerary they are saved onto its item (one set for both); before that, on the
+// plan, moving to the item when it is linked. No "Add to itinerary" by design.
 import { useRef, useState, type FormEvent } from 'react';
 import {
   Button,
@@ -20,7 +21,8 @@ import {
 import { newId, useEntityOps, useLibrary } from '@/lib/data';
 import { S } from '@/lib/strings';
 import type { ItineraryItem, Member, PreludeActivity, PreludeKind, PreludeStatus, Resource, ResourceLink, TripDay } from '@/lib/types';
-import { itemResourceIds } from '@/components/itinerary/logic';
+import { itemResourceIds, planResourceIds } from '@/components/itinerary/logic';
+import { PickedList } from '@/components/checklist/FormBits';
 import { whenLine } from './logic';
 import styles from './prelude.module.css';
 
@@ -31,7 +33,7 @@ interface Draft {
   title: string;
   notes: string;
   peopleNote: string;
-  resourceId: string;
+  resourceIds: string[];
   status: PreludeStatus;
 }
 
@@ -51,15 +53,21 @@ interface FormState {
 const KINDS: PreludeKind[] = ['networking', 'performance', 'venue_visit', 'lesson', 'other'];
 const STATUSES: PreludeStatus[] = ['idea', 'planned', 'done'];
 
-function draftOf(a: PreludeActivity | null): Draft {
-  return a
-    ? { kind: a.kind, title: a.title, notes: a.notes, peopleNote: a.peopleNote, resourceId: a.resourceId ?? '', status: a.status }
-    : { kind: 'performance', title: '', notes: '', peopleNote: '', resourceId: '', status: 'idea' };
+/** The plan's Library links as the form shows them: its item's (on the itinerary) or its own. */
+function linksOf(a: PreludeActivity | null, links: ResourceLink[], activities: PreludeActivity[], items: Map<string, ItineraryItem>): string[] {
+  if (!a) return [];
+  return a.itineraryItemId && items.has(a.itineraryItemId) ? itemResourceIds(a.itineraryItemId, links, activities) : planResourceIds(a.id, links);
 }
 
-function initForm(target: ActivityTarget | null): FormState {
+function draftOf(a: PreludeActivity | null, resourceIds: string[]): Draft {
+  return a
+    ? { kind: a.kind, title: a.title, notes: a.notes, peopleNote: a.peopleNote, resourceIds, status: a.status }
+    : { kind: 'performance', title: '', notes: '', peopleNote: '', resourceIds: [], status: 'idea' };
+}
+
+function initForm(target: ActivityTarget | null, opened: string[]): FormState {
   const row = target?.kind === 'edit' ? target.activity : null;
-  const draft = draftOf(row);
+  const draft = draftOf(row, opened);
   return {
     target,
     draft,
@@ -74,7 +82,8 @@ function initForm(target: ActivityTarget | null): FormState {
   };
 }
 
-const same = (a: Draft, b: Draft) => (Object.keys(a) as Array<keyof Draft>).every((k) => a[k] === b[k]);
+const same = (a: Draft, b: Draft) =>
+  (Object.keys(a) as Array<keyof Draft>).every((k) => (k === 'resourceIds' ? a[k].join() === b[k].join() : a[k] === b[k]));
 
 export function ActivitySheet({
   target,
@@ -104,8 +113,9 @@ export function ActivitySheet({
   const ops = useEntityOps('prelude');
   const library = useLibrary();
   const toast = useToast();
-  const [form, setForm] = useState<FormState>(() => initForm(target));
-  if (form.target !== target && target !== null) setForm(initForm(target));
+  const openedFor = (t: ActivityTarget | null) => linksOf(t?.kind === 'edit' ? t.activity : null, links, activities, items);
+  const [form, setForm] = useState<FormState>(() => initForm(target, openedFor(target)));
+  if (form.target !== target && target !== null) setForm(initForm(target, openedFor(target)));
   const formRef = useRef(form);
   formRef.current = form;
 
@@ -125,17 +135,43 @@ export function ActivitySheet({
     onClose();
   };
 
-  /** Keeps resource_links in step with the single Library link on the plan. */
-  async function syncLibraryLink(activityId: string, before: string | null, after: string | null) {
-    if (before === after) return true;
-    for (const l of links) {
-      if (l.preludeActivityId === activityId && l.resourceId === before) {
+  /**
+   * Writes the Library links the form changed. On the itinerary they go onto the item
+   * (and any the plan still held itself move there); otherwise they stay on the plan.
+   * Only what changed since the form opened is written, so the other person's edits stand.
+   */
+  async function syncLibraryLinks(planId: string, itemId: string | null, opened: string[], wanted: string[]) {
+    const live = new Set(resources.filter((r) => !r.deletedAt).map((r) => r.id));
+    const want = wanted.filter((id) => live.has(id));
+    const mine = links.filter((l) => l.preludeActivityId === planId);
+    if (itemId) {
+      const onItem = (id: string) => links.some((l) => l.itineraryItemId === itemId && l.resourceId === id);
+      // New to the form, or still held by the plan itself (it moves onto the item now).
+      for (const resourceId of want) {
+        if (onItem(resourceId) || (opened.includes(resourceId) && !mine.some((l) => l.resourceId === resourceId))) continue;
+        const r = await library.linkResource({ resourceId, itineraryItemId: itemId, preludeActivityId: null, documentId: null });
+        if (!r.ok) return false;
+      }
+      // The item's links the user took out, and the plan's own rows that moved or were taken out.
+      // Rows the other person added after the form opened are left alone.
+      const drop = [
+        ...links.filter((l) => l.itineraryItemId === itemId && opened.includes(l.resourceId) && !want.includes(l.resourceId)),
+        ...mine.filter((l) => want.includes(l.resourceId) || opened.includes(l.resourceId)),
+      ];
+      for (const l of drop) {
         const r = await library.unlinkResource(l.id);
         if (!r.ok) return false;
       }
+      return true;
     }
-    if (after && !links.some((l) => l.preludeActivityId === activityId && l.resourceId === after)) {
-      const r = await library.linkResource({ resourceId: after, preludeActivityId: activityId, itineraryItemId: null, documentId: null });
+    for (const resourceId of want) {
+      if (opened.includes(resourceId) || mine.some((l) => l.resourceId === resourceId)) continue;
+      const r = await library.linkResource({ resourceId, preludeActivityId: planId, itineraryItemId: null, documentId: null });
+      if (!r.ok) return false;
+    }
+    for (const l of mine) {
+      if (!opened.includes(l.resourceId) || want.includes(l.resourceId)) continue;
+      const r = await library.unlinkResource(l.id);
       if (!r.ok) return false;
     }
     return true;
@@ -150,14 +186,13 @@ export function ActivitySheet({
       return;
     }
     const d = f.draft;
-    // On the itinerary its Library links belong to the item: the plan's own field is left alone.
-    const scheduled = !!f.row?.itineraryItemId && items.has(f.row.itineraryItemId);
+    // On the itinerary its Library links are saved onto the item: the one the saved row points at.
+    const itemOf = (a: PreludeActivity | null) => (a?.itineraryItemId && items.has(a.itineraryItemId) ? a.itineraryItemId : null);
     const fields = {
       kind: d.kind,
       title: d.title.trim(),
       notes: d.notes.trim(),
       peopleNote: d.peopleNote.trim(),
-      ...(scheduled ? {} : { resourceId: d.resourceId || null }),
       status: d.status,
     };
     setForm((s) => ({ ...s, save: 'saving', tried: true, confirm: null }));
@@ -165,7 +200,6 @@ export function ActivitySheet({
       ? await ops.update(f.row.id, fields, f.baseVersion)
       : await ops.create({
           ...fields,
-          resourceId: d.resourceId || null,
           id: f.createId,
           itineraryItemId: null,
           sortOrder: Math.max(0, ...activities.map((a) => a.sortOrder)) + 10,
@@ -176,7 +210,10 @@ export function ActivitySheet({
       return;
     }
     setForm((s) => ({ ...s, row: res.row, baseVersion: res.row.version, conflict: null }));
-    if (!scheduled && !(await syncLibraryLink(res.row.id, f.row?.resourceId ?? null, res.row.resourceId))) {
+    // The saved row says where the links go (it may have been linked or unlinked meanwhile);
+    // only what the user changed since the form opened is written there.
+    const itemId = itemOf(res.row);
+    if (!(await syncLibraryLinks(res.row.id, itemId, f.initial.resourceIds, d.resourceIds))) {
       setForm((s) => ({ ...s, save: 'error' }));
       return;
     }
@@ -194,7 +231,21 @@ export function ActivitySheet({
       setForm((s) => ({ ...s, save: res.reason === 'conflict' ? 'dirty' : 'error', conflict: res.reason === 'conflict' ? { latest: res.latest } : s.conflict }));
       return;
     }
-    await syncLibraryLink(f.row.id, f.row.resourceId, null);
+    // Its own links: on the itinerary they move to its item (they were shown as the item's);
+    // otherwise they go with it. Rows already on the item stay.
+    const itemId = f.row.itineraryItemId && items.has(f.row.itineraryItemId) ? f.row.itineraryItemId : null;
+    let linksOk = true;
+    for (const l of links.filter((x) => x.preludeActivityId === f.row!.id)) {
+      if (itemId && !links.some((x) => x.itineraryItemId === itemId && x.resourceId === l.resourceId)) {
+        const r = await library.linkResource({ resourceId: l.resourceId, itineraryItemId: itemId, preludeActivityId: null, documentId: null });
+        if (!r.ok) {
+          linksOk = false;
+          continue;
+        }
+      }
+      if (!(await library.unlinkResource(l.id)).ok) linksOk = false;
+    }
+    if (!linksOk) toast.show(S.sync.failed, { tone: 'error' });
     toast.show(S.prelude.deleted);
     onClose();
   }
@@ -206,16 +257,7 @@ export function ActivitySheet({
     });
 
   const item = row?.itineraryItemId ? items.get(row.itineraryItemId) : undefined;
-  // On the itinerary: its item's Library links (added there), shown here only.
-  const itemResources = item
-    ? itemResourceIds(item.id, links, activities)
-        .map((id) => resources.find((r) => r.id === id && !r.deletedAt))
-        .filter((r): r is Resource => !!r)
-    : [];
-  const resourceOptions = [
-    { value: '', label: S.prelude.none },
-    ...resources.filter((r) => !r.deletedAt).map((r) => ({ value: r.id, label: r.title })),
-  ];
+  const liveResources = resources.filter((r) => !r.deletedAt);
   const conflictSource = form.conflict?.latest && me && form.conflict.latest.updatedBy === me.id ? 'ownDevice' : 'partner';
 
   const footer =
@@ -320,39 +362,28 @@ export function ActivitySheet({
           <TextInput value={draft.peopleNote} onChange={(e) => set('peopleNote', e.target.value)} autoComplete="off" />
         </Field>
 
-        {item ? (
-          <div className={styles.group}>
-            <p className={styles.groupLabel}>{S.prelude.libraryLinks}</p>
-            {itemResources.length > 0 && (
-              <ul className={styles.libraryList}>
-                {itemResources.map((r) => (
-                  <li key={r.id}>
-                    <a href={r.url} target="_blank" rel="noopener noreferrer">
-                      {r.title}
-                      <span className="sr-only"> ({S.ui.externalLink})</span>
-                    </a>
-                  </li>
-                ))}
-              </ul>
-            )}
-            <p className={styles.hint}>{S.prelude.libraryFromItinerary}</p>
-          </div>
-        ) : (
-          <Field label={S.prelude.library} optional>
-            <Select value={draft.resourceId} onChange={(e) => set('resourceId', e.target.value)} options={resourceOptions} />
-            {(() => {
-              const r = draft.resourceId ? resources.find((x) => x.id === draft.resourceId && !x.deletedAt) : undefined;
-              return (
-                r && (
-                  <a className={styles.hint} href={r.url} target="_blank" rel="noopener noreferrer">
-                    {r.title}
-                    <span className="sr-only"> ({S.ui.externalLink})</span>
-                  </a>
-                )
-              );
-            })()}
-          </Field>
-        )}
+        <Field label={S.prelude.library} optional hint={item ? S.prelude.libraryOnItem : undefined}>
+          <PickedList
+            ids={draft.resourceIds}
+            label={(id) => liveResources.find((r) => r.id === id)?.title ?? null}
+            removeLabel={S.budget.removeLink}
+            onRemove={(id) =>
+              set(
+                'resourceIds',
+                draft.resourceIds.filter((x) => x !== id),
+              )
+            }
+          />
+          <Select
+            value=""
+            disabled={!liveResources.some((r) => !draft.resourceIds.includes(r.id))}
+            onChange={(e) => e.target.value && set('resourceIds', [...draft.resourceIds, e.target.value])}
+            options={[
+              { value: '', label: liveResources.length ? S.prelude.addLibraryLink : S.prelude.none },
+              ...liveResources.filter((r) => !draft.resourceIds.includes(r.id)).map((r) => ({ value: r.id, label: r.title })),
+            ]}
+          />
+        </Field>
       </form>
     </Sheet>
   );

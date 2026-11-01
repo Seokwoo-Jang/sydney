@@ -6,6 +6,7 @@ import {
   isPassed,
   itemResourceIds,
   libraryLinkChanges,
+  planResourceIds,
   linkedActivityStatus,
   matchesFilter,
   mixLabel,
@@ -36,7 +37,6 @@ function activity(id: string, p: Partial<PreludeActivity> = {}): PreludeActivity
     peopleNote: '',
     status: 'idea',
     itineraryItemId: null,
-    resourceId: null,
     sortOrder: 0,
     isExample: true,
     ...p,
@@ -207,15 +207,22 @@ describe('Library links live on the itinerary item', () => {
     preludeActivityId,
     documentId: null,
   });
-  const plan = (id: string, itineraryItemId: string | null, resourceId: string | null, deletedAt: string | null = null) =>
-    ({ id, itineraryItemId, resourceId, deletedAt }) as PreludeActivity;
+  const plan = (id: string, itineraryItemId: string | null, deletedAt: string | null = null) => ({ id, itineraryItemId, deletedAt }) as PreludeActivity;
 
-  it('an item shows its own links and its Prelude plan’s older single link, once each', () => {
-    const links = [link('l1', 'r1', 'it'), link('l2', 'r2', 'it'), link('l3', 'r9', 'other'), link('l4', 'r2', null, 'pa')];
-    expect(itemResourceIds('it', links, [plan('pa', 'it', 'r2')])).toEqual(['r1', 'r2']);
-    expect(itemResourceIds('it', links, [plan('pa', 'it', 'r3')])).toEqual(['r1', 'r2', 'r3']);
-    expect(itemResourceIds('it', links, [plan('pa', 'it', 'r3', '2030-01-01T00:00:00Z')])).toEqual(['r1', 'r2']);
+  it('an item shows its own links and the links its Prelude plan still holds, once each', () => {
+    const links = [
+      link('l1', 'r1', 'it'),
+      link('l2', 'r2', 'it'),
+      link('l3', 'r9', 'other'),
+      link('l4', 'r2', null, 'pa'),
+      link('l5', 'r3', null, 'pa'),
+      link('l6', 'r4', null, 'pb'),
+    ];
+    expect(itemResourceIds('it', links, [plan('pa', 'it')])).toEqual(['r1', 'r2', 'r3']);
+    expect(itemResourceIds('it', links, [plan('pa', 'it', '2030-01-01T00:00:00Z')])).toEqual(['r1', 'r2']);
     expect(itemResourceIds('none', links, [])).toEqual([]);
+    expect(planResourceIds('pa', links)).toEqual(['r2', 'r3']);
+    expect(planResourceIds(null, links)).toEqual([]);
   });
 
   it('libraryLinkChanges writes only what the form changed; other items’ links are untouched', () => {

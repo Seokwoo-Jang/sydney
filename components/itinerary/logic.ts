@@ -165,7 +165,7 @@ export const unlinkedActivityStatus = (current: PreludeStatus): PreludeStatus =>
 
 export interface ActivityPatch {
   activity: PreludeActivity;
-  patch: { itineraryItemId?: string | null; status?: PreludeStatus; resourceId?: string | null };
+  patch: { itineraryItemId?: string | null; status?: PreludeStatus };
 }
 
 /**
@@ -210,11 +210,16 @@ export function activityPatchesForItem(
  * Saved Library links of an itinerary item: its own, plus the single link its Prelude
  * plan carried before links moved onto the itinerary (it moves over on the item's next save).
  */
+/** A Prelude plan's own Library links (its resource_links rows), in saved order. */
+export function planResourceIds(planId: string | null | undefined, links: ResourceLink[]): string[] {
+  return planId ? [...new Set(links.filter((l) => l.preludeActivityId === planId).map((l) => l.resourceId))] : [];
+}
+
+/** An item's Library links, plus any its Prelude plan still holds itself (they move here on save). */
 export function itemResourceIds(itemId: string, links: ResourceLink[], activities: PreludeActivity[]): string[] {
   const ids = links.filter((l) => l.itineraryItemId === itemId).map((l) => l.resourceId);
-  const own = activities.find((a) => !a.deletedAt && a.itineraryItemId === itemId)?.resourceId;
-  if (own) ids.push(own);
-  return [...new Set(ids)];
+  const plan = activities.find((a) => !a.deletedAt && a.itineraryItemId === itemId);
+  return [...new Set([...ids, ...planResourceIds(plan?.id, links)])];
 }
 
 /**
