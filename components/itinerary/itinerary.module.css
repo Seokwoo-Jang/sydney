@@ -235,6 +235,11 @@ button.toggle:hover .title {
   transition: color var(--motion-fast) var(--ease);
 }
 
+.titleBadge {
+  margin-left: 4px;
+  vertical-align: 1px;
+}
+
 .sub {
   font-size: var(--text-sm);
   line-height: 1.45;

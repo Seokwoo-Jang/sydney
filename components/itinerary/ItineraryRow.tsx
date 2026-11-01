@@ -85,11 +85,22 @@ export function ItineraryRow({
   const shown = shownStatus(item.status, state === 'past');
   // Amy's Prelude: a Business plan or one linked to a Prelude activity gets a music note.
   const prelude = item.category === 'business' || !!links.activity;
+  // Meet up rides right after the title (owner, 2026-11-02).
+  const title = (
+    <span className={styles.title}>
+      {item.title}
+      {meetUp && !continuation && ' '}
+      {meetUp && !continuation && (
+        <Badge tone="soft" className={styles.titleBadge}>
+          {S.maps.meetUp}
+        </Badge>
+      )}
+    </span>
+  );
   const badges = (
     <>
       {state === 'now' && <Badge tone="now">{S.time.now}</Badge>}
       {state === 'upNext' && <Badge tone="soft">{S.time.upNext}</Badge>}
-      {meetUp && !continuation && <Badge tone="soft">{S.maps.meetUp}</Badge>}
       {/* Also on the next day's continuation (an overnight flight stays Fixed on Day 2). */}
       <Badge tone={STATUS_TONE[shown]}>{S.labels.itineraryStatus[shown]}</Badge>
     </>
@@ -115,7 +126,7 @@ export function ItineraryRow({
           <MemberMarks who={item.participants} />
         </span>
         <span className={styles.text}>
-          <span className={styles.title}>{item.title}</span>
+          {title}
           <span className={styles.subLine}>
             {kindLabel}
             {badges}
@@ -127,7 +138,7 @@ export function ItineraryRow({
       <>
         {timeCell}
         <span className={styles.text}>
-          <span className={styles.title}>{item.title}</span>
+          {title}
           <span className={styles.subLine}>
             {prelude && <Icon name="note" size={18} className={styles.noteInline} label={S.itinerary.preludeMark} />}
             <MemberMarks who={item.participants} size="sm" />
