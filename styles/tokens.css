@@ -158,7 +158,7 @@
   --cover-text: var(--ink);
   --cover-overlay: linear-gradient(90deg, rgba(255, 253, 249, 0.92) 0%, rgba(255, 253, 249, 0.6) 40%, rgba(255, 253, 249, 0) 66%);
   --cover-overlay-vertical: linear-gradient(0deg, rgba(255, 253, 249, 0.94) 0%, rgba(255, 253, 249, 0.72) 40%, rgba(255, 253, 249, 0) 72%);
-  --cover-position: 40% 55%;
+  --cover-position: 58% 58%;
   --cover-clock-bg: rgba(255, 253, 249, 0.78);
   --cover-clock-text: var(--ink);
   --cover-clock-line: rgba(23, 47, 59, 0.08);
