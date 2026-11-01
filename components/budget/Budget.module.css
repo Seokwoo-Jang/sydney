@@ -283,6 +283,13 @@
   text-align: left;
 }
 
+/* Plan and booking side by side, wrapping in a narrow column. */
+.relCell {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 var(--s1-5);
+}
+
 .relButton:hover {
   text-decoration: underline;
   text-underline-offset: 0.18em;
@@ -442,13 +449,19 @@
   border-bottom: 0;
 }
 
-/* Related (Day N / booking) under the row: 44px tall, tucked into the row's bottom padding. */
+/* Related (Day N and/or booking) under the row: 44px tall, tucked into the row's bottom padding. */
+.receiptRels {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 var(--s2);
+  margin-top: -12px;
+}
+
 .receiptRel {
   display: inline-flex;
   align-items: center;
   gap: 4px;
   min-height: var(--touch);
-  margin-top: -12px;
   padding: 0 8px 0 0;
   border: 0;
   background: none;

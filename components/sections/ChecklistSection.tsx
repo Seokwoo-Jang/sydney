@@ -10,6 +10,7 @@ import { ChecklistProgress, ComingUp } from '@/components/checklist/ChecklistSum
 import { DocumentSheet } from '@/components/checklist/DocumentSheet';
 import { useDueContext } from '@/components/checklist/useDueContext';
 import { useSectionNav } from '@/components/checklist/useSectionNav';
+import { useShellNav } from '@/components/shell/ShellNav';
 import { Card, ErrorState, LoadingState, SectionHeading, SegmentedControl, useToast } from '@/components/ui';
 import { useBookings, useChecklist, useDocuments, useLibrary, useServerNow, useTrip } from '@/lib/data';
 import { useReducedMotion } from '@/lib/hooks/useReducedMotion';
@@ -34,6 +35,7 @@ export default function ChecklistSection({ layout }: SectionProps) {
   const now = useServerNow(60_000);
   const toast = useToast();
   const nav = useSectionNav<View>('ready', VIEWS, 'packing');
+  const { goToSection } = useShellNav();
   const [pending, setPending] = useState<ReadonlySet<string>>(new Set());
   const [adding, setAdding] = useState<Adding | null>(null);
   const { state: url, nav: urlNav, replace } = useUrlState();
@@ -214,6 +216,10 @@ export default function ChecklistSection({ layout }: SectionProps) {
         me={me}
         partner={partner}
         onClose={() => (addingBooking ? setAdding(null) : nav.closeItem())}
+        onOpenExpense={(id) => {
+          nav.closeItem();
+          goToSection('wallet', { item: id });
+        }}
       />
       <DocumentSheet
         open={!!openDoc || addingDoc}

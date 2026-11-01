@@ -124,18 +124,22 @@ function Amount({ e, latest }: { e: Expense; latest: FxRate | null }) {
   );
 }
 
-function related(e: Expense, ctx: RowContext) {
-  const item = e.itineraryItemId ? ctx.items.find((i) => i.id === e.itineraryItemId) : undefined;
+type RelatedTarget = { kind: 'item'; item: ItineraryItem } | { kind: 'booking'; booking: Booking };
+
+/** What an expense is linked to in Budget: its itinerary plan and/or its booking. */
+function related(e: Expense, ctx: RowContext): Array<{ key: string; label: string; target: RelatedTarget }> {
+  const out: Array<{ key: string; label: string; target: RelatedTarget }> = [];
+  const item = e.itineraryItemId ? ctx.items.find((i) => i.id === e.itineraryItemId && !i.deletedAt) : undefined;
   if (item) {
     const day = ctx.days.find((d) => d.id === item.dayId);
-    return { label: day ? S.time.day(day.dayNumber) : formatDayLabel(item.date), target: { kind: 'item' as const, item } };
+    out.push({ key: item.id, label: day ? S.time.day(day.dayNumber) : formatDayLabel(item.date), target: { kind: 'item', item } });
   }
   const booking = e.bookingId ? ctx.bookings.find((b) => b.id === e.bookingId) : undefined;
   if (booking) {
     const label = booking.detail.kind === 'flight' ? booking.detail.flightNumber : booking.title;
-    return { label, target: { kind: 'booking' as const, booking } };
+    out.push({ key: booking.id, label, target: { kind: 'booking', booking } });
   }
-  return null;
+  return out;
 }
 
 const payerName = (e: Expense, members: Member[]) => members.find((m) => m.id === e.payerId)?.displayName ?? '—';
@@ -180,10 +184,14 @@ export function ExpenseTable({ rows, ctx }: { rows: Expense[]; ctx: RowContext }
                   <Amount e={e} latest={ctx.latest} />
                 </td>
                 <td data-label={S.budget.columns.related}>
-                  {rel ? (
-                    <button type="button" className={styles.relButton} onClick={() => ctx.onRelated(rel.target)}>
-                      {rel.label}
-                    </button>
+                  {rel.length ? (
+                    <span className={styles.relCell}>
+                      {rel.map((r) => (
+                        <button key={r.key} type="button" className={styles.relButton} onClick={() => ctx.onRelated(r.target)}>
+                          {r.label}
+                        </button>
+                      ))}
+                    </span>
                   ) : (
                     <span className={styles.muted}>—</span>
                   )}
@@ -226,16 +234,21 @@ export function ExpenseReceipt({ rows, ctx }: { rows: Expense[]; ctx: RowContext
                     </span>
                     <Amount e={e} latest={ctx.latest} />
                   </button>
-                  {rel && (
-                    <button
-                      type="button"
-                      className={styles.receiptRel}
-                      aria-label={`${S.budget.columns.related}: ${rel.label}`}
-                      onClick={() => ctx.onRelated(rel.target)}
-                    >
-                      {rel.label}
-                      <Icon name="arrow" size={14} />
-                    </button>
+                  {rel.length > 0 && (
+                    <span className={styles.receiptRels}>
+                      {rel.map((r) => (
+                        <button
+                          key={r.key}
+                          type="button"
+                          className={styles.receiptRel}
+                          aria-label={`${S.budget.columns.related}: ${r.label}`}
+                          onClick={() => ctx.onRelated(r.target)}
+                        >
+                          {r.label}
+                          <Icon name="arrow" size={14} />
+                        </button>
+                      ))}
+                    </span>
                   )}
                 </li>
               );

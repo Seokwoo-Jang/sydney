@@ -2,12 +2,11 @@
 // Booking detail + edit (plan §7.1). The only place booking references show.
 // Status and payment are separate fields; expenses link only on request.
 import { useState, type ReactNode } from 'react';
-import { ExpenseSheet } from '@/components/budget/ExpenseSheet';
 import { Button, Field, SaveStatus, Sheet, TextArea, TextInput, useToast, SegmentedControl } from '@/components/ui';
 import { newId, useBudget, useEntityOps } from '@/lib/data';
 import { formatMoney } from '@/lib/money';
 import { mapHref } from '@/lib/maps';
-import type { Booking, BookingKind, BookingStatus, CarDetail, Expense, FlightDetail, Member, PaymentStatus, StayDetail } from '@/lib/types';
+import type { Booking, BookingKind, BookingStatus, CarDetail, FlightDetail, Member, PaymentStatus, StayDetail } from '@/lib/types';
 import { formatWallTime, S } from '@/lib/strings';
 import { formatDayLabel } from '@/lib/time/zone';
 import { StatusBadges } from './BookingCards';
@@ -185,6 +184,7 @@ export function BookingSheet({
   me,
   partner,
   onClose,
+  onOpenExpense,
 }: {
   open: boolean;
   booking: Booking | null;
@@ -194,6 +194,8 @@ export function BookingSheet({
   me: Member | null;
   partner: Member | null;
   onClose: () => void;
+  /** Opens a linked expense in Budget (expenses are entered and linked there). */
+  onOpenExpense: (id: string) => void;
 }) {
   const ops = useEntityOps('bookings');
   const budget = useBudget();
@@ -210,8 +212,6 @@ export function BookingSheet({
   const [draft, patch] = useDraft<Draft>(open, key, () => toDraft(booking, members));
   const save = useSaveFlow<Booking>();
   const [tried, setTried] = useState(false);
-  const [picker, setPicker] = useState(false);
-  const [expenseOpen, setExpenseOpen] = useState(false);
 
   const errors = validate(kind, draft);
   const err = (k: keyof Draft) => (tried ? errors[k] : undefined);
@@ -246,13 +246,7 @@ export function BookingSheet({
   };
 
   const expenses = budget.status === 'ready' ? budget.data.expenses : [];
-  const linked = booking ? expenses.filter((e) => e.bookingId === booking.id) : [];
-  const linkable = expenses.filter((e) => !e.bookingId);
-  const setLink = async (e: Expense, bookingId: string | null) => {
-    const r = await budget.update(e.id, { bookingId }, e.version);
-    if (r.ok) toast.show(bookingId ? S.checklist.linked : S.sync.saved);
-    else toast.show(r.reason === 'conflict' ? S.sync.conflict : S.sync.failed, { tone: 'error' });
-  };
+  const linked = booking ? expenses.filter((e) => e.bookingId === booking.id && !e.deletedAt) : [];
 
   const copyRef = async (value: string) => {
     try {
@@ -305,28 +299,23 @@ export function BookingSheet({
               {linked.length ? (
                 <ul className={styles.expenseList}>
                   {linked.map((e) => (
-                    <li key={e.id} className={styles.expenseRow}>
-                      <span className={styles.expenseText}>
-                        <b>{e.title}</b>
-                        <span>
-                          {formatDayLabel(e.date)} · {S.labels.expenseStatus[e.status]}
+                    <li key={e.id}>
+                      <button type="button" className={styles.expenseRow} onClick={() => onOpenExpense(e.id)}>
+                        <span className={styles.expenseText}>
+                          <b>{e.title}</b>
+                          <span>
+                            {formatDayLabel(e.date)} · {S.labels.expenseStatus[e.status]}
+                          </span>
                         </span>
-                      </span>
-                      <span className={styles.expenseAmount}>{formatMoney(e.amountMinor, e.currency)}</span>
-                      <Button variant="ghost" size="sm" onClick={() => void setLink(e, null)}>
-                        {S.checklist.unlink}
-                      </Button>
+                        <span className={styles.expenseAmount}>{formatMoney(e.amountMinor, e.currency)}</span>
+                      </button>
                     </li>
                   ))}
                 </ul>
               ) : (
                 <p className={form.hint}>{S.checklist.noLinkedExpense}</p>
               )}
-              <div className={form.related}>
-                <Button variant="secondary" size="sm" iconStart="link" onClick={() => setPicker(true)}>
-                  {S.actions.linkExpense}
-                </Button>
-              </div>
+              <p className={form.hint}>{S.checklist.expensesInBudget}</p>
             </section>
             <div className={form.disabledNote}>
               <Button variant="secondary" size="sm" disabled aria-describedby="booking-attach-note">
@@ -529,63 +518,6 @@ export function BookingSheet({
         )}
       </Sheet>
 
-      <Sheet open={picker} onClose={() => setPicker(false)} title={S.checklist.chooseExpense} description={booking?.title}>
-        <div className={form.form}>
-          {linkable.length ? (
-            <ul className={styles.expenseList}>
-              {linkable.map((e) => (
-                <li key={e.id} className={styles.expenseRow}>
-                  <span className={styles.expenseText}>
-                    <b>{e.title}</b>
-                    <span>
-                      {formatDayLabel(e.date)} · {S.labels.expenseStatus[e.status]}
-                    </span>
-                  </span>
-                  <span className={styles.expenseAmount}>{formatMoney(e.amountMinor, e.currency)}</span>
-                  <Button
-                    variant="secondary"
-                    size="sm"
-                    onClick={async () => {
-                      if (!booking) return;
-                      await setLink(e, booking.id);
-                      setPicker(false);
-                    }}
-                  >
-                    {S.actions.linkExpense}
-                  </Button>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className={form.hint}>{S.checklist.noExpenseToLink}</p>
-          )}
-          <Button
-            variant="primary"
-            iconStart="plus"
-            onClick={() => {
-              setPicker(false);
-              setExpenseOpen(true);
-            }}
-          >
-            {S.checklist.newExpenseFromBooking}
-          </Button>
-        </div>
-      </Sheet>
-
-      {booking && (
-        <ExpenseSheet
-          open={expenseOpen}
-          expense={null}
-          prefill={{
-            title: booking.title,
-            bookingId: booking.id,
-            category: booking.detail.kind === 'flight' ? 'flights' : booking.detail.kind === 'stay' ? 'stays' : 'transport',
-            status: booking.paymentStatus === 'paid' ? 'paid' : 'planned',
-            splitMode: booking.detail.kind === 'stay' && booking.detail.guests !== 'both' ? booking.detail.guests : 'equal',
-          }}
-          onClose={() => setExpenseOpen(false)}
-        />
-      )}
     </>
   );
 }
