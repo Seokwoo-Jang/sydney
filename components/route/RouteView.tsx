@@ -6,7 +6,7 @@
 import { useId, useMemo, useRef, useState } from 'react';
 import { conflictSource, useSaveFlow } from '@/components/checklist/useSaveFlow';
 import type { PeopleFilter } from '@/components/itinerary/logic';
-import { Badge, Button, Chip, ChipGroup, ConflictNotice, Field, MemberMarks, SaveStatus, TextInput } from '@/components/ui';
+import { Badge, Button, ConflictNotice, Field, MemberMarks, SaveStatus, TextInput } from '@/components/ui';
 import { useEntityOps, useMapLinkResolver } from '@/lib/data';
 import { useReducedMotion } from '@/lib/hooks/useReducedMotion';
 import { needsLookup, parseMapUrl } from '@/lib/maps';
@@ -23,13 +23,11 @@ export interface RouteViewProps {
   items: ItineraryItem[];
   filter: PeopleFilter;
   tripTz: string;
-  scope: 'trip' | 'day';
   selectedDay: string;
   /** Now ids for the selected day (empty unless it is Sydney today). */
   nowIds: string[];
   me: Member | null;
   partner: Member | null;
-  onTrip: () => void;
   onSelectDay: (date: string) => void;
   onOpenItem: (item: ItineraryItem) => void;
 }
@@ -51,13 +49,11 @@ export default function RouteView({
   items,
   filter,
   tripTz,
-  scope,
   selectedDay,
   nowIds,
   me,
   partner,
-  onTrip,
-  onSelectDay,
+  onSelectDay: selectDay,
   onOpenItem,
 }: RouteViewProps) {
   const reduced = useReducedMotion();
@@ -69,6 +65,19 @@ export default function RouteView({
   /** Bumped whenever the open form changes, so a late lookup never saves into another item. */
   const editSeq = useRef(0);
 
+  // The day is the one chosen above the map; Whole trip (a button on the map) shows every
+  // day's route at once and goes back to the day when pressed again or another day is chosen.
+  const [wholeTrip, setWholeTrip] = useState(false);
+  const [shownDay, setShownDay] = useState(selectedDay);
+  if (shownDay !== selectedDay) {
+    setShownDay(selectedDay);
+    setWholeTrip(false);
+  }
+  const scope: 'trip' | 'day' = wholeTrip ? 'trip' : 'day';
+  const onSelectDay = (date: string) => {
+    setWholeTrip(false);
+    selectDay(date);
+  };
   const [focus, setFocus] = useState<{ id: string; seq: number } | null>(null);
   const [edit, setEdit] = useState<Edit | null>(null);
   const [link, setLink] = useState('');
@@ -157,21 +166,17 @@ export default function RouteView({
 
   return (
     <div className={styles.route} data-layout={layout}>
-      {/* Trip on the first row; Day 1–9 share the second row in equal cells and never wrap. */}
-      <ChipGroup label={S.route.scopeLabel} className={styles.scope}>
-        <Chip selected={scope === 'trip'} onClick={onTrip} className={styles.tripChip}>
-          {S.maps.trip}
-        </Chip>
-        {days.map((d) => (
-          <Chip key={d.id} selected={scope === 'day' && d.date === selectedDay} onClick={() => onSelectDay(d.date)} className={styles.dayChip}>
-            <span className={styles.dayWord}>{S.time.dayWord} </span>
-            {d.dayNumber}
-          </Chip>
-        ))}
-      </ChipGroup>
-
       <div ref={boxRef} className={styles.mapArea}>
         <div className={styles.mapBox}>
+          <Button
+            variant="secondary"
+            size="sm"
+            className={styles.wholeTrip}
+            aria-pressed={wholeTrip}
+            onClick={() => setWholeTrip((w) => !w)}
+          >
+            {wholeTrip && day ? S.route.backToDay(day.dayNumber) : S.route.wholeTrip}
+          </Button>
           <RouteMapCanvas
             routes={mapRoutes}
             people={filter}

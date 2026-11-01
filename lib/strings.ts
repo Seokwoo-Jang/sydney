@@ -632,6 +632,8 @@ export const S = {
     showOnMap: (title: string) => `Show ${title} on the map`,
     openDay: (n: number) => `Show Day ${n}`,
     legendLabel: 'Line colours',
+    wholeTrip: 'Whole trip',
+    backToDay: (n: number) => `Back to Day ${n}`,
     notOnMapHint: 'These are skipped in the order until they have a Google Maps link.',
     saveLink: 'Save link',
     stopLabel: (n: string, title: string) => `Stop ${n}: ${title}`,

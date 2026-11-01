@@ -335,7 +335,7 @@ export function ItineraryBody({
 
   const footnote = hasExample ? <p className={styles.footnote}>{S.data.exampleNote}</p> : null;
 
-  // List / Route (plan §7.2.7). Trip chip = Full Itinerary mode; Day chips = the selected day.
+  // List / Route (plan §7.2.7). The day selector picks the day; the whole trip is a button on the map.
   const viewToggle = (
     <SegmentedControl
       label={S.route.viewLabel}
@@ -356,12 +356,10 @@ export function ItineraryBody({
         items={live}
         filter={filter}
         tripTz={tz}
-        scope={mode === 'full' ? 'trip' : 'day'}
         selectedDay={selectedDay}
         nowIds={selectedDay === today ? nowInfo.nowIds : []}
         me={data.me}
         partner={data.partner}
-        onTrip={() => setMode('full')}
         onSelectDay={(d) => selectDay(d, 'click')}
         onOpenItem={(item) => {
           setView('list');
@@ -450,9 +448,6 @@ export function ItineraryBody({
       <div className={styles.controls}>
         {viewToggle}
         {filterChips}
-        <Button variant="link" size="sm" className={styles.fullToggle} aria-pressed={mode === 'full'} onClick={() => setMode(mode === 'full' ? 'day' : 'full')}>
-          {S.itinerary.fullItinerary}
-        </Button>
       </div>
       {routeView ?? (mode === 'day' ? (
         <div id={PANEL_ID} role="tabpanel" aria-labelledby={chipId(selectedDay)} data-day-panel className={styles.listCard}>

@@ -3,7 +3,7 @@ import { useMemo, useState } from 'react';
 import { ItineraryBody, type ItineraryData, type ItineraryMode } from '@/components/itinerary/ItineraryBody';
 import styles from '@/components/itinerary/itinerary.module.css';
 import { WhereWeAre } from '@/components/location/WhereWeAre';
-import { ErrorState, LoadingState, SectionHeading, SegmentedControl } from '@/components/ui';
+import { ErrorState, LoadingState, SectionHeading } from '@/components/ui';
 import { useBookings, useBudget, useDays, useItinerary, useLibrary, usePrelude, useTrip } from '@/lib/data';
 import { S } from '@/lib/strings';
 import type { SectionProps } from './types';
@@ -46,20 +46,6 @@ export default function ItinerarySection({ layout }: SectionProps) {
     };
   }, [trip, days, itinerary, prelude, bookings, library, budget]);
 
-  const views =
-    layout === 'board' && data ? (
-      <SegmentedControl
-        label={S.itinerary.viewsLabel}
-        size="sm"
-        value={mode}
-        onChange={setMode}
-        options={[
-          { value: 'day', label: S.itinerary.tripOverview },
-          { value: 'full', label: S.itinerary.fullItinerary },
-        ]}
-      />
-    ) : undefined;
-
   return (
     <section id="section-days" aria-labelledby="section-days-title" className={styles.section}>
       <SectionHeading
@@ -68,7 +54,6 @@ export default function ItinerarySection({ layout }: SectionProps) {
         title={S.sections.days.title}
         intro={S.sections.days.intro}
         layout={layout}
-        actions={views}
       />
       {data && trip.status === 'ready' && (
         <div className={styles.whereWrap}>
