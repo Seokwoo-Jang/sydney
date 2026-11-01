@@ -4,9 +4,11 @@
 // width. This keeps that part of the photo untouched on the right and extends
 // the sky / shoreline / water to the left from the photo's own left-edge
 // colours. Only the seam is softened: the photo's own left band (before the
-// building) blurs more towards its edge and cross-fades into that gradient, so
-// there is no vertical line and nothing is stretched sideways (owner,
-// 2026-11-01). The left side sits under the text overlay.
+// building) blurs more towards its edge and cross-fades into a soft, round-blurred
+// mirror of itself, which carries a short way past the seam and then gives way
+// to the gradient — clouds, shoreline and water dissolve into their own colour,
+// with no vertical line and no sideways smear (owner, 2026-11-01). The left
+// side sits under the text overlay.
 //
 //   node scripts/make-wide-cover.mjs [source.jpg]
 import sharp from 'sharp';
@@ -19,6 +21,8 @@ const CROP = { top: 0.035, bottom: 0.9 }; // sail tops … gulls on the harbour 
 const SAMPLE = 0.05; // left-edge band the extension colours come from
 const BAND = 0.18; // left share of the photo used for the fade (stops before the building)
 const BLUR = [0, 2, 5, 9, 14]; // sigma inside that band, inner edge → seam
+const NEAR = 380; // px left of the seam where the soft mirror of the photo gives way to the gradient
+const FOG = 22; // sigma of that soft mirror (round, so nothing smears sideways)
 
 const meta = await sharp(SRC).metadata();
 const top = Math.round(meta.height * CROP.top);
@@ -60,6 +64,8 @@ const edge = Array.from({ length: H }, (_, y) => {
   return mix(c0, c1, u * u * (3 - 2 * u));
 });
 
+const smooth = (t) => t * t * (3 - 2 * t);
+
 // Blurred copies of the photo's left band; inside it the photo blurs towards the seam
 // and fades into the gradient (smoothstep), right of it the photo is untouched.
 const B = Math.round(pw * BAND);
@@ -69,13 +75,36 @@ const levels = await Promise.all(
   BLUR.map((sigma) => (sigma ? sharp(strip, { raw: { width: B, height: H, channels: 3 } }).blur(sigma).raw().toBuffer() : strip)),
 );
 
+// Soft mirror: the band reflected at the seam (back and forth, NEAR px) next to the band
+// itself, blurred as one image so it is continuous across the seam. Clouds, the far
+// shore and the water dissolve into their own colours instead of ending at a line.
+const SW = NEAR + B;
+const mirror = Buffer.alloc(SW * H * 3);
+for (let x = 0; x < SW; x++) {
+  const d = NEAR - 1 - x; // ≥ 0 left of the seam
+  let col = x - NEAR; // photo column right of the seam
+  if (d >= 0) {
+    const pos = d % (2 * B);
+    col = pos < B ? pos : 2 * B - 1 - pos;
+  }
+  for (let y = 0; y < H; y++) px.copy(mirror, (y * SW + x) * 3, (y * pw + col) * 3, (y * pw + col) * 3 + 3);
+}
+const fog = await sharp(mirror, { raw: { width: SW, height: H, channels: 3 } }).blur(FOG).raw().toBuffer();
+const fogAt = (y, x, k) => fog[(y * SW + x) * 3 + k]; // x: 0 … SW-1, seam at NEAR
+
 const out = Buffer.alloc(W * H * 3);
 for (let y = 0; y < H; y++) {
   for (let x = 0; x < W; x++) {
     const o = (y * W + x) * 3;
     const c = x - E; // column in the photo
     if (c < 0) {
-      for (let k = 0; k < 3; k++) out[o + k] = edge[y][k];
+      const d = -c; // 1 … at the seam
+      if (d >= NEAR) {
+        for (let k = 0; k < 3; k++) out[o + k] = edge[y][k];
+        continue;
+      }
+      const w = smooth(d / NEAR); // 0 at the seam … 1 = gradient
+      for (let k = 0; k < 3; k++) out[o + k] = fogAt(y, NEAR - d, k) * (1 - w) + edge[y][k] * w;
       continue;
     }
     if (c >= B) {
@@ -91,7 +120,7 @@ for (let y = 0; y < H; y++) {
     const r = (y * B + c) * 3;
     for (let k = 0; k < 3; k++) {
       const tex = levels[i][r + k] * (1 - f) + levels[i + 1][r + k] * f;
-      out[o + k] = tex * keep + edge[y][k] * (1 - keep);
+      out[o + k] = tex * keep + fogAt(y, NEAR + c, k) * (1 - keep);
     }
   }
 }
