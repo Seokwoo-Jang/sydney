@@ -497,8 +497,8 @@ const expense = (id: string, by: ProfileKey, e: Partial<Ex> & Pick<Ex, 'date' | 
   fxLocked: false,
   fxManual: false,
   krwChargedMinor: null,
-  bookingId: null,
-  itineraryItemId: null,
+  bookingIds: [],
+  itineraryItemIds: [],
   refundOfId: null,
   ...e,
 });
@@ -514,7 +514,7 @@ const expenses = (): Expense[] => [
     fxRate: 905.1,
     fxRateDate: '2030-10-31',
     fxLocked: true,
-    bookingId: 'bk-sb101',
+    bookingIds: ['bk-sb101', 'bk-sb202'],
   }),
   expense('ex-stay-a', 'eren', {
     date: '2030-12-27',
@@ -527,7 +527,7 @@ const expenses = (): Expense[] => [
     splitEren: 88888,
     splitAmy: 0,
     budgetScope: 'eren',
-    bookingId: 'bk-stay-a',
+    bookingIds: ['bk-stay-a'],
   }),
   expense('ex-stay-b', 'amy', {
     date: '2030-12-27',
@@ -540,7 +540,7 @@ const expenses = (): Expense[] => [
     splitEren: 0,
     splitAmy: 88888,
     budgetScope: 'amy',
-    bookingId: 'bk-stay-b',
+    bookingIds: ['bk-stay-b'],
   }),
   expense('ex-car', 'eren', {
     date: '2030-12-31',
@@ -549,8 +549,8 @@ const expenses = (): Expense[] => [
     amountMinor: 33333,
     currency: 'AUD',
     category: 'transport',
-    bookingId: 'bk-car',
-    itineraryItemId: itemId('d6-car'),
+    bookingIds: ['bk-car'],
+    itineraryItemIds: [itemId('d6-car'), itemId('d9-car-return')],
   }),
   expense('ex-nye', 'amy', {
     date: '2030-12-31',
@@ -559,7 +559,7 @@ const expenses = (): Expense[] => [
     amountMinor: 22222,
     currency: 'AUD',
     category: 'food',
-    itineraryItemId: itemId('d6-dinner'),
+    itineraryItemIds: [itemId('d6-dinner')],
   }),
   expense('ex-esim', 'amy', {
     date: '2030-11-20',

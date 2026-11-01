@@ -144,7 +144,7 @@ export function ItineraryBody({
   }, [liveResources, data.resourceLinks, activityByItem]);
   const expensesByItem = useMemo(() => {
     const m = new Map<string, number>();
-    for (const e of data.expenses) if (!e.deletedAt && e.itineraryItemId) m.set(e.itineraryItemId, (m.get(e.itineraryItemId) ?? 0) + 1);
+    for (const e of data.expenses) if (!e.deletedAt) for (const id of e.itineraryItemIds) m.set(id, (m.get(id) ?? 0) + 1);
     return m;
   }, [data.expenses]);
 

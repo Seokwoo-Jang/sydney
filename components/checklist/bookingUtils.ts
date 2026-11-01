@@ -11,6 +11,14 @@ export const isFlight = (b: Booking): b is FlightBooking => b.detail.kind === 'f
 export const isStay = (b: Booking): b is StayBooking => b.detail.kind === 'stay';
 export const isCar = (b: Booking): b is CarBooking => b.detail.kind === 'car';
 
+/** The name a booking goes by, as its card shows it: a stay's name, a car's company, else the title. */
+export function bookingName(b: Booking): string {
+  const d = b.detail;
+  if (d.kind === 'stay') return d.name?.trim() || b.title;
+  if (d.kind === 'car') return d.company?.trim() || b.title;
+  return b.title;
+}
+
 export const ZONES = ['Asia/Seoul', 'Australia/Sydney'] as const;
 
 /** 'KST' / 'AEDT' / 'AEST' for the wall clock on that date. */

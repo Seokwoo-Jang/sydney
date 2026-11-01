@@ -4,10 +4,11 @@
 // rates lock on payment or by hand.
 import { useMemo, useState } from 'react';
 import { ConfirmDelete, ConflictBlock } from '@/components/checklist/FormBits';
+import { bookingName } from '@/components/checklist/bookingUtils';
 import { useDraft } from '@/components/checklist/useDraft';
 import { useDueContext } from '@/components/checklist/useDueContext';
 import { useSaveFlow } from '@/components/checklist/useSaveFlow';
-import { Button, Field, SaveStatus, SegmentedControl, Select, Sheet, TextInput } from '@/components/ui';
+import { Button, Field, IconButton, SaveStatus, SegmentedControl, Select, Sheet, TextInput } from '@/components/ui';
 import { newId, useBookings, useBudget, useDays, useItinerary, useTrip } from '@/lib/data';
 import { formatMoney, rateForExpense, splitAmount, toMinor } from '@/lib/money';
 import type { BudgetScope, Currency, Expense, ExpenseCategory, ExpenseStatus } from '@/lib/types';
@@ -15,6 +16,7 @@ import { S } from '@/lib/strings';
 import { formatDayLabel } from '@/lib/time/zone';
 import { rateForDate, scopeForSplit, splitForParticipants, splitForScope } from './budgetCalc';
 import form from '@/components/checklist/Form.module.css';
+import styles from './Budget.module.css';
 
 const CATEGORIES: ExpenseCategory[] = ['flights', 'stays', 'food', 'transport', 'sightseeing', 'business', 'shopping', 'other'];
 
@@ -32,8 +34,8 @@ interface Draft {
   status: ExpenseStatus;
   krwCharged: string;
   rate: string;
-  itineraryItemId: string;
-  bookingId: string;
+  itineraryItemIds: string[];
+  bookingIds: string[];
 }
 
 const minorToInput = (minor: number, c: Currency) => (c === 'AUD' ? (minor / 100).toFixed(2) : String(minor));
@@ -63,8 +65,8 @@ function toDraft(e: Expense | null, prefill: Partial<Expense>, today: string, me
     status: src.status ?? 'planned',
     krwCharged: src.krwChargedMinor != null ? String(src.krwChargedMinor) : '',
     rate: e?.fxManual && e.fxRate ? String(e.fxRate) : '',
-    itineraryItemId: src.itineraryItemId ?? '',
-    bookingId: src.bookingId ?? '',
+    itineraryItemIds: src.itineraryItemIds ?? [],
+    bookingIds: src.bookingIds ?? [],
   };
 }
 
@@ -105,7 +107,18 @@ export function ExpenseSheet({
 
   const items = itinerary.status === 'ready' ? itinerary.data : [];
   const dayNumber = useMemo(() => new Map((days.status === 'ready' ? days.data : []).map((d) => [d.id, d.dayNumber])), [days]);
-  const linkedItem = items.find((i) => i.id === draft.itineraryItemId) ?? null;
+  const liveItems = items.filter((i) => !i.deletedAt);
+  const bookingRows = bookings.status === 'ready' ? bookings.data : [];
+  const planLabel = (id: string) => {
+    const i = liveItems.find((x) => x.id === id);
+    if (!i) return null;
+    return `${dayNumber.has(i.dayId) ? `${S.time.day(dayNumber.get(i.dayId)!)} · ` : ''}${i.title}`;
+  };
+  const bookingLabel = (id: string) => {
+    const b = bookingRows.find((x) => x.id === id);
+    return b ? bookingName(b) : null;
+  };
+  const linkedItem = draft.itineraryItemIds.length ? (liveItems.find((i) => i.id === draft.itineraryItemIds[0]) ?? null) : null;
 
   // ── validation ──
   const total = parse(draft.amount, draft.currency);
@@ -122,12 +135,13 @@ export function ExpenseSheet({
   const invalid = Object.values(errors).some(Boolean);
   const err = (k: keyof typeof errors) => (tried ? (errors[k] ?? undefined) : undefined);
 
-  const setItem = (id: string) => {
+  const addItem = (id: string) => {
     const item = items.find((i) => i.id === id);
-    const p: Partial<Draft> = { itineraryItemId: id };
-    // A linked plan suggests the budget from its people until the budget is chosen by hand.
-    if (item && !draft.scopeTouched) p.budgetScope = scopeForSplit(splitForParticipants(item.participants));
-    if (item && !draft.date) p.date = item.date;
+    if (!item || draft.itineraryItemIds.includes(id)) return;
+    const p: Partial<Draft> = { itineraryItemIds: [...draft.itineraryItemIds, id] };
+    // The first linked plan suggests the budget from its people until the budget is chosen by hand.
+    if (!draft.itineraryItemIds.length && !draft.scopeTouched) p.budgetScope = scopeForSplit(splitForParticipants(item.participants));
+    if (!draft.date) p.date = item.date;
     edit(p);
   };
 
@@ -162,8 +176,8 @@ export function ExpenseSheet({
       ...fx,
       krwChargedMinor: draft.currency === 'AUD' ? krw : null,
       category: draft.category,
-      bookingId: draft.bookingId || null,
-      itineraryItemId: draft.itineraryItemId || null,
+      bookingIds: draft.bookingIds,
+      itineraryItemIds: draft.itineraryItemIds,
       refundOfId: expense?.refundOfId ?? prefill.refundOfId ?? null,
     };
     const result = await save.run(() => (isNew ? budget.create({ id: draft.id, ...fields }) : budget.update(draft.id, fields, draft.version)));
@@ -291,28 +305,35 @@ export function ExpenseSheet({
             options={CATEGORIES.map((c) => ({ value: c, label: S.labels.expenseCategory[c] }))}
           />
         </Field>
-        <div className={form.grid2}>
-          <Field label={S.budget.linkedBooking} optional>
-            <Select
-              value={draft.bookingId}
-              onChange={(e) => edit({ bookingId: e.target.value })}
-              options={[
-                { value: '', label: S.budget.none },
-                ...(bookings.status === 'ready' ? bookings.data : []).map((b) => ({ value: b.id, label: b.title })),
-              ]}
-            />
-          </Field>
-        </div>
-        <Field label={S.budget.linkedItem} optional hint={linkedItem && !expense ? S.budget.splitFromPlan : undefined}>
+        <Field label={S.budget.linkedBooking} optional>
+          <PickedList
+            ids={draft.bookingIds}
+            label={bookingLabel}
+            onRemove={(id) => edit({ bookingIds: draft.bookingIds.filter((x) => x !== id) })}
+          />
           <Select
-            value={draft.itineraryItemId}
-            onChange={(e) => setItem(e.target.value)}
+            value=""
+            disabled={!bookingRows.some((b) => !draft.bookingIds.includes(b.id))}
+            onChange={(e) => e.target.value && edit({ bookingIds: [...draft.bookingIds, e.target.value] })}
             options={[
-              { value: '', label: S.budget.none },
-              ...items.map((i) => ({
-                value: i.id,
-                label: `${dayNumber.has(i.dayId) ? `${S.time.day(dayNumber.get(i.dayId)!)} · ` : ''}${i.title}`,
-              })),
+              { value: '', label: S.budget.addBooking },
+              ...bookingRows.filter((b) => !draft.bookingIds.includes(b.id)).map((b) => ({ value: b.id, label: bookingName(b) })),
+            ]}
+          />
+        </Field>
+        <Field label={S.budget.linkedItem} optional hint={linkedItem && !expense ? S.budget.splitFromPlan : undefined}>
+          <PickedList
+            ids={draft.itineraryItemIds}
+            label={planLabel}
+            onRemove={(id) => edit({ itineraryItemIds: draft.itineraryItemIds.filter((x) => x !== id) })}
+          />
+          <Select
+            value=""
+            disabled={!liveItems.some((i) => !draft.itineraryItemIds.includes(i.id))}
+            onChange={(e) => e.target.value && addItem(e.target.value)}
+            options={[
+              { value: '', label: S.budget.addPlan },
+              ...liveItems.filter((i) => !draft.itineraryItemIds.includes(i.id)).map((i) => ({ value: i.id, label: planLabel(i.id)! })),
             ]}
           />
         </Field>
@@ -332,5 +353,21 @@ export function ExpenseSheet({
         <button type="submit" hidden />
       </form>
     </Sheet>
+  );
+}
+
+/** Chosen links (bookings or plans), each with a remove button; gone records are skipped. */
+function PickedList({ ids, label, onRemove }: { ids: string[]; label: (id: string) => string | null; onRemove: (id: string) => void }) {
+  const shown = ids.map((id) => ({ id, text: label(id) })).filter((x): x is { id: string; text: string } => !!x.text);
+  if (!shown.length) return null;
+  return (
+    <ul className={styles.pickList}>
+      {shown.map((x) => (
+        <li key={x.id} className={styles.pickItem}>
+          <span className={styles.pickTitle}>{x.text}</span>
+          <IconButton icon="close" label={S.budget.removeLink(x.text)} onClick={() => onRemove(x.id)} />
+        </li>
+      ))}
+    </ul>
   );
 }

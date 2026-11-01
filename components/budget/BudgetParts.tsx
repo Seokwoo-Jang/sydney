@@ -3,6 +3,7 @@
 // (PC) / receipt list (mobile), category bars, settlements. Totals show only the
 // AUD | KRW choice; the other currency appears on single expenses and settlements.
 import { Fragment } from 'react';
+import { bookingName } from '@/components/checklist/bookingUtils';
 import { Button, Icon, MemberMarks } from '@/components/ui';
 import { balances, formatMoney, summarizeBudget } from '@/lib/money';
 import type { Booking, Currency, Expense, FxRate, ItineraryItem, Member, Settlement, TripBudget, TripDay } from '@/lib/types';
@@ -126,17 +127,19 @@ function Amount({ e, latest }: { e: Expense; latest: FxRate | null }) {
 
 type RelatedTarget = { kind: 'item'; item: ItineraryItem } | { kind: 'booking'; booking: Booking };
 
-/** What an expense is linked to in Budget: its itinerary plan and/or its booking. */
+/** What an expense is linked to in Budget: its itinerary plans, then its bookings. */
 function related(e: Expense, ctx: RowContext): Array<{ key: string; label: string; target: RelatedTarget }> {
   const out: Array<{ key: string; label: string; target: RelatedTarget }> = [];
-  const item = e.itineraryItemId ? ctx.items.find((i) => i.id === e.itineraryItemId && !i.deletedAt) : undefined;
-  if (item) {
+  for (const id of e.itineraryItemIds) {
+    const item = ctx.items.find((i) => i.id === id && !i.deletedAt);
+    if (!item) continue;
     const day = ctx.days.find((d) => d.id === item.dayId);
     out.push({ key: item.id, label: day ? S.time.day(day.dayNumber) : formatDayLabel(item.date), target: { kind: 'item', item } });
   }
-  const booking = e.bookingId ? ctx.bookings.find((b) => b.id === e.bookingId) : undefined;
-  if (booking) {
-    const label = booking.detail.kind === 'flight' ? booking.detail.flightNumber : booking.title;
+  for (const id of e.bookingIds) {
+    const booking = ctx.bookings.find((b) => b.id === id);
+    if (!booking) continue;
+    const label = booking.detail.kind === 'flight' ? booking.detail.flightNumber : bookingName(booking);
     out.push({ key: booking.id, label, target: { kind: 'booking', booking } });
   }
   return out;

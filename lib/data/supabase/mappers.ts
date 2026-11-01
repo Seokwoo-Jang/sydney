@@ -141,8 +141,8 @@ const EXPENSES: Cols<EditableFields<Expense>> = {
   fxManual: 'fx_manual',
   krwChargedMinor: 'krw_charged_minor',
   category: 'category',
-  bookingId: 'booking_id',
-  itineraryItemId: 'itinerary_item_id',
+  bookingIds: 'booking_ids',
+  itineraryItemIds: 'itinerary_item_ids',
   refundOfId: 'refund_of_id',
 };
 

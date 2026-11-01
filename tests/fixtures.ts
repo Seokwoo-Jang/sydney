@@ -62,8 +62,8 @@ export function expense(id: string, p: Partial<Expense> = {}): Expense {
     fxManual: false,
     krwChargedMinor: null,
     category: 'food',
-    bookingId: null,
-    itineraryItemId: null,
+    bookingIds: [],
+    itineraryItemIds: [],
     refundOfId: null,
     ...p,
   };

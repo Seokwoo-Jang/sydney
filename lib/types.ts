@@ -220,8 +220,9 @@ export interface Expense extends RowMeta {
   fxManual: boolean;
   krwChargedMinor: number | null;
   category: ExpenseCategory;
-  bookingId: string | null;
-  itineraryItemId: string | null;
+  /** Linked bookings and itinerary plans, several each (made in Budget). */
+  bookingIds: string[];
+  itineraryItemIds: string[];
   refundOfId: string | null;
 }
 

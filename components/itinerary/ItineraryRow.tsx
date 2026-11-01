@@ -7,6 +7,7 @@ import { S } from '@/lib/strings';
 import { hrefFor } from '@/lib/url';
 import type { Booking, ItineraryStatus, PreludeActivity, Resource } from '@/lib/types';
 import { shownStatus, timeLabel, type DayRow } from './logic';
+import { bookingName } from '@/components/checklist/bookingUtils';
 import styles from './itinerary.module.css';
 
 export type RowState = 'now' | 'upNext' | 'past' | null;
@@ -31,7 +32,7 @@ const STATUS_TONE: Record<ItineraryStatus, BadgeTone> = {
 
 function bookingLine(b: Booking): string {
   const d = b.detail;
-  const what = d.kind === 'flight' ? `${b.title} · ${S.itinerary.route(d.from, d.to)}` : b.title;
+  const what = d.kind === 'flight' ? `${b.title} · ${S.itinerary.route(d.from, d.to)}` : bookingName(b);
   return [what, S.labels.bookingStatus[b.status], S.labels.paymentStatus[b.paymentStatus]].join(' · ');
 }
 

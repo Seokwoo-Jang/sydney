@@ -247,7 +247,7 @@ export function BookingSheet({
   };
 
   const expenses = budget.status === 'ready' ? budget.data.expenses : [];
-  const linked = booking ? expenses.filter((e) => e.bookingId === booking.id && !e.deletedAt) : [];
+  const linked = booking ? expenses.filter((e) => e.bookingIds.includes(booking.id) && !e.deletedAt) : [];
 
   const copyRef = async (value: string) => {
     try {
