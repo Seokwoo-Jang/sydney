@@ -476,10 +476,12 @@
 }
 
 /* Related (Day N and/or booking) under the row: 44px tall, tucked into the row's bottom padding. */
+/* Compact on phones: 26px lines, one under the other (the row above is the big tap target). */
 .receiptRels {
   display: flex;
   flex-direction: column;
-  margin-top: -12px;
+  margin-top: -6px;
+  padding-bottom: 8px;
 }
 
 /* Phones: plans on one line, bookings on the next. */
@@ -489,15 +491,11 @@
   gap: 0 var(--s2);
 }
 
-.receiptRelLine + .receiptRelLine {
-  margin-top: -12px;
-}
-
 .receiptRel {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  min-height: var(--touch);
+  min-height: 26px;
   padding: 0 8px 0 0;
   border: 0;
   background: none;
