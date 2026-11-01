@@ -109,6 +109,12 @@ const PATHS = {
   check: <path d="M5 12.5l4.5 4.5L19 7.5" />,
   filter: <path d="M4 6h16M7 12h10M10 18h4" />,
   arrow: <path d="M5 12h14M13 6l6 6-6 6" />,
+  bell: (
+    <>
+      <path d="M6.5 16.5h11l-1.2-1.8V10.5a4.3 4.3 0 0 0-8.6 0v4.2z" />
+      <path d="M10.3 19a1.8 1.8 0 0 0 3.4 0" />
+    </>
+  ),
   help: (
     <>
       <circle cx="12" cy="12" r="8" />

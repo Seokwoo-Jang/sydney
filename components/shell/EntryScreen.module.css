@@ -124,6 +124,25 @@
   color: var(--muted);
 }
 
+/* Above Continue (phone browser): no notifications unless installed. */
+.continueNote {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 12px 14px;
+  border-radius: var(--radius-button-lg);
+  background: var(--sand);
+  color: var(--ink);
+  font-size: var(--text-sm);
+  line-height: 1.45;
+}
+
+.continueNote svg {
+  flex: none;
+  margin-top: 2px;
+  color: var(--brass-deep);
+}
+
 .steps,
 .kinds {
   display: flex;

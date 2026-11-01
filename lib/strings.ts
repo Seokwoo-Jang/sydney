@@ -148,6 +148,7 @@ export const S = {
       'Countdown: 9 am Korea time on D-30, D-7, D-1 and the day we fly.',
     ],
     notifyPrivacy: 'They show titles, times and places only. Never booking numbers, notes or amounts.',
+    continueNote: 'Continuing here in the browser? Notifications won’t reach you. Add Side by Side to your Home Screen first to get them.',
     continue: 'Continue',
   },
 

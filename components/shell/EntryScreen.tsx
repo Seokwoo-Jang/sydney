@@ -7,7 +7,7 @@
 // guide next to the form, with a QR code that opens the site on a phone
 // (owner, 2026-11-01).
 import { useEffect, useState, type FormEvent } from 'react';
-import { Button, Field, SegmentedControl, TextInput } from '@/components/ui';
+import { Button, Field, Icon, SegmentedControl, TextInput } from '@/components/ui';
 import { normalizeEntryName, useSession } from '@/lib/data';
 import { isIOS, isStandalone, useInstall } from '@/lib/pwa';
 import { S } from '@/lib/strings';
@@ -78,6 +78,11 @@ function EntryFlow() {
             {S.entryGuide.heading}
           </h2>
           <GuideBlocks phone={phone} onPhone={setPhone} />
+          {/* Said where the choice is made: the browser gets no notifications. */}
+          <p className={styles.continueNote}>
+            <Icon name="bell" size={16} />
+            <span>{S.entryGuide.continueNote}</span>
+          </p>
           <Button variant="primary" fullWidth onClick={() => setStep('form')}>
             {S.entryGuide.continue}
           </Button>
