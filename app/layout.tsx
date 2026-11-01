@@ -1,9 +1,21 @@
 import type { Metadata, Viewport } from 'next';
 import type { ReactNode } from 'react';
+import { Cormorant_Garamond, Inter } from 'next/font/google';
 import { S } from '@/lib/strings';
 import '../styles/fonts.css';
 import '../styles/tokens.css';
 import './globals.css';
+
+// Same faces as the design sample, downloaded at build time and served from the
+// site itself (no request to Google from the browser).
+const serif = Cormorant_Garamond({
+  subsets: ['latin'],
+  weight: ['400', '500', '600'],
+  style: ['normal', 'italic'],
+  display: 'swap',
+  variable: '--font-cormorant',
+});
+const sans = Inter({ subsets: ['latin'], weight: ['400', '500', '600'], display: 'swap', variable: '--font-inter' });
 
 // Server component: read the basePath directly (lib/url is client-side).
 const asset = (path: string) => `${process.env.NEXT_PUBLIC_BASE_PATH ?? ''}${path}`;
@@ -28,7 +40,7 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="en-AU">
+    <html lang="en-AU" className={`${serif.variable} ${sans.variable}`}>
       <body>{children}</body>
     </html>
   );

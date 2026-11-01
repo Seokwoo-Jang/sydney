@@ -4,7 +4,7 @@
 // server-corrected clock, re-checked every 30s and on visibilitychange,
 // 800ms crossfade (instant with reduced motion), next phase preloaded during
 // the 10 minutes before a boundary, 'Sydney · 7:42 pm' in the corner.
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useState, type CSSProperties, type ReactNode } from 'react';
 import type { CoverPhase } from '@/lib/time/cover';
 import { useCoverPhase } from '@/lib/hooks/useCoverPhase';
 import { useReducedMotion } from '@/lib/hooks/useReducedMotion';
@@ -69,7 +69,13 @@ export function TimeOfDayBackdrop({ variant, children, hideClock, className, as:
     <Tag className={[styles.root, styles[variant], className ?? ''].join(' ')} data-cover-phase={phase ?? undefined} {...rest}>
       <div className={styles.media} aria-hidden="true">
         {layers.map((p, i) => (
-          <div key={p} className={[styles.layer, i === layers.length - 1 && layers.length > 1 ? styles.fadeIn : '', i === 0 && layers.length === 1 ? styles.first : ''].join(' ')} data-cover-phase={p}>
+          <div
+            key={p}
+            className={[styles.layer, i === layers.length - 1 && layers.length > 1 ? styles.fadeIn : '', i === 0 && layers.length === 1 ? styles.first : ''].join(' ')}
+            data-cover-phase={p}
+            // Blurred fill behind a photo that is fitted rather than cropped (Day on wide covers).
+            style={{ '--cover-fill': `url("${publicAsset(`/images/cover/${p}-mobile.webp`)}")` } as CSSProperties}
+          >
             <CoverPicture phase={p} />
           </div>
         ))}

@@ -140,3 +140,40 @@
   top: 16px;
   bottom: auto;
 }
+
+/*
+ * Day photo is a close-up: on the wide, short covers (PC cover 220px, compact
+ * tab cover) cropping to the full width cuts the building. Fit it by height
+ * instead so the whole Opera House shows on the right (sail tops at ~8%, base at
+ * ~66% of the photo), and fill the left with a blurred copy that fades into it.
+ */
+.cover .layer[data-cover-phase='day'],
+.compact .layer[data-cover-phase='day'] {
+  overflow: hidden;
+}
+
+.cover .layer[data-cover-phase='day']::before,
+.compact .layer[data-cover-phase='day']::before {
+  content: '';
+  position: absolute;
+  inset: -24px;
+  background: var(--cover-fill) 30% 35% / cover no-repeat;
+  filter: blur(18px) saturate(1.05);
+}
+
+.cover .layer[data-cover-phase='day'] > picture,
+.compact .layer[data-cover-phase='day'] > picture {
+  inset: auto;
+  top: -9%;
+  right: 0;
+  bottom: auto;
+  height: 160%;
+  aspect-ratio: 3 / 2;
+}
+
+.cover .layer[data-cover-phase='day'] .img,
+.compact .layer[data-cover-phase='day'] .img {
+  object-position: 50% 50%;
+  -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 14%);
+  mask-image: linear-gradient(90deg, transparent 0, #000 14%);
+}

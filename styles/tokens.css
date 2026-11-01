@@ -33,8 +33,8 @@
   --member-amy: var(--brass);
 
   /* ── Type ───────────────────────────────────────────── */
-  --font-serif: 'Cormorant Garamond', 'Iowan Old Style', Georgia, 'Pretendard', serif;
-  --font-sans: 'Inter', 'Pretendard', system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif;
+  --font-serif: var(--font-cormorant, 'Cormorant Garamond'), 'Iowan Old Style', Georgia, 'Pretendard', serif;
+  --font-sans: var(--font-inter, 'Inter'), 'Pretendard', system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif;
 
   --text-2xs: 11px; /* eyebrow, badges */
   --text-xs: 12px;

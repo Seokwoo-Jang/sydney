@@ -83,8 +83,10 @@
 .body {
   flex: 1;
   min-height: 0;
+  overflow-x: hidden; /* vertical scroll only (iPhone Safari panned sideways) */
   overflow-y: auto;
   overscroll-behavior: contain;
+  touch-action: pan-y pinch-zoom;
   padding: var(--s2-5);
 }
 

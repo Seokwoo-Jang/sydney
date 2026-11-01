@@ -2,6 +2,7 @@
   display: flex;
   flex-direction: column;
   gap: 6px;
+  min-width: 0;
 }
 
 .label {
@@ -21,6 +22,8 @@
 
 .control {
   width: 100%;
+  min-width: 0;
+  max-width: 100%;
   min-height: var(--touch);
   padding: 10px 12px;
   border: 1px solid var(--line-strong);
@@ -44,6 +47,18 @@
 
 .control[aria-invalid='true'] {
   border-color: var(--danger);
+}
+
+/* iOS Safari gives date/time inputs a native width wider than a half-row. */
+.control[type='date'],
+.control[type='time'] {
+  -webkit-appearance: none;
+  appearance: none;
+  display: block;
+}
+
+.control::-webkit-date-and-time-value {
+  text-align: left;
 }
 
 .control::placeholder {
