@@ -29,6 +29,35 @@
   gap: 6px;
 }
 
+/* Library links on this plan, each with a remove button. */
+.links {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0 0 6px;
+  padding: 0;
+  list-style: none;
+}
+
+.link {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s1);
+  min-height: 44px;
+  padding: 0 4px 0 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-button);
+  background: var(--paper);
+}
+
+.linkTitle {
+  min-width: 0;
+  font-size: var(--text-sm);
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+
 .groupLabel {
   font-size: var(--text-sm);
   font-weight: 500;

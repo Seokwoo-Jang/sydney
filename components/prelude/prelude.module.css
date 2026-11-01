@@ -490,3 +490,19 @@
   flex: 1 1 160px;
   font-size: var(--text-md);
 }
+
+/* Library links of a scheduled plan (read only: added on its itinerary item). */
+.libraryList {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--text-sm);
+}
+
+.libraryList a {
+  color: var(--harbour);
+  overflow-wrap: anywhere;
+}

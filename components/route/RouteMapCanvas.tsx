@@ -5,7 +5,7 @@
 // User text reaches Leaflet as DOM nodes (textContent), never as HTML strings.
 import 'leaflet/dist/leaflet.css';
 import * as L from 'leaflet';
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef } from 'react';
 import { addLocateControl } from '@/components/location/locate';
 import { restackLabels } from '@/lib/mapLabels';
 import { S } from '@/lib/strings';
@@ -23,7 +23,7 @@ import {
   lineStyle,
   offsetSegment,
   pinText,
-  placeLabel,
+  stopLabel,
   stopTime,
   type DayRoute,
   type Lane,
@@ -48,10 +48,6 @@ export interface RouteMapCanvasProps {
   onSelectDay: (date: string) => void;
   ariaLabel: string;
 }
-
-/** Which stops share each pin at a zoom ('a+b|c'): a change means the pins must be redrawn. */
-const groupSignature = (routes: DayRoute[], zoom: number) =>
-  routes.map((r) => groupStops(r.stops, zoom).map((g) => g.stops.map((s) => s.item.id).join('+')).join('|')).join('/');
 
 const TILE_URL = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
 const TILE_ATTRIBUTION =
@@ -90,9 +86,6 @@ export default function RouteMapCanvas(props: RouteMapCanvasProps) {
   const fittedRef = useRef<string | null>(null);
   const pendingFitRef = useRef<Bounds | null>(null);
   const focusDoneRef = useRef(-1);
-  // Day view: which stops share a pin at the drawn zoom; a zoom that changes it redraws.
-  const groupSigRef = useRef('');
-  const [regroup, setRegroup] = useState(0);
   // Leaflet handlers read the latest callbacks without re-binding.
   const cbRef = useRef(props);
   useLayoutEffect(() => {
@@ -132,13 +125,7 @@ export default function RouteMapCanvas(props: RouteMapCanvasProps) {
     // Wheel zoom only after the map is clicked or focused, so the page keeps scrolling.
     map.on('click focus', () => map.scrollWheelZoom.enable());
     map.on('blur mouseout', () => map.scrollWheelZoom.disable());
-    map.on('zoomend', () => {
-      reoffset();
-      const p = cbRef.current;
-      if (p.scope !== 'trip' && groupSignature(p.routes.filter((r) => r.date === p.scope), map.getZoom()) !== groupSigRef.current) {
-        setRegroup((n) => n + 1);
-      }
-    });
+    map.on('zoomend', reoffset);
     // After any move (zoom, pan, focus, popup autopan): labels near the edge restack against the new view.
     map.on('moveend', relabel);
     layerRef.current = L.layerGroup().addTo(map);
@@ -177,8 +164,6 @@ export default function RouteMapCanvas(props: RouteMapCanvasProps) {
     const trip = scope === 'trip';
     const isActive = (r: DayRoute) => trip || r.date === scope;
     const now = new Set(trip ? [] : nowIds);
-    // Day view groups by what overlaps at this zoom; the Trip view keeps each place's dot.
-    const zoom = trip ? null : map.getZoom();
 
     const popupFor = (g: PinGroup, route: DayRoute): HTMLElement => {
       const root = el('div', styles.popup);
@@ -186,14 +171,16 @@ export default function RouteMapCanvas(props: RouteMapCanvasProps) {
       for (const s of g.stops) {
         const block = el('div', styles.popStop);
         const head = el('p', styles.popHead);
-        head.append(el('span', styles.popNum, String(s.n)), el('span', undefined, stopTime(s.item)));
+        // Numbers belong to the chosen person's route; other plans here are listed without one.
+        if (isFocusLane(s.lane, people)) head.append(el('span', styles.popNum, String(s.n)));
+        head.append(el('span', undefined, stopTime(s.item)));
         if (s.meetUp) head.append(el('span', styles.popMeet, S.maps.meetUp));
         block.append(head, el('p', styles.popTitle, s.item.title));
         if (s.item.place.trim()) block.append(el('p', styles.popPlace, s.item.place));
         const actions = el('div', styles.popActions);
         const seg = incomingSegment(route, s.item.id, me);
         const dir = el('a', styles.popLink, S.maps.directions);
-        dir.href = directionsUrl(s, seg ? seg.from : null, seg?.mode ?? s.item.travelMode ?? 'walk');
+        dir.href = directionsUrl(s, seg ? seg.from : null);
         dir.target = '_blank';
         dir.rel = 'noopener noreferrer';
         const more = el('button', styles.popButton, S.actions.viewDetails);
@@ -212,45 +199,50 @@ export default function RouteMapCanvas(props: RouteMapCanvasProps) {
       return root;
     };
 
+    /** Every stretch looks the same but for its person's colour; Together's has a paper casing over busy tiles. */
+    const drawLine = (a: L.LatLng, b: L.LatLng, lane: Lane, focused: boolean, interactive: boolean): L.Polyline => {
+      const st = lineStyle(lane);
+      if (lane === 'together') {
+        L.polyline([a, b], { color: '#FFFDF9', weight: st.weight + 4, opacity: 0.7 * st.opacity, interactive: false }).addTo(layer);
+      }
+      return L.polyline([a, b], {
+        color: st.color,
+        weight: st.weight,
+        opacity: st.opacity * (focused ? 1 : OTHER),
+        dashArray: st.dashArray ?? undefined,
+        lineCap: 'round',
+        interactive,
+      }).addTo(layer);
+    };
+
     const drawRoute = (route: DayRoute) => {
+      // Lines run pin to pin, so a line never ends beside its pin or crosses one place.
+      const groups = groupStops(route.stops);
+      const pinOf = new Map(groups.flatMap((g) => g.stops.map((s) => [s.item.id, g] as const)));
       for (const seg of route.segments) {
-        const fade = isFocusLane(seg.lane, people) ? 1 : OTHER;
-        const st = lineStyle(seg.lane, seg.mode, seg.idea);
-        const a = L.latLng(seg.from.lat, seg.from.lng);
-        const b = L.latLng(seg.to.lat, seg.to.lng);
-        if (seg.lane === 'together') {
-          // Paper casing keeps the Ink line readable over busy tiles.
-          L.polyline([a, b], { color: '#FFFDF9', weight: st.weight + 4, opacity: 0.7 * st.opacity, interactive: false }).addTo(layer);
-        }
-        const line = L.polyline([a, b], {
-          color: st.color,
-          weight: st.weight,
-          opacity: st.opacity * fade,
-          dashArray: st.dashArray ?? undefined,
-          lineCap: 'round',
-          interactive: true,
-        }).addTo(layer);
-        {
-          const pop = el('div', styles.popup);
-          pop.append(el('p', styles.popTitle, `${seg.from.n} → ${seg.to.n}`), el('p', styles.popPlace, `${seg.from.item.title} → ${seg.to.item.title}`));
-          const dir = el('a', styles.popLink, S.maps.directions);
-          dir.href = directionsUrl(seg.to, seg.from, seg.mode);
-          dir.target = '_blank';
-          dir.rel = 'noopener noreferrer';
-          pop.append(dir);
-          line.bindPopup(pop);
-        }
+        const ga = pinOf.get(seg.from.item.id);
+        const gb = pinOf.get(seg.to.item.id);
+        if (!ga || !gb || ga === gb) continue;
+        const a = L.latLng(ga.lat, ga.lng);
+        const b = L.latLng(gb.lat, gb.lng);
+        const line = drawLine(a, b, seg.lane, isFocusLane(seg.lane, people), true);
+        const pop = el('div', styles.popup);
+        pop.append(el('p', styles.popTitle, `${stopLabel(seg.from.item)} → ${stopLabel(seg.to.item)}`));
+        const dir = el('a', styles.popLink, S.maps.directions);
+        dir.href = directionsUrl(seg.to, seg.from);
+        dir.target = '_blank';
+        dir.rel = 'noopener noreferrer';
+        pop.append(dir);
+        line.bindPopup(pop);
         lanesRef.current.push({ line, a, b, px: LANE_OFFSET_PX[seg.lane] });
       }
 
-      // Flights: a line from the departure airport (where the item's pin is) to the arrival
-      // airport, which gets a small end mark named by its code ('SYD T1').
+      // A flight with nothing after it at the arrival airport: a line there and a small end mark.
       for (const f of route.flights) {
         const focused = isFocusLane(f.lane, people);
-        const st = lineStyle(f.lane);
-        const a = L.latLng(f.from.lat, f.from.lng);
+        const from = pinOf.get(f.item.id) ?? f.from;
         const b = L.latLng(f.to.lat, f.to.lng);
-        L.polyline([a, b], { color: st.color, weight: st.weight, opacity: st.opacity * (focused ? 1 : OTHER), lineCap: 'round', interactive: false }).addTo(layer);
+        drawLine(L.latLng(from.lat, from.lng), b, f.lane, focused, false);
         const end = L.marker(b, {
           icon: L.divIcon({ className: styles.hit, html: `<span class="${styles.dot} ${styles[`lane_${f.lane}`]}" style="opacity:${focused ? 1 : OTHER}"></span>`, iconSize: [44, 44], iconAnchor: [22, 22] }),
           interactive: false,
@@ -268,56 +260,58 @@ export default function RouteMapCanvas(props: RouteMapCanvasProps) {
         labelledRef.current.push({ marker: end, faded: !focused });
       }
 
-      // Trip view labels each day once, on its first stop of the chosen person.
-      const groups = groupStops(route.stops, zoom);
-      const firstFocused = groups.findIndex((g) => isFocusLane(groupLane(g), people));
+      // Day view: the chosen person's places are numbered pins; everyone else's are faded dots.
+      // The Trip view labels each day once, on its first stop of the chosen person.
+      const firstFocused = groups.findIndex((g) => g.stops.some((s) => isFocusLane(s.lane, people)));
       groups.forEach((g, k) => {
-        const lane = groupLane(g);
-        const focused = isFocusLane(lane, people);
+        const mine = g.stops.filter((s) => isFocusLane(s.lane, people));
+        const focused = mine.length > 0;
+        const shown = focused ? mine : g.stops;
+        const lane = focused ? mine[0].lane : groupLane(g);
         const fade = focused ? 1 : OTHER;
-        const done = g.stops.every((s) => s.item.status === 'completed');
-        const meet = g.stops.some((s) => s.meetUp);
+        const done = shown.every((s) => s.item.status === 'completed');
+        const idea = shown.every((s) => s.item.status === 'idea');
+        const meet = mine.some((s) => s.meetUp);
         const isNow = g.stops.some((s) => now.has(s.item.id));
-        const numbered = !trip;
+        const numbered = !trip && focused;
         const cls = [
           numbered ? styles.pin : styles.dot,
           styles[`lane_${lane}`],
+          idea ? styles.idea : '',
           done ? styles.done : '',
           isNow ? styles.now : '',
         ]
           .filter(Boolean)
           .join(' ');
-        const text = numbered ? pinText(g.stops.map((s) => s.n)) : '';
-        const html =
-          `<span class="${cls}" style="opacity:${fade}">${text ? `<span>${text}</span>` : ''}${numbered && done ? CHECK_SVG : ''}</span>` +
-          (numbered && meet ? `<span class="${styles.meet}">${S.maps.meetUp}</span>` : '');
+        const text = numbered ? pinText(mine.map((s) => s.n)) : '';
+        const html = `<span class="${cls}" style="opacity:${fade}">${text ? `<span>${text}</span>` : ''}${numbered && done ? CHECK_SVG : ''}</span>`;
         const size = 44;
         const marker = L.marker([g.lat, g.lng], {
           icon: L.divIcon({ className: styles.hit, html, iconSize: [size, size], iconAnchor: [size / 2, size / 2], popupAnchor: [0, -12] }),
           interactive: true,
           keyboard: numbered,
-          zIndexOffset: (focused ? 1000 : 500) + (meet ? 200 : 0),
+          // Overlapping pins (zoomed out): the chosen person's on top, and of those the earlier place,
+          // so the name beside it is its own and a later one steps aside with its number.
+          zIndexOffset: (focused ? 20000 : 10000) - k * 100,
         }).addTo(layer);
         marker.bindPopup(popupFor(g, route), { maxWidth: 280, minWidth: 200 });
         const name = g.stops.map((s) => s.item.title).join(', ');
-        marker.getElement()?.setAttribute('aria-label', S.route.stopLabel(pinText(g.stops.map((s) => s.n)), name));
+        marker.getElement()?.setAttribute('aria-label', text ? S.route.stopLabel(text, name) : name);
         for (const s of g.stops) markersRef.current.set(s.item.id, marker);
-        // Every stop is named; the other person's names are faded like their pins. A shared pin
-        // lists each place once. A label moved off its pin (see relabel) shows the pin number.
-        const label = numbered
-          ? [...new Set(g.stops.map((s) => placeLabel(s.item.place, s.item.title)))].join(' · ')
-          : focused && k === firstFocused
-            ? S.time.day(dayNumbers.get(route.date) ?? 0)
-            : '';
+        // Every place is named after its first plan, the others' faded like their pins.
+        // Meet up rides in the name, so it never covers a pin next door. A label moved off
+        // its pin (see relabel) shows the pin number.
+        const label = !trip ? stopLabel(shown[0].item) : focused && k === firstFocused ? S.time.day(dayNumbers.get(route.date) ?? 0) : '';
         if (label) {
           const content = el('span');
           if (numbered) content.append(el('b', styles.labelNum, text));
+          if (numbered && meet) content.append(el('span', styles.labelMeet, S.maps.meetUp));
           content.append(label);
           marker.bindTooltip(content, {
             permanent: true,
             direction: 'right',
             offset: [numbered ? 10 : 2, 0],
-            className: numbered ? styles.label : styles.dayLabel,
+            className: trip ? styles.dayLabel : styles.label,
             // Leaflet sets the tooltip opacity inline, so the fade goes through its option.
             opacity: focused ? 0.9 : 0.55,
             interactive: false,
@@ -329,7 +323,6 @@ export default function RouteMapCanvas(props: RouteMapCanvasProps) {
 
     // Only the chosen day (or every day on Trip); other days are not drawn.
     for (const r of routes) if (isActive(r)) drawRoute(r);
-    groupSigRef.current = zoom === null ? '' : groupSignature(routes.filter(isActive), zoom);
 
     // Fit when the day or the lane changes (not on every data refresh): zoom in on the chosen
     // lane's stops; without any, on the whole day. The Trip view frames Sydney only: the
@@ -360,8 +353,7 @@ export default function RouteMapCanvas(props: RouteMapCanvasProps) {
     reoffset();
     const raf = requestAnimationFrame(relabel);
     return () => cancelAnimationFrame(raf);
-    // `regroup` only asks for a redraw; the zoom itself is read from the map.
-  }, [routes, people, scope, tripTz, nowIds, me, dayNumbers, regroup]);
+  }, [routes, people, scope, tripTz, nowIds, me, dayNumbers]);
 
   // ── focus a stop (from the list or after saving a spot) ───────
   useEffect(() => {

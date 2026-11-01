@@ -13,7 +13,7 @@ import { needsLookup, parseMapUrl } from '@/lib/maps';
 import { S } from '@/lib/strings';
 import type { ItineraryItem, Member, TripDay } from '@/lib/types';
 import RouteMapCanvas from './RouteMapCanvas';
-import { buildTripRoutes, narrowRoute, stopTime } from './routeLogic';
+import { buildTripRoutes, narrowRoute, placeRuns, stopTime } from './routeLogic';
 import styles from './route.module.css';
 
 export interface RouteViewProps {
@@ -195,6 +195,14 @@ export default function RouteView({
       <div className={styles.legend} aria-label={S.route.legendLabel} role="group">
         <ul className={styles.legendKeys}>
           <li>
+            <i className={[styles.pinSwatch, styles.lane_together].join(' ')} aria-hidden="true" />
+            {S.route.pinPlanned}
+          </li>
+          <li>
+            <i className={[styles.pinSwatch, styles.lane_together, styles.idea].join(' ')} aria-hidden="true" />
+            {S.route.pinIdea}
+          </li>
+          <li>
             <i className={styles.swatch} aria-hidden="true" />
             {S.people.participants.together}
           </li>
@@ -211,23 +219,41 @@ export default function RouteView({
 
       {dayRoute ? (
         dayRoute.stops.length ? (
+          // One number per place (the map pin's); that place's plans hang under it on one line.
           <ol className={styles.stops} aria-label={S.route.stopsLabel}>
-            {dayRoute.stops.map((s) => (
-              <li key={s.item.id}>
-                <button type="button" className={styles.stop} onClick={() => focusStop(s.item.id)} aria-label={S.route.showOnMap(s.item.title)}>
-                  <span className={[styles.num, styles[`lane_${s.lane}`], s.item.status === 'idea' ? styles.idea : ''].join(' ')} aria-hidden="true">
-                    {s.n}
-                  </span>
-                  <span className={styles.stopTime}>{stopTime(s.item)}</span>
-                  <span className={styles.stopText}>
-                    <span className={styles.stopTitle}>{s.item.title}</span>
-                    {s.item.place.trim() && <span className={styles.stopPlace}>{s.item.place}</span>}
-                  </span>
-                  <span className={styles.stopMarks}>
-                    {s.meetUp && <Badge tone="soft">{S.maps.meetUp}</Badge>}
-                    {s.lane !== 'together' && <MemberMarks who={s.lane} size="sm" />}
-                  </span>
-                </button>
+            {placeRuns(dayRoute.stops).map((run) => (
+              <li
+                key={run.stops[0].item.id}
+                className={[styles.place, styles[`lane_${run.stops[0].lane}`], run.stops.length > 1 ? styles.placeMany : ''].join(' ')}
+              >
+                <span
+                  className={[styles.num, run.stops.every((s) => s.item.status === 'idea') ? styles.idea : ''].join(' ')}
+                  aria-hidden="true"
+                >
+                  {run.n}
+                </span>
+                <ul className={styles.placeStops}>
+                  {run.stops.map((s) => (
+                    <li key={s.item.id}>
+                      <button
+                        type="button"
+                        className={styles.stop}
+                        onClick={() => focusStop(s.item.id)}
+                        aria-label={S.route.showOnMap(`${run.n}. ${s.item.title}`)}
+                      >
+                        <span className={styles.stopTime}>{stopTime(s.item)}</span>
+                        <span className={styles.stopText}>
+                          <span className={styles.stopTitle}>{s.item.title}</span>
+                          {s.item.place.trim() && <span className={styles.stopPlace}>{s.item.place}</span>}
+                        </span>
+                        <span className={styles.stopMarks}>
+                          {s.meetUp && <Badge tone="soft">{S.maps.meetUp}</Badge>}
+                          {s.lane !== 'together' && <MemberMarks who={s.lane} size="sm" />}
+                        </span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
               </li>
             ))}
           </ol>

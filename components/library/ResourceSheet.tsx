@@ -1,13 +1,14 @@
 'use client';
 // Save / edit a link (plan §7.7): http(s) only, duplicate URLs point to the
-// saved item, up to four pinned, links to itinerary plans.
+// saved item, up to four pinned. Where it is used shows as tags; the links
+// themselves are made on an itinerary plan (owner, 2026-11-01).
 import { useState } from 'react';
 import { CheckField, ConfirmDelete, ConflictBlock } from '@/components/checklist/FormBits';
 import { useDraft } from '@/components/checklist/useDraft';
 import { useSaveFlow } from '@/components/checklist/useSaveFlow';
-import { Button, Field, IconButton, SaveStatus, Select, Sheet, TextArea, TextInput, SegmentedControl } from '@/components/ui';
+import { Button, Field, SaveStatus, Sheet, TextArea, TextInput, SegmentedControl } from '@/components/ui';
 import { newId, useLibrary } from '@/lib/data';
-import type { ItineraryItem, Member, Resource, ResourceCategory } from '@/lib/types';
+import type { Member, Resource, ResourceCategory } from '@/lib/types';
 import { S } from '@/lib/strings';
 import type { LinkTag } from './ResourceCard';
 import { findDuplicate, isHttpUrl, MAX_PINNED, nextPinSlot } from './libraryLogic';
@@ -42,7 +43,6 @@ export function ResourceSheet({
   category,
   resources,
   tags,
-  itineraryOptions,
   me,
   partner,
   members,
@@ -53,9 +53,8 @@ export function ResourceSheet({
   resource: Resource | null;
   category: ResourceCategory | null;
   resources: Resource[];
-  /** Links of this resource (with ids to unlink). */
-  tags: Array<LinkTag & { linkId: string }>;
-  itineraryOptions: Array<{ item: ItineraryItem; label: string }>;
+  /** Where this resource is linked. */
+  tags: LinkTag[];
   me: Member | null;
   partner: Member | null;
   members: Member[];
@@ -66,7 +65,6 @@ export function ResourceSheet({
   const [draft, patch] = useDraft<Draft>(open, resource?.id ?? null, () => toDraft(resource, category));
   const save = useSaveFlow<Resource>();
   const [tried, setTried] = useState(false);
-  const [linkTo, setLinkTo] = useState('');
   const isNew = !resource;
 
   const duplicate = isHttpUrl(draft.url) ? findDuplicate(draft.url, resources, resource?.id ?? null) : null;
@@ -95,12 +93,6 @@ export function ResourceSheet({
     if (!resource) return;
     const result = await save.run(() => lib.remove(resource.id, draft.version));
     if (result.ok) onClose();
-  };
-
-  const addLink = async (itemId: string) => {
-    if (!resource || !itemId) return;
-    setLinkTo('');
-    await lib.linkResource({ resourceId: resource.id, itineraryItemId: itemId, preludeActivityId: null, documentId: null });
   };
 
   const savedBy = resource?.createdBy ? members.find((m) => m.id === resource.createdBy)?.displayName : null;
@@ -195,21 +187,11 @@ export function ResourceSheet({
                     <button type="button" className={styles.tag} onClick={t.onClick}>
                       {t.label}
                     </button>
-                    <IconButton icon="close" label={S.library.unlinkFrom(t.label)} onClick={() => void lib.unlinkResource(t.linkId)} />
                   </li>
                 ))}
               </ul>
             )}
-            <Field label={S.actions.linkToItinerary} hideLabel>
-              <Select
-                value={linkTo}
-                onChange={(e) => void addLink(e.target.value)}
-                options={[
-                  { value: '', label: `${S.actions.linkToItinerary}…` },
-                  ...itineraryOptions.map((o) => ({ value: o.item.id, label: o.label })),
-                ]}
-              />
-            </Field>
+            <p className={form.hint}>{tags.length ? S.library.linkedHint : S.library.notLinked}</p>
           </fieldset>
         )}
         <button type="submit" hidden />

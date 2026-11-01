@@ -3,7 +3,7 @@
 import { matchesFilter, type PeopleFilter } from '@/components/itinerary/logic';
 import { formatWallTime, S } from '@/lib/strings';
 import { zonedToInstant } from '@/lib/time/zone';
-import type { ItineraryItem, TravelMode, TripDay } from '@/lib/types';
+import type { ItineraryItem, TripDay } from '@/lib/types';
 
 export type Lane = 'together' | 'eren' | 'amy';
 
@@ -14,7 +14,10 @@ export interface LatLng {
 
 export interface RouteStop {
   item: ItineraryItem;
-  /** 1-based order among the visible stops of its day. */
+  /**
+   * Place number on its own person's route that day (owner, 2026-11-01): it goes up
+   * only when the place changes, so plans in a row at one place share the first one's.
+   */
   n: number;
   lat: number;
   lng: number;
@@ -30,11 +33,13 @@ export interface RouteSegment {
   from: RouteStop;
   to: RouteStop;
   lane: Lane;
-  mode: TravelMode;
   idea: boolean;
 }
 
-/** A flight drawn from airport to airport (its item sits at the departure airport). */
+/**
+ * A flight drawn to its arrival airport, which gets a small end mark ('SYD T1'). Only
+ * when nothing later that day is already there: then the order line goes there instead.
+ */
 export interface FlightLeg {
   id: string;
   item: ItineraryItem;
@@ -113,16 +118,55 @@ export function flightAirports(i: Pick<ItineraryItem, 'place'>): { from: LatLng 
   return from && to ? { from, to } : null;
 }
 
-/** Where an item sits on the map: its own spot, else (a flight) its departure airport. */
-function spotOf(i: ItineraryItem): LatLng | null {
-  if (hasCoords(i)) return { lat: i.mapLat!, lng: i.mapLng! };
-  return flightAirports(i)?.from ?? null;
+/** Plans this close are one place: two links for one place rarely give the same point. */
+export const SAME_PLACE_M = 150;
+/** A flight leaves from, and lands at, a stop already at its airport within this. */
+const AIRPORT_AREA_M = 3000;
+
+export function metresBetween(a: LatLng, b: LatLng): number {
+  const dx = (a.lng - b.lng) * 111320 * Math.cos((((a.lat + b.lat) / 2) * Math.PI) / 180);
+  const dy = (a.lat - b.lat) * 110540;
+  return Math.hypot(dx, dy);
 }
-const sameSpot = (a: ItineraryItem, b: ItineraryItem) => {
-  const p = spotOf(a);
-  const q = spotOf(b);
-  return !!p && !!q && p.lat === q.lat && p.lng === q.lng;
-};
+
+function nearest<T extends LatLng>(points: T[], to: LatLng, within: number): T | null {
+  let best: T | null = null;
+  let bestM = within;
+  for (const p of points) {
+    const m = metresBetween(p, to);
+    if (m <= bestM) {
+      best = p;
+      bestM = m;
+    }
+  }
+  return best;
+}
+
+/**
+ * Where each item sits: its own spot; a flight without one leaves from where its people
+ * already are when that is at the departure airport (so check-in and flight are one
+ * place), else from the airport itself.
+ */
+function spotsOf(ordered: ItineraryItem[]): Map<string, LatLng> {
+  const spots = new Map<string, LatLng>();
+  const last: Partial<Record<Lane, LatLng>> = {};
+  for (const i of ordered) {
+    const lane = laneOf(i);
+    if (hasCoords(i)) {
+      const p = { lat: i.mapLat!, lng: i.mapLng! };
+      spots.set(i.id, p);
+      last[lane] = p;
+      continue;
+    }
+    const air = flightAirports(i);
+    if (!air) continue;
+    const before = last[lane];
+    const p = before && metresBetween(before, air.from) <= AIRPORT_AREA_M ? before : { lat: air.from.lat, lng: air.from.lng };
+    spots.set(i.id, p);
+    last[lane] = p;
+  }
+  return spots;
+}
 
 /**
  * One day's stops and order lines. Paths are walked per person over every placed stop
@@ -134,8 +178,9 @@ const sameSpot = (a: ItineraryItem, b: ItineraryItem) => {
 export function buildDayRoute(items: ItineraryItem[], date: string, filter: PeopleFilter, tripTz: string): DayRoute {
   void tripTz; // every zone is drawn now; kept for callers
   const ordered = orderForRoute(items.filter((i) => i.date === date && onRouteMap(i)));
-  const placed = ordered.filter((i) => spotOf(i));
-  const notOnMap = ordered.filter((i) => !spotOf(i) && matchesFilter(i, filter));
+  const spots = spotsOf(ordered);
+  const placed = ordered.filter((i) => spots.has(i.id));
+  const notOnMap = ordered.filter((i) => !spots.has(i.id) && matchesFilter(i, filter));
 
   const raw: Array<{ from: ItineraryItem; to: ItineraryItem; lane: Lane }> = [];
   const meetUps = new Set<string>();
@@ -164,36 +209,47 @@ export function buildDayRoute(items: ItineraryItem[], date: string, filter: Peop
     }
   }
 
+  // Each person's route is numbered on its own, by place: the number goes up only when
+  // the place changes from that route's previous stop (measured from the first plan there).
+  const at: Record<Lane, { n: number; spot: LatLng | null }> = {
+    together: { n: 0, spot: null },
+    eren: { n: 0, spot: null },
+    amy: { n: 0, spot: null },
+  };
   const stops: RouteStop[] = placed
     .filter((i) => matchesFilter(i, filter))
-    .map((item, k) => ({
-      item,
-      n: k + 1,
-      lat: spotOf(item)!.lat,
-      lng: spotOf(item)!.lng,
-      lane: laneOf(item),
-      timed: isTimed(item),
-      meetUp: meetUps.has(item.id),
-    }));
+    .map((item) => {
+      const p = spots.get(item.id)!;
+      const lane = laneOf(item);
+      const run = at[lane];
+      if (!run.spot || metresBetween(run.spot, p) > SAME_PLACE_M) {
+        run.n += 1;
+        run.spot = p;
+      }
+      return { item, n: run.n, lat: p.lat, lng: p.lng, lane, timed: isTimed(item), meetUp: meetUps.has(item.id) };
+    });
   const stopById = new Map(stops.map((s) => [s.item.id, s]));
   const segments: RouteSegment[] = [];
   for (const r of raw) {
     const from = stopById.get(r.from.id);
     const to = stopById.get(r.to.id);
-    if (!from || !to || !laneVisible(r.lane, filter) || sameSpot(r.from, r.to)) continue;
+    if (!from || !to || !laneVisible(r.lane, filter)) continue;
+    // No line inside one place: on one route that is the same number; between routes, the same spot.
+    if (from.lane === to.lane ? from.n === to.n : metresBetween(from, to) <= SAME_PLACE_M) continue;
     segments.push({
       id: `${r.from.id}>${r.to.id}:${r.lane}`,
       from,
       to,
       lane: r.lane,
-      mode: r.to.travelMode ?? 'walk',
       idea: r.from.status === 'idea' || r.to.status === 'idea',
     });
   }
   const flights: FlightLeg[] = [];
   for (const s of stops) {
     const air = flightAirports(s.item);
-    if (air) flights.push({ id: `${s.item.id}:flight`, item: s.item, lane: s.lane, from: air.from, to: air.to });
+    // An order line from this flight already lands at the arrival airport: no second line or label.
+    if (!air || segments.some((g) => g.from === s && metresBetween(g.to, air.to) <= AIRPORT_AREA_M)) continue;
+    flights.push({ id: `${s.item.id}:flight`, item: s.item, lane: s.lane, from: { lat: s.lat, lng: s.lng, code: air.from.code }, to: air.to });
   }
   return { date, stops, segments, flights, notOnMap };
 }
@@ -204,8 +260,7 @@ export function buildTripRoutes(items: ItineraryItem[], days: Pick<TripDay, 'dat
 
 /**
  * One person's view of an everyone route (the map keeps drawing everyone and only
- * fades the other person): their stops and lines with the SAME numbers as the map,
- * and their unplaced items.
+ * fades the others): that route's stops, lines and numbers, and its unplaced items.
  */
 export function narrowRoute(route: DayRoute, filter: PeopleFilter): DayRoute {
   return {
@@ -234,9 +289,9 @@ export interface LineStyle {
 
 /**
  * Lines differ only by person (owner, 2026-11-01): Together Ink, Eren Harbour Blue,
- * Amy Brass, all solid. Travel mode and Idea status are not drawn differently.
+ * Amy Brass, all solid. How we travel (car, train, on foot) is not told apart.
  */
-export function lineStyle(lane: Lane, _mode?: TravelMode, _idea?: boolean): LineStyle {
+export function lineStyle(lane: Lane): LineStyle {
   return { color: LANE_COLOR[lane], weight: lane === 'together' ? 4 : 3.5, opacity: 0.9, dashArray: null };
 }
 
@@ -270,41 +325,38 @@ export interface PinGroup {
   stops: RouteStop[];
 }
 
-/** Two links for one place rarely give the same point; within this distance they are one pin. */
-export const SAME_PLACE_M = 80;
-
-export function metresBetween(a: LatLng, b: LatLng): number {
-  const dx = (a.lng - b.lng) * 111320 * Math.cos((((a.lat + b.lat) / 2) * Math.PI) / 180);
-  const dy = (a.lat - b.lat) * 110540;
-  return Math.hypot(dx, dy);
-}
-
-/** Metres one screen pixel covers at this zoom and latitude (Web Mercator tiles). */
-export function metresPerPixel(lat: number, zoom: number): number {
-  return (156543.03392 * Math.cos((lat * Math.PI) / 180)) / 2 ** zoom;
-}
-
-/** Numbered pins closer than this on screen overlap, so they are drawn as one. */
-export const PIN_OVERLAP_PX = 30;
-
 /**
- * With a zoom, stops whose pins would overlap on screen share one pin too (owner,
- * 2026-11-01: overlapping 1, 2, 3 show as a single 1); zooming in parts them again.
+ * Pins follow the numbers: one place of a route (same person, same number) is one pin, as
+ * in the list. Otherwise a stop joins the nearest pin of the same spot, but never one that
+ * holds another place of its own route (a place come back to later is the same spot, so it
+ * still joins: '1·3'). Pins stay where their first stop is.
  */
-export function groupStops(stops: RouteStop[], zoom: number | null = null): PinGroup[] {
+export function groupStops(stops: RouteStop[]): PinGroup[] {
   const groups: PinGroup[] = [];
   for (const s of stops) {
-    const near = zoom === null ? SAME_PLACE_M : Math.max(SAME_PLACE_M, PIN_OVERLAP_PX * metresPerPixel(s.lat, zoom));
-    const g = groups.find((x) => metresBetween(x, s) <= near);
+    const own = groups.find((g) => g.stops.some((t) => t.lane === s.lane && t.n === s.n));
+    const fits = (g: PinGroup) => g.stops.every((t) => t.lane !== s.lane || metresBetween(t, s) <= SAME_PLACE_M);
+    const g = own ?? nearest(groups.filter(fits), s, SAME_PLACE_M);
     if (g) g.stops.push(s);
     else groups.push({ key: `${s.lat.toFixed(5)},${s.lng.toFixed(5)}`, lat: s.lat, lng: s.lng, stops: [s] });
   }
   return groups;
 }
 
-/** A shared pin shows its first number only ('1' for stops 1–3); the popup lists them all (owner, 2026-11-01). */
+/** A pin's number: its place's ('1' for plans 1–3 there); a place come back to later shows both ('1·3'). */
 export function pinText(ns: number[]): string {
-  return ns.length ? String(ns[0]) : '';
+  return [...new Set(ns)].sort((a, b) => a - b).join('·');
+}
+
+/** The stops list: one entry per place number, its plans in order under it (owner, 2026-11-01). */
+export function placeRuns(stops: RouteStop[]): Array<{ n: number; stops: RouteStop[] }> {
+  const runs: Array<{ n: number; stops: RouteStop[] }> = [];
+  for (const s of stops) {
+    const last = runs[runs.length - 1];
+    if (last && last.n === s.n && last.stops[0].lane === s.lane) last.stops.push(s);
+    else runs.push({ n: s.n, stops: [s] });
+  }
+  return runs;
 }
 
 /** Shared pins take Together's colour when people differ. */
@@ -316,6 +368,11 @@ export function placeLabel(place: string, title: string): string {
   const dest = place.split('→').pop() ?? '';
   const head = dest.split('·')[0].trim();
   return head || title.trim();
+}
+
+/** A stop's name on the map: a flight is named by where it leaves from (its pin is there). */
+export function stopLabel(i: Pick<ItineraryItem, 'place' | 'title'>): string {
+  return flightAirports(i)?.from.code ?? placeLabel(i.place, i.title);
 }
 
 export type Bounds = [[number, number], [number, number]];
@@ -346,13 +403,15 @@ export function stopTime(i: Pick<ItineraryItem, 'timeKind' | 'startTime' | 'endT
 }
 
 // ── links ────────────────────────────────────────────────────────
-const GMAPS_MODE: Record<TravelMode, string> = { walk: 'walking', transit: 'transit', drive: 'driving' };
 const coord = (p: LatLng) => `${+p.lat.toFixed(6)},${+p.lng.toFixed(6)}`;
 
-/** Google Maps directions by coordinates. Without an origin Google starts from the viewer's location. */
-export function directionsUrl(to: LatLng, from: LatLng | null, mode: TravelMode): string {
+/**
+ * Google Maps directions by coordinates; Google picks how to get there (the app does not
+ * tell car, train and walking apart). Without an origin Google starts from the viewer.
+ */
+export function directionsUrl(to: LatLng, from: LatLng | null): string {
   const origin = from ? `&origin=${coord(from)}` : '';
-  return `https://www.google.com/maps/dir/?api=1${origin}&destination=${coord(to)}&travelmode=${GMAPS_MODE[mode]}`;
+  return `https://www.google.com/maps/dir/?api=1${origin}&destination=${coord(to)}`;
 }
 
 /** The line arriving at a stop; at a meet-up, the viewer's own lane first. */

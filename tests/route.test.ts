@@ -12,12 +12,13 @@ import {
   isFocusLane,
   lineStyle,
   metresBetween,
-  metresPerPixel,
   narrowRoute,
   offsetSegment,
   orderForRoute,
   pinText,
   placeLabel,
+  placeRuns,
+  stopLabel,
 } from '@/components/route/routeLogic';
 import { stackLabels } from '@/lib/mapLabels';
 import { SEOUL_TZ, SYDNEY_TZ } from '@/lib/time/zone';
@@ -115,7 +116,7 @@ describe('buildDayRoute', () => {
     expect(r.stops.find((s) => s.item.id === 't1')?.meetUp).toBe(true);
   });
 
-  it('Eren filter keeps Together + Eren stops and lines, renumbered; meet-up still known', () => {
+  it('Eren filter keeps Together + Eren stops and lines; each route numbered on its own; meet-up still known', () => {
     const xs = [
       at('t1', '09:00'),
       at('e1', '10:00', { participants: 'eren' }),
@@ -127,25 +128,50 @@ describe('buildDayRoute', () => {
     const r = buildDayRoute(xs, D, 'eren', SYDNEY_TZ);
     expect(r.stops.map((s) => [s.item.id, s.n])).toEqual([
       ['t1', 1],
-      ['e1', 2],
-      ['t2', 3],
+      ['e1', 1],
+      ['t2', 2],
     ]);
     expect(segs(r)).toEqual(['t1>e1:eren', 'e1>t2:eren']);
     expect(r.stops[2].meetUp).toBe(true);
     expect(r.notOnMap.map((i) => i.id)).toEqual(['e-nocoords']);
   });
 
-  it('takes the travel mode of the stop it arrives at (walk by default) and goes faint for ideas', () => {
+  it('marks lines into ideas; how we travel is not part of a line', () => {
     const r = buildDayRoute(
       [at('a', '09:00'), at('b', '10:00', { travelMode: 'transit' }), at('c', '11:00', { status: 'idea' })],
       D,
       'together',
       SYDNEY_TZ,
     );
-    expect(r.segments.map((s) => [s.mode, s.idea])).toEqual([
-      ['transit', false],
-      ['walk', true],
+    expect(r.segments.map((s) => s.idea)).toEqual([false, true]);
+    expect(r.segments.every((s) => !('mode' in s))).toBe(true);
+  });
+
+  it('numbers places, not plans: plans in a row at one place share the first one’s number', () => {
+    const P = { mapLat: -33.86, mapLng: 151.2 };
+    const near = { mapLat: -33.8602, mapLng: 151.2003 }; // ~35 m from P: the same place
+    const Q = { mapLat: -33.865, mapLng: 151.2 }; // ~550 m away
+    const r = buildDayRoute(
+      [at('a', '09:00', P), at('b', '10:00', near), at('c', '11:00', P), at('d', '12:00', Q), at('e', '13:00', P)],
+      D,
+      'together',
+      SYDNEY_TZ,
+    );
+    expect(r.stops.map((s) => [s.item.id, s.n])).toEqual([
+      ['a', 1],
+      ['b', 1],
+      ['c', 1],
+      ['d', 2],
+      ['e', 3], // back to P later: a new number
     ]);
+    expect(placeRuns(r.stops).map((p) => [p.n, ids(p.stops)])).toEqual([
+      [1, ['a', 'b', 'c']],
+      [2, ['d']],
+      [3, ['e']],
+    ]);
+    // No zero-length lines inside a place; P's pin shows both of its numbers.
+    expect(segs(r)).toEqual(['c>d:together', 'd>e:together']);
+    expect(groupStops(r.stops).map((g) => pinText(g.stops.map((x) => x.n)))).toEqual(['1·3', '2']);
   });
 
   it('skips zero-length lines between stops at the same spot', () => {
@@ -165,26 +191,20 @@ describe('buildDayRoute', () => {
 });
 
 describe('lineStyle', () => {
-  it('tells people apart only: solid, same look for every mode and status', () => {
-    for (const m of ['walk', 'transit', 'drive'] as const) {
-      for (const idea of [true, false]) {
-        expect(lineStyle('eren', m, idea)).toEqual({ color: '#286A82', weight: 3.5, opacity: 0.9, dashArray: null });
-      }
-    }
+  it('tells people apart only: solid, one look for every way of travelling', () => {
+    expect(lineStyle('eren')).toEqual({ color: '#286A82', weight: 3.5, opacity: 0.9, dashArray: null });
     expect(lineStyle('amy').color).toBe('#A98248');
     expect(lineStyle('together')).toMatchObject({ color: '#172F3B', weight: 4, dashArray: null });
   });
 });
 
 describe('directionsUrl', () => {
-  it('builds a Google Maps directions link by coordinates', () => {
-    expect(directionsUrl({ lat: -33.86, lng: 151.21 }, { lat: -33.8731, lng: 151.2065 }, 'walk')).toBe(
-      'https://www.google.com/maps/dir/?api=1&origin=-33.8731,151.2065&destination=-33.86,151.21&travelmode=walking',
+  it('builds a Google Maps directions link by coordinates; Google picks the way', () => {
+    expect(directionsUrl({ lat: -33.86, lng: 151.21 }, { lat: -33.8731, lng: 151.2065 })).toBe(
+      'https://www.google.com/maps/dir/?api=1&origin=-33.8731,151.2065&destination=-33.86,151.21',
     );
-    expect(directionsUrl({ lat: -33.86, lng: 151.21 }, null, 'drive')).toBe(
-      'https://www.google.com/maps/dir/?api=1&destination=-33.86,151.21&travelmode=driving',
-    );
-    expect(directionsUrl({ lat: 12.345678912, lng: 45.6 }, null, 'transit')).toContain('destination=12.345679,45.6&travelmode=transit');
+    expect(directionsUrl({ lat: -33.86, lng: 151.21 }, null)).toBe('https://www.google.com/maps/dir/?api=1&destination=-33.86,151.21');
+    expect(directionsUrl({ lat: 12.345678912, lng: 45.6 }, null)).toContain('destination=12.345679,45.6');
   });
 
   it('incomingSegment prefers the viewer’s lane at a meet-up', () => {
@@ -201,10 +221,10 @@ describe('directionsUrl', () => {
 });
 
 describe('pins and labels', () => {
-  it('pinText shows the first number of a shared pin', () => {
+  it('pinText: one number per place, each place number once', () => {
     expect(pinText([3])).toBe('3');
-    expect(pinText([1, 2, 3])).toBe('1');
-    expect(pinText([2, 5, 6])).toBe('2');
+    expect(pinText([1, 1, 1])).toBe('1');
+    expect(pinText([3, 1, 1])).toBe('1·3');
     expect(pinText([])).toBe('');
   });
 
@@ -223,12 +243,48 @@ describe('pins and labels', () => {
     expect(metresBetween({ lat: -33.86, lng: 151.2 }, { lat: -33.8602, lng: 151.2003 })).toBeLessThan(80);
   });
 
-  it('groupStops with a zoom joins pins that would overlap on screen, and parts them zoomed in', () => {
-    const r = buildDayRoute([at('a', '09:00', { mapLat: -33.86, mapLng: 151.2 }), at('b', '10:00', { mapLat: -33.863, mapLng: 151.2 })], D, 'together', SYDNEY_TZ); // ~330 m
-    expect(groupStops(r.stops)).toHaveLength(2);
-    expect(groupStops(r.stops, 12)).toHaveLength(1); // ~32 m a pixel: 30 px ≈ 950 m
-    expect(groupStops(r.stops, 17)).toHaveLength(2); // ~1 m a pixel
-    expect(metresPerPixel(0, 0)).toBeCloseTo(156543.03, 1);
+  it('lines follow the numbers: none inside one place, always one between two places', () => {
+    const r = buildDayRoute(
+      [
+        at('a', '09:00', { mapLat: -33.87, mapLng: 151.2 }),
+        at('b', '10:00', { mapLat: -33.87127, mapLng: 151.2 }), // 140 m on: still place 1
+        at('c', '11:00', { mapLat: -33.87254, mapLng: 151.2 }), // 281 m from a: place 2, only 140 m from b
+      ],
+      D,
+      'together',
+      SYDNEY_TZ,
+    );
+    expect(r.stops.map((s) => s.n)).toEqual([1, 1, 2]);
+    expect(segs(r)).toEqual(['b>c:together']);
+  });
+
+  it('pins agree with the numbers even when a stop is nearer another place’s first plan', () => {
+    const r = buildDayRoute(
+      [
+        at('a', '09:00', { mapLat: -33.87, mapLng: 151.2 }),
+        at('b', '10:00', { mapLat: -33.8722, mapLng: 151.2 }), // 243 m from a: place 2
+        at('c', '11:00', { mapLat: -33.87105, mapLng: 151.2008 }), // 147 m from b (place 2), 138 m from a
+      ],
+      D,
+      'together',
+      SYDNEY_TZ,
+    );
+    expect(r.stops.map((s) => s.n)).toEqual([1, 2, 2]);
+    expect(groupStops(r.stops).map((g) => ids(g.stops))).toEqual([['a'], ['b', 'c']]);
+  });
+
+  it('groupStops never moves a place onto another: each stop joins the nearest pin of its own place', () => {
+    const r = buildDayRoute(
+      [
+        at('a', '09:00', { mapLat: -33.86, mapLng: 151.2 }),
+        at('c', '10:00', { mapLat: -33.8624, mapLng: 151.2 }), // ~265 m from a
+        at('b', '11:00', { mapLat: -33.8613, mapLng: 151.2 }), // ~145 m from a, ~120 m from c: c's place
+      ],
+      D,
+      'together',
+      SYDNEY_TZ,
+    );
+    expect(groupStops(r.stops).map((g) => ids(g.stops))).toEqual([['a'], ['c', 'b']]);
   });
 
   it('groupLane: shared pin of different people is Together', () => {
@@ -243,10 +299,12 @@ describe('pins and labels', () => {
     expect(groupLane(g)).toBe('together');
   });
 
-  it('placeLabel takes the destination and the first part', () => {
+  it('placeLabel takes the destination and the first part; a flight is named where it leaves', () => {
     expect(placeLabel('Plaza → Hilltown', 'Train')).toBe('Hilltown');
     expect(placeLabel('Plaza Station · south concourse', 'Piano')).toBe('Plaza Station');
     expect(placeLabel('  ', 'Lunch')).toBe('Lunch');
+    expect(stopLabel({ place: 'Plaza → Hilltown', title: 'Train' })).toBe('Hilltown');
+    expect(stopLabel({ place: 'ICN T1 → SYD T1', title: 'Flight' })).toBe('ICN T1');
   });
 
   it('stackLabels keeps every label, stepping overlapping ones down then up', () => {
@@ -308,31 +366,96 @@ describe('flights', () => {
     expect(flightAirports({ place: 'Harbour walk' })).toBeNull();
   });
 
-  it('a flight without its own spot is a stop at the departure airport with a leg to arrival', () => {
+  const fly = (id: string, startTime: string, place: string, timezone = SEOUL_TZ) =>
+    item(id, { date: D, startTime, timezone, category: 'transport', place });
+
+  it('a flight leaves from the stop already at its airport (one place, one number) and is drawn to arrival', () => {
+    const r = buildDayRoute(
+      [at('checkin', '19:30', { timezone: SEOUL_TZ, mapLat: 37.447, mapLng: 126.4489 }), fly('fly', '21:50', 'ICN T1 → SYD T1')],
+      D,
+      'together',
+      SYDNEY_TZ,
+    );
+    expect(r.stops.map((s) => [s.item.id, s.n, s.lat])).toEqual([
+      ['checkin', 1, 37.447],
+      ['fly', 1, 37.447],
+    ]);
+    expect(r.notOnMap).toEqual([]);
+    expect(r.segments).toEqual([]);
+    expect(r.flights.map((f) => [f.item.id, f.from.code, f.from.lat, f.to.code, f.lane])).toEqual([['fly', 'ICN T1', 37.447, 'SYD T1', 'together']]);
+    expect(narrowRoute(r, 'eren').flights).toEqual([]);
+  });
+
+  it('without a stop at the airport a flight leaves from the airport itself', () => {
+    const r = buildDayRoute([at('hotel', '08:00'), fly('fly', '12:15', 'SYD T1 → ICN T1', SYDNEY_TZ)], D, 'together', SYDNEY_TZ);
+    expect(r.stops.map((s) => [s.item.id, s.n])).toEqual([
+      ['hotel', 1],
+      ['fly', 2],
+    ]);
+    expect(r.stops[1].lat).toBeCloseTo(-33.9361, 4);
+  });
+
+  it('a stop already at the arrival airport takes the line: no second line, no second ICN label', () => {
     const r = buildDayRoute(
       [
-        at('dinner', '19:30', { timezone: SEOUL_TZ, mapLat: 37.45, mapLng: 126.45 }),
-        item('fly', { date: D, startTime: '21:50', timezone: SEOUL_TZ, category: 'transport', place: 'ICN T1 → SYD T1' }),
+        at('airport', '09:15', { mapLat: -33.9361, mapLng: 151.1659 }),
+        fly('fly', '12:15', 'SYD T1 → ICN T1', SYDNEY_TZ),
+        at('home', '21:15', { timezone: SEOUL_TZ, mapLat: 37.447, mapLng: 126.4489 }),
       ],
       D,
       'together',
       SYDNEY_TZ,
     );
-    expect(ids(r.stops)).toEqual(['dinner', 'fly']);
-    expect(r.notOnMap).toEqual([]);
-    expect(r.flights.map((f) => [f.item.id, f.from.code, f.to.code, f.lane])).toEqual([['fly', 'ICN T1', 'SYD T1', 'together']]);
-    expect(narrowRoute(r, 'eren').flights).toEqual([]);
+    expect(r.stops.map((s) => [s.item.id, s.n])).toEqual([
+      ['airport', 1],
+      ['fly', 1],
+      ['home', 2],
+    ]);
+    expect(r.flights).toEqual([]);
+    expect(segs(r)).toEqual(['fly>home:together']);
+  });
+
+  it('a stop at the arrival airport with no time draws no line, so the flight keeps its own', () => {
+    const r = buildDayRoute(
+      [
+        at('airport', '09:15', { mapLat: -33.9361, mapLng: 151.1659 }),
+        fly('fly', '12:15', 'SYD T1 → ICN T1', SYDNEY_TZ),
+        at('home', null, { timezone: SEOUL_TZ, mapLat: 37.447, mapLng: 126.4489 }),
+      ],
+      D,
+      'together',
+      SYDNEY_TZ,
+    );
+    expect(r.flights.map((f) => f.to.code)).toEqual(['ICN T1']);
+  });
+
+  it('a flight leaves from where its people last were, not from another stop near the airport', () => {
+    const r = buildDayRoute(
+      [
+        at('checkin', '18:50', { timezone: SEOUL_TZ, mapLat: 37.4493, mapLng: 126.4509 }),
+        at('dinner', '19:30', { timezone: SEOUL_TZ, mapLat: 37.4475, mapLng: 126.4525 }), // 244 m on: place 2
+        fly('fly', '21:50', 'ICN T1 → SYD T1'),
+      ],
+      D,
+      'together',
+      SYDNEY_TZ,
+    );
+    expect(r.stops.map((s) => [s.item.id, s.n])).toEqual([
+      ['checkin', 1],
+      ['dinner', 2],
+      ['fly', 2],
+    ]);
   });
 });
 
 describe('people filter on the map', () => {
-  it('narrowRoute keeps the map numbers and only the chosen lane', () => {
+  it('narrowRoute keeps only the chosen route, numbered 1, 2, … without gaps', () => {
     const all = buildDayRoute([at('t1', '09:00'), at('a1', '10:00', { participants: 'amy' }), at('e1', '10:30', { participants: 'eren' }), at('t2', '11:00')], D, 'together', SYDNEY_TZ);
     const eren = narrowRoute(all, 'eren');
-    expect(eren.stops.map((x) => [x.item.id, x.n])).toEqual([['e1', 3]]);
+    expect(eren.stops.map((x) => [x.item.id, x.n])).toEqual([['e1', 1]]);
     expect(segs(eren).every((id) => id.endsWith(':eren'))).toBe(true);
     const together = narrowRoute(all, 'together');
-    expect(together.stops.map((x) => [x.item.id, x.n])).toEqual([['t1', 1], ['t2', 4]]);
+    expect(together.stops.map((x) => [x.item.id, x.n])).toEqual([['t1', 1], ['t2', 2]]);
     expect(segs(together).every((id) => id.endsWith(':together'))).toBe(true);
   });
   it('isFocusLane keeps each lane on its own (Together excludes the solo plans)', () => {

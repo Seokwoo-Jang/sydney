@@ -3,11 +3,14 @@
 // Saves with the version the form was opened with; a conflict keeps the draft.
 // Prelude links follow §7.3: Idea item → activity Idea, Planned/Confirmed →
 // Planned, unlink/delete → Idea. Done is never overwritten.
+// Every link starts here (owner, 2026-11-01): the Prelude plan and the Library
+// links of this item. Amy's Prelude and the Library only show them.
 import { useRef, useState, type FormEvent } from 'react';
 import {
   Button,
   ConflictNotice,
   Field,
+  IconButton,
   SaveStatus,
   SegmentedControl,
   Select,
@@ -18,7 +21,7 @@ import {
   type SaveState,
   type SelectOption,
 } from '@/components/ui';
-import { newId, useEntityOps, useMapLinkResolver, useServerManagesPreludeStatus, type ResolvedMapLink } from '@/lib/data';
+import { newId, useEntityOps, useLibrary, useMapLinkResolver, useServerManagesPreludeStatus, type ResolvedMapLink } from '@/lib/data';
 import { needsLookup, parseMapUrl, type MapLinkResult } from '@/lib/maps';
 import { formatWallTime, S } from '@/lib/strings';
 import { addDays, formatDayLabel } from '@/lib/time/zone';
@@ -30,10 +33,12 @@ import type {
   Member,
   Participants,
   PreludeActivity,
+  Resource,
+  ResourceLink,
   TimeKind,
   TripDay,
 } from '@/lib/types';
-import { activityPatchesForItem, type ActivityPatch } from './logic';
+import { activityPatchesForItem, itemResourceIds, libraryLinkChanges, type ActivityPatch } from './logic';
 import styles from './ItemSheet.module.css';
 
 export type SheetTarget = { kind: 'add'; date: string } | { kind: 'edit'; item: ItineraryItem };
@@ -58,6 +63,8 @@ interface Draft {
   mapUrl: string;
   detail: string;
   activityId: string;
+  /** Library links, in the order they were added. */
+  resourceIds: string[];
 }
 
 interface FormState {
@@ -73,6 +80,8 @@ interface FormState {
   reviewed: { item: ItineraryItem | null } | null;
   confirm: 'delete' | 'discard' | null;
   tried: boolean;
+  /** The item's own Library links when the form opened (changes are written against these). */
+  openedLinks: string[];
 }
 
 const CATEGORIES: ItineraryCategory[] = ['transport', 'explore', 'dining', 'rest', 'business'];
@@ -81,7 +90,7 @@ const CATEGORIES: ItineraryCategory[] = ['transport', 'explore', 'dining', 'rest
 const STATUSES: ItineraryStatus[] = ['idea', 'planned', 'confirmed'];
 const KINDS: TimeKind[] = ['timed', 'all_day', 'unscheduled'];
 
-function draftFrom(target: SheetTarget, tripTz: string, activities: PreludeActivity[]): Draft {
+function draftFrom(target: SheetTarget, tripTz: string, activities: PreludeActivity[], links: ResourceLink[]): Draft {
   if (target.kind === 'add') {
     return {
       title: '',
@@ -97,6 +106,7 @@ function draftFrom(target: SheetTarget, tripTz: string, activities: PreludeActiv
       mapUrl: '',
       detail: '',
       activityId: '',
+      resourceIds: [],
     };
   }
   const i = target.item;
@@ -114,11 +124,12 @@ function draftFrom(target: SheetTarget, tripTz: string, activities: PreludeActiv
     mapUrl: i.mapUrl ?? '',
     detail: i.detail,
     activityId: activities.find((a) => !a.deletedAt && a.itineraryItemId === i.id)?.id ?? '',
+    resourceIds: itemResourceIds(i.id, links, activities),
   };
 }
 
-function initForm(target: SheetTarget | null, tripTz: string, activities: PreludeActivity[], fallbackDate: string): FormState {
-  const draft = draftFrom(target ?? { kind: 'add', date: fallbackDate }, tripTz, activities);
+function initForm(target: SheetTarget | null, tripTz: string, activities: PreludeActivity[], links: ResourceLink[], fallbackDate: string): FormState {
+  const draft = draftFrom(target ?? { kind: 'add', date: fallbackDate }, tripTz, activities, links);
   const row = target?.kind === 'edit' ? target.item : null;
   return {
     target,
@@ -132,11 +143,16 @@ function initForm(target: SheetTarget | null, tripTz: string, activities: Prelud
     reviewed: null,
     confirm: null,
     tried: false,
+    openedLinks: row ? links.filter((l) => l.itineraryItemId === row.id).map((l) => l.resourceId) : [],
   };
 }
 
 function sameDraft(a: Draft, b: Draft): boolean {
-  return (Object.keys(a) as Array<keyof Draft>).every((k) => a[k] === b[k]);
+  return (Object.keys(a) as Array<keyof Draft>).every((k) => {
+    const x = a[k];
+    const y = b[k];
+    return Array.isArray(x) && Array.isArray(y) ? x.join() === y.join() : x === y;
+  });
 }
 
 export function ItemSheet({
@@ -144,6 +160,8 @@ export function ItemSheet({
   days,
   items,
   activities,
+  resources,
+  resourceLinks,
   tripTz,
   homeTz,
   me,
@@ -155,6 +173,9 @@ export function ItemSheet({
   days: TripDay[];
   items: ItineraryItem[];
   activities: PreludeActivity[];
+  /** Saved Library links, live ones. */
+  resources: Resource[];
+  resourceLinks: ResourceLink[];
   tripTz: string;
   homeTz: string;
   me: Member | null;
@@ -164,15 +185,16 @@ export function ItemSheet({
 }) {
   const itemOps = useEntityOps('itinerary');
   const activityOps = useEntityOps('prelude');
+  const library = useLibrary();
   const serverManaged = useServerManagesPreludeStatus();
   const toast = useToast();
   const fallbackDate = days[0]?.date ?? '';
   const resolveLink = useMapLinkResolver();
-  const [form, setForm] = useState<FormState>(() => initForm(target, tripTz, activities, fallbackDate));
+  const [form, setForm] = useState<FormState>(() => initForm(target, tripTz, activities, resourceLinks, fallbackDate));
   const [lookup, setLookup] = useState<Lookup | null>(null);
   // Reset when a different target opens (derived state, no effect).
   if (form.target !== target && target !== null) {
-    setForm(initForm(target, tripTz, activities, fallbackDate));
+    setForm(initForm(target, tripTz, activities, resourceLinks, fallbackDate));
     setLookup(null);
   }
   const formRef = useRef(form);
@@ -279,7 +301,56 @@ export function ItemSheet({
   }
 
   // ── writes ────────────────────────────────────────────────────
-  async function applyActivityPatches(patches: ActivityPatch[], itemId: string, itemStatus: ItineraryStatus | null, selected: string | null) {
+  // Library links are written so a failure never loses one: new links first, then the
+  // Prelude plan's own link is cleared (it moved onto this item), then removals.
+  const linkChanges = (itemId: string, opened: string[], wanted: string[]) => {
+    const live = new Set(resources.map((r) => r.id));
+    return libraryLinkChanges(itemId, opened, wanted.filter((id) => live.has(id)), resourceLinks);
+  };
+
+  async function addLibraryLinks(itemId: string, opened: string[], wanted: string[]): Promise<boolean> {
+    for (const resourceId of linkChanges(itemId, opened, wanted).add) {
+      const r = await library.linkResource({ resourceId, itineraryItemId: itemId, preludeActivityId: null, documentId: null });
+      if (!r.ok) return false;
+    }
+    return true;
+  }
+
+  /** The chosen plan's own Library link has moved onto this item: clear it on the plan (latest version). */
+  async function clearPlanLink(planId: string | null, latest: Map<string, PreludeActivity>): Promise<boolean> {
+    const plan = planId ? (latest.get(planId) ?? activities.find((a) => a.id === planId && !a.deletedAt)) : undefined;
+    if (!plan?.resourceId) return true;
+    let res = await activityOps.update(plan.id, { resourceId: null }, plan.version);
+    if (!res.ok && res.reason === 'conflict' && res.latest) {
+      if (!res.latest.resourceId) return true;
+      res = await activityOps.update(res.latest.id, { resourceId: null }, res.latest.version);
+    }
+    return res.ok;
+  }
+
+  /** Links the chosen plan (its status follows the item) and clears its own Library link, now on the item. */
+  async function linkPlan(itemId: string, itemStatus: ItineraryStatus, selected: string | null): Promise<boolean> {
+    const saved = await applyActivityPatches(activityPatchesForItem(itemId, itemStatus, activities, selected, serverManaged), itemId, itemStatus, selected);
+    return saved !== null && (await clearPlanLink(selected, saved));
+  }
+
+  async function removeLibraryLinks(itemId: string, opened: string[], wanted: string[], planId: string | null): Promise<boolean> {
+    const copies = planId ? resourceLinks.filter((l) => l.preludeActivityId === planId).map((l) => l.id) : [];
+    for (const id of [...linkChanges(itemId, opened, wanted).remove, ...copies]) {
+      const r = await library.unlinkResource(id);
+      if (!r.ok) return false;
+    }
+    return true;
+  }
+
+  /** Writes the plan link changes; the rows as saved, or null when one failed. */
+  async function applyActivityPatches(
+    patches: ActivityPatch[],
+    itemId: string,
+    itemStatus: ItineraryStatus | null,
+    selected: string | null,
+  ): Promise<Map<string, PreludeActivity> | null> {
+    const saved = new Map<string, PreludeActivity>();
     for (const { activity, patch } of patches) {
       let res = await activityOps.update(activity.id, patch, activity.version);
       if (!res.ok && res.reason === 'conflict' && res.latest) {
@@ -288,9 +359,10 @@ export function ItemSheet({
         if (!retry) continue;
         res = await activityOps.update(res.latest.id, retry.patch, res.latest.version);
       }
-      if (!res.ok) return false;
+      if (!res.ok) return null;
+      saved.set(res.row.id, res.row);
     }
-    return true;
+    return saved;
   }
 
   async function save(e?: FormEvent) {
@@ -353,13 +425,12 @@ export function ItemSheet({
     // The item is stored: further saves update this row.
     setForm((s) => ({ ...s, row: res.row, baseVersion: res.row.version, conflict: null, reviewed: null }));
     const selected = d.activityId || null;
-    const linked = await applyActivityPatches(
-      activityPatchesForItem(res.row.id, res.row.status, activities, selected, serverManaged),
-      res.row.id,
-      res.row.status,
-      selected,
-    );
-    if (!linked) {
+    const itemId = res.row.id;
+    const ok =
+      (await addLibraryLinks(itemId, f.openedLinks, d.resourceIds)) &&
+      (await linkPlan(itemId, res.row.status, selected)) &&
+      (await removeLibraryLinks(itemId, f.openedLinks, d.resourceIds, selected));
+    if (!ok) {
       setForm((s) => ({ ...s, save: 'error' }));
       return;
     }
@@ -377,7 +448,7 @@ export function ItemSheet({
       setForm((s) => ({ ...s, save: res.reason === 'conflict' ? 'dirty' : 'error', conflict: res.reason === 'conflict' ? { latest: res.latest } : s.conflict }));
       return;
     }
-    const ok = await applyActivityPatches(activityPatchesForItem(f.row.id, null, activities, null, serverManaged), f.row.id, null, null);
+    const ok = (await applyActivityPatches(activityPatchesForItem(f.row.id, null, activities, null, serverManaged), f.row.id, null, null)) !== null;
     if (!ok) {
       setForm((s) => ({ ...s, save: 'error' }));
       return;
@@ -409,6 +480,11 @@ export function ItemSheet({
           disabled: elsewhere !== undefined,
         };
       }),
+  ];
+  const resourceById = new Map(resources.map((r) => [r.id, r]));
+  const libraryOptions = [
+    { value: '', label: resources.length ? S.itinerary.addLibraryLink : S.itinerary.libraryEmpty },
+    ...resources.filter((r) => !draft.resourceIds.includes(r.id)).map((r) => ({ value: r.id, label: r.title })),
   ];
   const zoneOptions: SelectOption[] = [
     { value: tripTz, label: S.itinerary.timezones.sydney },
@@ -610,11 +686,49 @@ export function ItemSheet({
             options={planOptions}
             onChange={(e) => {
               const id = e.target.value;
-              setForm((f) => ({
-                ...f,
-                // New item + plan chosen → Amy · Business by default (still editable).
-                draft: f.row || !id ? { ...f.draft, activityId: id } : { ...f.draft, activityId: id, participants: 'amy', category: 'business' },
-              }));
+              // The plan's own Library link comes along to this item; the previous plan's goes back.
+              const carried = activities.find((a) => a.id === id)?.resourceId;
+              setForm((f) => {
+                const previous = activities.find((a) => a.id === f.draft.activityId)?.resourceId;
+                let resourceIds = f.draft.resourceIds;
+                if (previous && previous !== carried && !f.openedLinks.includes(previous)) resourceIds = resourceIds.filter((x) => x !== previous);
+                if (carried && !resourceIds.includes(carried)) resourceIds = [...resourceIds, carried];
+                return {
+                  ...f,
+                  // New item + plan chosen → Amy · Business by default (still editable).
+                  draft: f.row || !id ? { ...f.draft, activityId: id, resourceIds } : { ...f.draft, activityId: id, resourceIds, participants: 'amy', category: 'business' },
+                };
+              });
+            }}
+          />
+        </Field>
+
+        <Field label={S.itinerary.libraryLinks} optional hint={S.itinerary.libraryLinksHint}>
+          {draft.resourceIds.some((id) => resourceById.has(id)) && (
+            <ul className={styles.links}>
+              {draft.resourceIds.map((id) => {
+                const r = resourceById.get(id);
+                if (!r) return null;
+                return (
+                  <li key={id} className={styles.link}>
+                    <span className={styles.linkTitle}>{r.title}</span>
+                    <IconButton
+                      icon="close"
+                      label={S.itinerary.removeLibraryLink(r.title)}
+                      onClick={() => set('resourceIds', draft.resourceIds.filter((x) => x !== id))}
+                    />
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+          <Select
+            value=""
+            options={libraryOptions}
+            disabled={libraryOptions.length < 2}
+            onChange={(e) => {
+              const id = e.target.value;
+              if (id) set('resourceIds', [...draft.resourceIds, id]);
             }}
           />
         </Field>

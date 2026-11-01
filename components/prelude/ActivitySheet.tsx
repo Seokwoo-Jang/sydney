@@ -1,7 +1,8 @@
 'use client';
 // Add / edit a Prelude plan (plan §7.3): kind, title, notes, who to meet,
-// Library link, status. Date, time and place belong to the linked itinerary
-// item and are only shown here. No "Add to itinerary" by design.
+// Library link, status. Date, time, place and, once it is on the itinerary,
+// its Library links belong to the linked itinerary item and are only shown
+// here (owner, 2026-11-01). No "Add to itinerary" by design.
 import { useRef, useState, type FormEvent } from 'react';
 import {
   Button,
@@ -19,6 +20,7 @@ import {
 import { newId, useEntityOps, useLibrary } from '@/lib/data';
 import { S } from '@/lib/strings';
 import type { ItineraryItem, Member, PreludeActivity, PreludeKind, PreludeStatus, Resource, ResourceLink, TripDay } from '@/lib/types';
+import { itemResourceIds } from '@/components/itinerary/logic';
 import { whenLine } from './logic';
 import styles from './prelude.module.css';
 
@@ -148,12 +150,14 @@ export function ActivitySheet({
       return;
     }
     const d = f.draft;
+    // On the itinerary its Library links belong to the item: the plan's own field is left alone.
+    const scheduled = !!f.row?.itineraryItemId && items.has(f.row.itineraryItemId);
     const fields = {
       kind: d.kind,
       title: d.title.trim(),
       notes: d.notes.trim(),
       peopleNote: d.peopleNote.trim(),
-      resourceId: d.resourceId || null,
+      ...(scheduled ? {} : { resourceId: d.resourceId || null }),
       status: d.status,
     };
     setForm((s) => ({ ...s, save: 'saving', tried: true, confirm: null }));
@@ -161,6 +165,7 @@ export function ActivitySheet({
       ? await ops.update(f.row.id, fields, f.baseVersion)
       : await ops.create({
           ...fields,
+          resourceId: d.resourceId || null,
           id: f.createId,
           itineraryItemId: null,
           sortOrder: Math.max(0, ...activities.map((a) => a.sortOrder)) + 10,
@@ -171,7 +176,7 @@ export function ActivitySheet({
       return;
     }
     setForm((s) => ({ ...s, row: res.row, baseVersion: res.row.version, conflict: null }));
-    if (!(await syncLibraryLink(res.row.id, f.row?.resourceId ?? null, res.row.resourceId))) {
+    if (!scheduled && !(await syncLibraryLink(res.row.id, f.row?.resourceId ?? null, res.row.resourceId))) {
       setForm((s) => ({ ...s, save: 'error' }));
       return;
     }
@@ -201,6 +206,12 @@ export function ActivitySheet({
     });
 
   const item = row?.itineraryItemId ? items.get(row.itineraryItemId) : undefined;
+  // On the itinerary: its item's Library links (added there), shown here only.
+  const itemResources = item
+    ? itemResourceIds(item.id, links, activities)
+        .map((id) => resources.find((r) => r.id === id && !r.deletedAt))
+        .filter((r): r is Resource => !!r)
+    : [];
   const resourceOptions = [
     { value: '', label: S.prelude.none },
     ...resources.filter((r) => !r.deletedAt).map((r) => ({ value: r.id, label: r.title })),
@@ -309,9 +320,28 @@ export function ActivitySheet({
           <TextInput value={draft.peopleNote} onChange={(e) => set('peopleNote', e.target.value)} autoComplete="off" />
         </Field>
 
-        <Field label={S.prelude.library} optional>
-          <Select value={draft.resourceId} onChange={(e) => set('resourceId', e.target.value)} options={resourceOptions} />
-        </Field>
+        {item ? (
+          <div className={styles.group}>
+            <p className={styles.groupLabel}>{S.prelude.libraryLinks}</p>
+            {itemResources.length > 0 && (
+              <ul className={styles.libraryList}>
+                {itemResources.map((r) => (
+                  <li key={r.id}>
+                    <a href={r.url} target="_blank" rel="noopener noreferrer">
+                      {r.title}
+                      <span className="sr-only"> ({S.ui.externalLink})</span>
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            )}
+            <p className={styles.hint}>{S.prelude.libraryFromItinerary}</p>
+          </div>
+        ) : (
+          <Field label={S.prelude.library} optional>
+            <Select value={draft.resourceId} onChange={(e) => set('resourceId', e.target.value)} options={resourceOptions} />
+          </Field>
+        )}
       </form>
     </Sheet>
   );

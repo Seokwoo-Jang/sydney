@@ -171,6 +171,8 @@
   border: 2px dashed var(--lane-ring, var(--lane));
   background: var(--porcelain);
   color: var(--lane-text);
+  /* No solid ring over the dashes (Amy's pins have one). */
+  box-shadow: 0 2px 6px rgba(23, 47, 59, 0.3);
 }
 
 .pin.now {
@@ -201,24 +203,21 @@
 }
 
 .dot.idea {
+  border: 2px dashed var(--lane-ring, var(--lane));
   background: var(--porcelain);
-  border-color: var(--lane-ring, var(--lane));
 }
 
-.meet {
-  position: absolute;
-  bottom: calc(100% - 4px);
-  left: 50%;
-  transform: translateX(-50%);
-  padding: 2px 8px;
+/* Meet up inside a pin's name (a badge above the pin covered the pin next to it). */
+.labelMeet {
+  display: inline-block;
+  margin-right: 6px;
+  padding: 0 6px;
   border-radius: var(--radius-chip);
   background: var(--ink);
   color: var(--porcelain);
   font-size: var(--text-2xs);
   font-weight: 600;
   letter-spacing: 0.02em;
-  white-space: nowrap;
-  pointer-events: none;
 }
 
 /* Pin labels (Leaflet tooltips). Long names end with an ellipsis; the popup has the full text. */
@@ -390,6 +389,20 @@
   gap: 6px;
 }
 
+.pinSwatch {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border: 2px solid transparent;
+  border-radius: 50%;
+  background: var(--lane);
+}
+
+.pinSwatch.idea {
+  border: 2px dashed var(--lane-ring, var(--lane));
+  background: var(--porcelain);
+}
+
 .swatch {
   display: inline-block;
   width: 26px;
@@ -448,13 +461,61 @@
   box-shadow: none;
 }
 
-.stops li + li,
+.stops > li + li,
 .days li + li,
 .missingList li + li {
   border-top: 1px solid var(--line);
 }
 
-.stop,
+/* One place: its number on the left, its plans stacked to the right. */
+.place {
+  position: relative;
+  display: grid;
+  grid-template-columns: 26px minmax(0, 1fr);
+  column-gap: var(--s1-5);
+  padding-left: 4px;
+}
+
+.place > .num {
+  margin-top: 10px;
+}
+
+/* Several plans at one place: a line runs down from the number past each of them. */
+.placeMany::before {
+  content: '';
+  position: absolute;
+  top: 42px;
+  bottom: 12px;
+  left: 16px;
+  width: 2px;
+  border-radius: 1px;
+  background: var(--lane);
+  opacity: 0.35;
+}
+
+.placeStops {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.stop {
+  display: grid;
+  grid-template-columns: 112px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--s1-5);
+  width: 100%;
+  min-height: var(--touch);
+  padding: 10px 4px;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color var(--motion-fast) var(--ease);
+}
+
 .dayRow {
   display: grid;
   grid-template-columns: 28px 112px minmax(0, 1fr) auto;
@@ -567,17 +628,12 @@
 
 @media (max-width: 767px) {
   .stop {
-    grid-template-columns: 26px minmax(0, 1fr) auto;
+    grid-template-columns: minmax(0, 1fr) auto;
     grid-template-areas:
-      'num time marks'
-      'num text text';
+      'time marks'
+      'text text';
     row-gap: 2px;
     column-gap: var(--s1-5);
-  }
-
-  .stop .num {
-    grid-area: num;
-    align-self: start;
   }
 
   .stop .stopTime {

@@ -8,6 +8,7 @@ import type {
   Participants,
   PreludeActivity,
   PreludeStatus,
+  ResourceLink,
   TripDay,
 } from '@/lib/types';
 
@@ -164,7 +165,7 @@ export const unlinkedActivityStatus = (current: PreludeStatus): PreludeStatus =>
 
 export interface ActivityPatch {
   activity: PreludeActivity;
-  patch: { itineraryItemId?: string | null; status?: PreludeStatus };
+  patch: { itineraryItemId?: string | null; status?: PreludeStatus; resourceId?: string | null };
 }
 
 /**
@@ -201,4 +202,35 @@ export function activityPatchesForItem(
     }
   }
   return out;
+}
+
+// ── Library links (owner, 2026-11-01: links are made on the itinerary plan) ──
+
+/**
+ * Saved Library links of an itinerary item: its own, plus the single link its Prelude
+ * plan carried before links moved onto the itinerary (it moves over on the item's next save).
+ */
+export function itemResourceIds(itemId: string, links: ResourceLink[], activities: PreludeActivity[]): string[] {
+  const ids = links.filter((l) => l.itineraryItemId === itemId).map((l) => l.resourceId);
+  const own = activities.find((a) => !a.deletedAt && a.itineraryItemId === itemId)?.resourceId;
+  if (own) ids.push(own);
+  return [...new Set(ids)];
+}
+
+/**
+ * What to write for the links the form changed, against the links stored now: resources
+ * to link and link rows to remove. `opened` = the item's own links when the form opened,
+ * so a link the other person added or removed meanwhile is left as they made it.
+ */
+export function libraryLinkChanges(
+  itemId: string,
+  opened: string[],
+  wanted: string[],
+  links: ResourceLink[],
+): { add: string[]; remove: string[] } {
+  const current = links.filter((l) => l.itineraryItemId === itemId);
+  return {
+    add: [...new Set(wanted)].filter((id) => !opened.includes(id) && !current.some((l) => l.resourceId === id)),
+    remove: current.filter((l) => opened.includes(l.resourceId) && !wanted.includes(l.resourceId)).map((l) => l.id),
+  };
 }

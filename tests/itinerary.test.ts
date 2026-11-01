@@ -4,6 +4,8 @@ import {
   buildDayRows,
   defaultDay,
   isPassed,
+  itemResourceIds,
+  libraryLinkChanges,
   linkedActivityStatus,
   matchesFilter,
   mixLabel,
@@ -193,5 +195,42 @@ describe('shownStatus', () => {
     expect(shownStatus('confirmed', true)).toBe('completed');
     expect(shownStatus('idea', true)).toBe('idea');
     expect(shownStatus('confirmed', false)).toBe('confirmed');
+  });
+});
+
+describe('Library links live on the itinerary item', () => {
+  const link = (id: string, resourceId: string, itineraryItemId: string | null, preludeActivityId: string | null = null) => ({
+    id,
+    tripId: 't',
+    resourceId,
+    itineraryItemId,
+    preludeActivityId,
+    documentId: null,
+  });
+  const plan = (id: string, itineraryItemId: string | null, resourceId: string | null, deletedAt: string | null = null) =>
+    ({ id, itineraryItemId, resourceId, deletedAt }) as PreludeActivity;
+
+  it('an item shows its own links and its Prelude plan’s older single link, once each', () => {
+    const links = [link('l1', 'r1', 'it'), link('l2', 'r2', 'it'), link('l3', 'r9', 'other'), link('l4', 'r2', null, 'pa')];
+    expect(itemResourceIds('it', links, [plan('pa', 'it', 'r2')])).toEqual(['r1', 'r2']);
+    expect(itemResourceIds('it', links, [plan('pa', 'it', 'r3')])).toEqual(['r1', 'r2', 'r3']);
+    expect(itemResourceIds('it', links, [plan('pa', 'it', 'r3', '2030-01-01T00:00:00Z')])).toEqual(['r1', 'r2']);
+    expect(itemResourceIds('none', links, [])).toEqual([]);
+  });
+
+  it('libraryLinkChanges writes only what the form changed; other items’ links are untouched', () => {
+    const links = [link('l1', 'r1', 'it'), link('l2', 'r2', 'it'), link('l3', 'r1', 'other'), link('l4', 'r3', null, 'pa')];
+    const opened = ['r1', 'r2'];
+    expect(libraryLinkChanges('it', opened, ['r2', 'r3', 'r3'], links)).toEqual({ add: ['r3'], remove: ['l1'] });
+    expect(libraryLinkChanges('it', opened, ['r1', 'r2'], links)).toEqual({ add: [], remove: [] });
+    expect(libraryLinkChanges('new', [], ['r1'], links)).toEqual({ add: ['r1'], remove: [] });
+  });
+
+  it('a link the other person added or removed while the form was open stays as they left it', () => {
+    // Opened with r1, r2; meanwhile the partner removed r1 and added r5.
+    const now = [link('l2', 'r2', 'it'), link('l5', 'r5', 'it')];
+    expect(libraryLinkChanges('it', ['r1', 'r2'], ['r1', 'r2'], now)).toEqual({ add: [], remove: [] });
+    // A Prelude plan's link carried into the form is not one of the item's yet: it is added.
+    expect(libraryLinkChanges('it', ['r2'], ['r2', 'r9'], now)).toEqual({ add: ['r9'], remove: [] });
   });
 });

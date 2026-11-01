@@ -124,18 +124,22 @@ export function ItineraryBody({
     for (const a of activities) if (!a.deletedAt && a.itineraryItemId) m.set(a.itineraryItemId, a);
     return m;
   }, [activities]);
+  const liveResources = useMemo(() => data.resources.filter((r) => !r.deletedAt), [data.resources]);
   const resourcesByItem = useMemo(() => {
-    const byId = new Map(data.resources.filter((r) => !r.deletedAt).map((r) => [r.id, r]));
+    const byId = new Map(liveResources.map((r) => [r.id, r]));
     const m = new Map<string, Resource[]>();
-    for (const l of data.resourceLinks) {
-      const r = l.itineraryItemId ? byId.get(l.resourceId) : undefined;
-      if (!r || !l.itineraryItemId) continue;
-      const list = m.get(l.itineraryItemId) ?? [];
+    const add = (itemId: string, resourceId: string | null) => {
+      const r = resourceId ? byId.get(resourceId) : undefined;
+      if (!r) return;
+      const list = m.get(itemId) ?? [];
       if (!list.includes(r)) list.push(r);
-      m.set(l.itineraryItemId, list);
-    }
+      m.set(itemId, list);
+    };
+    for (const l of data.resourceLinks) if (l.itineraryItemId) add(l.itineraryItemId, l.resourceId);
+    // A Prelude plan's older single link shows on its item until the item is saved again.
+    for (const [itemId, a] of activityByItem) add(itemId, a.resourceId);
     return m;
-  }, [data.resources, data.resourceLinks]);
+  }, [liveResources, data.resourceLinks, activityByItem]);
   const expensesByItem = useMemo(() => {
     const m = new Map<string, number>();
     for (const e of data.expenses) if (!e.deletedAt && e.itineraryItemId) m.set(e.itineraryItemId, (m.get(e.itineraryItemId) ?? 0) + 1);
@@ -375,6 +379,8 @@ export function ItineraryBody({
       days={days}
       items={live}
       activities={activities}
+      resources={liveResources}
+      resourceLinks={data.resourceLinks}
       tripTz={tz}
       homeTz={trip.homeTimezone}
       me={data.me}

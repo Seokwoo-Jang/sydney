@@ -2,6 +2,7 @@
 // Amy's Prelude (plan §7.3). Board: a 4-column piano card with the goal and the
 // next two plans. Tabs: the Itinerary tab's second view with every plan.
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
+import { itemResourceIds } from '@/components/itinerary/logic';
 import { useShellNav } from '@/components/shell/ShellNav';
 import { Button, EmptyState, Icon, IconButton, SaveStatus, TextInput, type SaveState } from '@/components/ui';
 import { usePrelude } from '@/lib/data';
@@ -89,7 +90,14 @@ export function PreludeBody({ layout, data }: { layout: 'board' | 'tabs'; data: 
       key={a.id}
       activity={a}
       item={a.itineraryItemId ? (itemsById.get(a.itineraryItemId) ?? null) : null}
-      resource={a.resourceId ? (resourcesById.get(a.resourceId) ?? null) : null}
+      resources={(a.itineraryItemId && itemsById.has(a.itineraryItemId)
+        ? itemResourceIds(a.itineraryItemId, data.links, data.activities)
+        : a.resourceId
+          ? [a.resourceId]
+          : []
+      )
+        .map((id) => resourcesById.get(id))
+        .filter((r): r is Resource => !!r)}
       days={data.days}
       tripTz={tz}
       tone={tone}
@@ -192,7 +200,7 @@ export function PreludeBody({ layout, data }: { layout: 'board' | 'tabs'; data: 
 function PlanCard({
   activity,
   item,
-  resource,
+  resources,
   days,
   tripTz,
   tone,
@@ -202,7 +210,8 @@ function PlanCard({
 }: {
   activity: PreludeActivity;
   item: ItineraryItem | null;
-  resource: Resource | null;
+  /** Library links: its itinerary item's once scheduled, else the plan's own. */
+  resources: Resource[];
   days: TripDay[];
   tripTz: string;
   tone: 'dark' | 'light';
@@ -216,7 +225,7 @@ function PlanCard({
   const [open, setOpen] = useState(false);
   const detailsId = useId();
   const place = item?.place.trim() ?? '';
-  const hasDetails = Boolean(place || activity.notes.trim() || activity.peopleNote.trim() || resource);
+  const hasDetails = Boolean(place || activity.notes.trim() || activity.peopleNote.trim() || resources.length);
   return (
     <li className={styles.plan} data-tone={tone} data-status={activity.status} data-highlight={highlighted || undefined} data-plan-id={activity.id} tabIndex={-1}>
       <div className={styles.planHead}>
@@ -252,15 +261,15 @@ function PlanCard({
               <span>{activity.peopleNote}</span>
             </p>
           )}
-          {resource && (
-            <p className={styles.planLine}>
+          {resources.map((resource) => (
+            <p key={resource.id} className={styles.planLine}>
               <Icon name="link" size={14} />
               <a href={resource.url} target="_blank" rel="noopener noreferrer">
                 {resource.title}
                 <span className="sr-only"> ({S.ui.externalLink})</span>
               </a>
             </p>
-          )}
+          ))}
         </div>
       )}
       {item && (

@@ -40,7 +40,9 @@ export default function LibrarySection({ layout }: SectionProps) {
   const activities = prelude.status === 'ready' ? prelude.data.activities : [];
   const dayNo = useMemo(() => new Map((days.status === 'ready' ? days.data : []).map((d) => [d.id, d.dayNumber])), [days]);
 
-  const tagsFor = (r: Resource): Array<LinkTag & { linkId: string }> =>
+  // Where a link is used (shown here, made on the itinerary plan): its items, and a
+  // Prelude plan that is not on the itinerary yet.
+  const tagsFor = (r: Resource): LinkTag[] =>
     links
       .filter((l) => l.resourceId === r.id)
       .flatMap((l) => {
@@ -50,14 +52,13 @@ export default function LibrarySection({ layout }: SectionProps) {
           return [
             {
               id: l.id,
-              linkId: l.id,
               label: `${n ? `${S.time.day(n)} · ` : ''}${item.title}`,
               onClick: () => goToSection('days', { day: item.date, item: item.id }),
             },
           ];
         }
         const act = l.preludeActivityId ? activities.find((a) => a.id === l.preludeActivityId) : undefined;
-        if (act) return [{ id: l.id, linkId: l.id, label: S.library.preludeTag(act.title), onClick: () => goToSection('prelude', { item: act.id }) }];
+        if (act) return [{ id: l.id, label: S.library.preludeTag(act.title), onClick: () => goToSection('prelude', { item: act.id }) }];
         return [];
       });
 
@@ -141,11 +142,6 @@ export default function LibrarySection({ layout }: SectionProps) {
     );
   }
 
-  const itineraryOptions = items.map((i) => {
-    const n = dayNo.get(i.dayId);
-    return { item: i, label: `${n ? `${S.time.day(n)} · ` : ''}${i.title}` };
-  });
-
   return (
     <section id="section-links" aria-labelledby="section-links-title" className={styles.root} data-layout={layout}>
       <SectionHeading
@@ -169,7 +165,6 @@ export default function LibrarySection({ layout }: SectionProps) {
         category={!openResource && nav.view !== 'all' ? nav.view : null}
         resources={resources}
         tags={openResource ? tagsFor(openResource) : []}
-        itineraryOptions={itineraryOptions}
         me={me}
         partner={partner}
         members={members}
