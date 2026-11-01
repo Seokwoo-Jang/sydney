@@ -94,9 +94,9 @@ export default function LibrarySection({ layout }: SectionProps) {
   else {
     const pinned = resources.filter((r) => r.pinnedOrder != null).sort((a, b) => (a.pinnedOrder ?? 0) - (b.pinnedOrder ?? 0));
     const q = query.trim().toLowerCase();
+    // Every link, pinned ones too (they carry their Pinned mark); the pinned row above is a shortcut.
     const rest = resources.filter(
       (r) =>
-        r.pinnedOrder == null &&
         (nav.view === 'all' || r.category === nav.view) &&
         (!q || [r.title, r.note, hostOf(r.url)].some((t) => t.toLowerCase().includes(q))),
     );
