@@ -19,7 +19,7 @@ import styles from './EntryScreen.module.css';
 export function EntryScreen({ checking }: { checking: boolean }) {
   return (
     <div className={styles.screen}>
-      <TimeOfDayBackdrop variant="entry" as="header" className={styles.hero}>
+      <TimeOfDayBackdrop variant="entry" as="header" className={styles.hero} fixedPhase="day">
         <div className={styles.heroInner}>
           <p className={`eyebrow ${styles.eyebrow}`}>{S.brand.subtitle}</p>
           <h1 className={styles.title}>

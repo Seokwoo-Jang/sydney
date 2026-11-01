@@ -60,11 +60,16 @@ export interface TimeOfDayBackdropProps {
   as?: 'div' | 'header' | 'section';
   id?: string;
   'aria-labelledby'?: string;
+  /** Always this photo instead of following Sydney time (the sign-in page shows Day). */
+  fixedPhase?: CoverPhase;
 }
 
-export function TimeOfDayBackdrop({ variant, children, hideClock, className, as: Tag = 'div', ...rest }: TimeOfDayBackdropProps) {
+export function TimeOfDayBackdrop({ variant, children, hideClock, className, as: Tag = 'div', fixedPhase, ...rest }: TimeOfDayBackdropProps) {
   const wide = variant === 'cover' || variant === 'compact';
-  const { phase, preload, clock } = useCoverPhase();
+  const live = useCoverPhase();
+  const phase = fixedPhase ?? live.phase;
+  const preload = fixedPhase ? null : live.preload;
+  const clock = live.clock;
   const reduced = useReducedMotion();
   // Bottom → top. The newest layer fades in over the previous one.
   const [layers, setLayers] = useState<CoverPhase[]>([]);
