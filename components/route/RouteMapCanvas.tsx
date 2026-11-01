@@ -251,7 +251,7 @@ export default function RouteMapCanvas(props: RouteMapCanvasProps) {
         }).addTo(layer);
         end.bindTooltip(el('span', undefined, f.to.code), {
           permanent: true,
-          direction: 'right',
+          direction: 'auto', // right of the pin, left of it past the middle: never cut off at the edge
           offset: [6, 0],
           className: styles.label,
           opacity: focused ? 0.9 : 0.55,
@@ -270,14 +270,12 @@ export default function RouteMapCanvas(props: RouteMapCanvasProps) {
         const lane = focused ? mine[0].lane : groupLane(g);
         const fade = focused ? 1 : OTHER;
         const done = shown.every((s) => s.item.status === 'completed');
-        const idea = shown.every((s) => s.item.status === 'idea');
         const meet = mine.some((s) => s.meetUp);
         const isNow = g.stops.some((s) => now.has(s.item.id));
         const numbered = !trip && focused;
         const cls = [
           numbered ? styles.pin : styles.dot,
           styles[`lane_${lane}`],
-          idea ? styles.idea : '',
           done ? styles.done : '',
           isNow ? styles.now : '',
         ]
@@ -299,17 +297,16 @@ export default function RouteMapCanvas(props: RouteMapCanvasProps) {
         marker.getElement()?.setAttribute('aria-label', text ? S.route.stopLabel(text, name) : name);
         for (const s of g.stops) markersRef.current.set(s.item.id, marker);
         // Every place is named after its first plan, the others' faded like their pins.
-        // Meet up rides in the name, so it never covers a pin next door. A label moved off
-        // its pin (see relabel) shows the pin number.
+        // Meet up rides in the name, so it never covers a pin next door. A name moved off
+        // its pin (see relabel) is tied back to it by a dotted line, never by a number.
         const label = !trip ? stopLabel(shown[0].item) : focused && k === firstFocused ? S.time.day(dayNumbers.get(route.date) ?? 0) : '';
         if (label) {
           const content = el('span');
-          if (numbered) content.append(el('b', styles.labelNum, text));
           if (numbered && meet) content.append(el('span', styles.labelMeet, S.maps.meetUp));
           content.append(label);
           marker.bindTooltip(content, {
             permanent: true,
-            direction: 'right',
+            direction: 'auto', // right of the pin, left of it past the middle: never cut off at the edge
             offset: [numbered ? 10 : 2, 0],
             className: trip ? styles.dayLabel : styles.label,
             // Leaflet sets the tooltip opacity inline, so the fade goes through its option.

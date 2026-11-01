@@ -195,14 +195,6 @@ export default function RouteView({
       <div className={styles.legend} aria-label={S.route.legendLabel} role="group">
         <ul className={styles.legendKeys}>
           <li>
-            <i className={[styles.pinSwatch, styles.lane_together].join(' ')} aria-hidden="true" />
-            {S.route.pinPlanned}
-          </li>
-          <li>
-            <i className={[styles.pinSwatch, styles.lane_together, styles.idea].join(' ')} aria-hidden="true" />
-            {S.route.pinIdea}
-          </li>
-          <li>
             <i className={styles.swatch} aria-hidden="true" />
             {S.people.participants.together}
           </li>
@@ -224,12 +216,9 @@ export default function RouteView({
             {placeRuns(dayRoute.stops).map((run) => (
               <li
                 key={run.stops[0].item.id}
-                className={[styles.place, styles[`lane_${run.stops[0].lane}`], run.stops.length > 1 ? styles.placeMany : ''].join(' ')}
+                className={[styles.place, styles[`lane_${filter}`], run.stops.length > 1 ? styles.placeMany : ''].join(' ')}
               >
-                <span
-                  className={[styles.num, run.stops.every((s) => s.item.status === 'idea') ? styles.idea : ''].join(' ')}
-                  aria-hidden="true"
-                >
+                <span className={styles.num} aria-hidden="true">
                   {run.n}
                 </span>
                 <ul className={styles.placeStops}>

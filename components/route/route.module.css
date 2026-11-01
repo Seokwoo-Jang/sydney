@@ -142,6 +142,8 @@
   --lane-text: var(--brass-deep);
 }
 
+/* Every pin looks the same but for its person's colour (owner, 2026-11-01): a solid ring
+   on white with the number in that colour. Status and how we travel are not shown. */
 .pin {
   position: relative;
   display: grid;
@@ -149,29 +151,15 @@
   min-width: 28px;
   height: 28px;
   padding: 0 6px;
-  border: 2px solid var(--porcelain);
+  border: 2px solid var(--lane-ring, var(--lane));
   border-radius: 14px;
-  background: var(--lane);
-  color: var(--porcelain);
+  background: #fff;
+  color: var(--lane-text);
   font-size: var(--text-sm);
   font-weight: 600;
   font-variant-numeric: lining-nums tabular-nums;
   line-height: 1;
   white-space: nowrap;
-  box-shadow: 0 2px 6px rgba(23, 47, 59, 0.3);
-}
-
-.pin.lane_amy {
-  box-shadow:
-    0 0 0 2px var(--lane-ring),
-    0 2px 6px rgba(23, 47, 59, 0.3);
-}
-
-.pin.idea {
-  border: 2px dashed var(--lane-ring, var(--lane));
-  background: var(--porcelain);
-  color: var(--lane-text);
-  /* No solid ring over the dashes (Amy's pins have one). */
   box-shadow: 0 2px 6px rgba(23, 47, 59, 0.3);
 }
 
@@ -196,15 +184,10 @@
   display: block;
   width: 12px;
   height: 12px;
-  border: 2px solid var(--porcelain);
+  border: 2px solid var(--lane-ring, var(--lane));
   border-radius: 50%;
-  background: var(--lane);
+  background: #fff;
   box-shadow: 0 1px 3px rgba(23, 47, 59, 0.3);
-}
-
-.dot.idea {
-  border: 2px dashed var(--lane-ring, var(--lane));
-  background: var(--porcelain);
 }
 
 /* Meet up inside a pin's name (a badge above the pin covered the pin next to it). */
@@ -220,10 +203,9 @@
   letter-spacing: 0.02em;
 }
 
-/* Pin labels (Leaflet tooltips). Long names end with an ellipsis; the popup has the full text. */
+/* Pin labels (Leaflet tooltips): the whole name, never cut short. */
 .mapBox .label,
 .mapBox .dayLabel {
-  max-width: 132px;
   padding: 2px 8px;
   border: 0;
   border-radius: 8px;
@@ -233,8 +215,6 @@
   font-size: var(--text-xs);
   font-weight: 500;
   line-height: 1.4;
-  overflow: hidden;
-  text-overflow: ellipsis;
   white-space: nowrap;
   box-shadow: 0 1px 4px rgba(23, 47, 59, 0.18);
 }
@@ -250,15 +230,37 @@
   display: none;
 }
 
-/* Pin number, shown only on a label stacked away from its pin. */
-.labelNum {
-  display: none;
-  margin-right: 4px;
-  font-weight: 700;
+/* A name stacked away from its pin is tied back to it by a dotted line: down (or up) to
+   the pin's level, then across to the pin (--lead-* set by restackLabels). */
+.mapBox .labelShifted::before {
+  display: block;
+  content: '';
+  position: absolute;
+  left: -9px;
+  top: var(--lead-top, 50%);
+  width: 0;
+  height: var(--lead-h, 0);
+  margin: 0;
+  border: 0;
+  border-left: 1.5px dotted var(--ink);
+  background: none;
 }
 
-.labelShifted .labelNum {
-  display: inline;
+.mapBox .labelShifted::after {
+  content: '';
+  position: absolute;
+  left: -9px;
+  top: 50%;
+  width: 9px;
+  height: 0;
+  border-top: 1.5px dotted var(--ink);
+}
+
+/* A name left of its pin: the line comes out of its right side instead. */
+.mapBox .leaflet-tooltip-left.labelShifted::before,
+.mapBox .leaflet-tooltip-left.labelShifted::after {
+  left: auto;
+  right: -9px;
 }
 
 /* ── popups (DOM built in RouteMapCanvas) ──────────── */
@@ -387,20 +389,6 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-}
-
-.pinSwatch {
-  display: inline-block;
-  width: 14px;
-  height: 14px;
-  border: 2px solid transparent;
-  border-radius: 50%;
-  background: var(--lane);
-}
-
-.pinSwatch.idea {
-  border: 2px dashed var(--lane-ring, var(--lane));
-  background: var(--porcelain);
 }
 
 .swatch {
@@ -550,19 +538,13 @@
   place-items: center;
   width: 26px;
   height: 26px;
-  border: 2px solid transparent;
+  border: 2px solid var(--lane-ring, var(--lane));
   border-radius: 13px;
-  background: var(--lane);
-  color: var(--porcelain);
+  background: #fff;
+  color: var(--lane-text);
   font-size: var(--text-sm);
   font-weight: 600;
   font-variant-numeric: lining-nums tabular-nums;
-}
-
-.num.idea {
-  border: 2px dashed var(--lane-ring, var(--lane));
-  background: var(--porcelain);
-  color: var(--lane-text);
 }
 
 .stopTime {

@@ -415,6 +415,49 @@ describe('flights', () => {
     expect(segs(r)).toEqual(['fly>home:together']);
   });
 
+  it('plans named for one place are one place, map link or not: one number, one pin (Day 1 at the airport)', () => {
+    const r = buildDayRoute(
+      [
+        item('move', { date: D, startTime: '17:00', timezone: SEOUL_TZ, category: 'transport', place: 'ICN T1' }),
+        at('checkin', '19:00', { timezone: SEOUL_TZ, place: 'ICN T1', mapLat: 37.447, mapLng: 126.4489 }),
+        item('dinner', { date: D, startTime: '20:15', timezone: SEOUL_TZ, category: 'dining', place: 'ICN T1' }),
+        fly('fly', '21:50', 'ICN T1 → SYD T1'),
+      ],
+      D,
+      'together',
+      SYDNEY_TZ,
+    );
+    expect(r.notOnMap).toEqual([]);
+    expect(placeRuns(r.stops).map((p) => [p.n, ids(p.stops)])).toEqual([[1, ['move', 'checkin', 'dinner', 'fly']]]);
+    expect(groupStops(r.stops)).toHaveLength(1);
+    expect(r.segments).toEqual([]);
+    expect(r.flights.map((x) => x.to.code)).toEqual(['SYD T1']);
+  });
+
+  it('the list keeps to the chosen route: another person’s plan at the same place stays on theirs', () => {
+    const all = buildDayRoute(
+      [
+        item('move', { date: D, startTime: '17:00', timezone: SEOUL_TZ, participants: 'eren', place: 'ICN T1' }),
+        at('checkin', '19:00', { timezone: SEOUL_TZ, place: 'ICN T1', mapLat: 37.447, mapLng: 126.4489 }),
+        fly('fly', '21:50', 'ICN T1 → SYD T1'),
+        at('elsewhere', '08:00', { participants: 'eren', place: 'Somewhere', date: D }),
+      ],
+      D,
+      'together',
+      SYDNEY_TZ,
+    );
+    expect(placeRuns(narrowRoute(all, 'together').stops).map((p) => [p.n, ids(p.stops)])).toEqual([[1, ['checkin', 'fly']]]);
+    expect(placeRuns(narrowRoute(all, 'eren').stops).map((p) => [p.n, ids(p.stops)])).toEqual([
+      [1, ['elsewhere']],
+      [2, ['move']],
+    ]);
+  });
+
+  it('a place named nowhere else and without a link stays off the map', () => {
+    const r = buildDayRoute([at('a', '09:00', { place: 'Harbour' }), item('b', { date: D, startTime: '10:00', place: 'Somewhere else' })], D, 'together', SYDNEY_TZ);
+    expect(r.notOnMap.map((i) => i.id)).toEqual(['b']);
+  });
+
   it('a stop at the arrival airport with no time draws no line, so the flight keeps its own', () => {
     const r = buildDayRoute(
       [
