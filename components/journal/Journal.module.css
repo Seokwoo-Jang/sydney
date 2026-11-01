@@ -303,6 +303,23 @@
 }
 
 /* Mark, then a short brass rule, above the text. */
+/* One comment each: stacked under the photo, each led by its writer's mark. */
+.comment {
+  display: block;
+}
+
+.comment + .comment {
+  margin-top: var(--s2);
+}
+
+.commentHead {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--text-sm);
+  color: var(--muted);
+}
+
 .noteHead {
   display: flex;
   align-items: center;

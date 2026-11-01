@@ -472,7 +472,7 @@ describe('partner updates', () => {
     expect(lines(partner(s, T1))).toEqual([
       ['Amy · Budget', 'Added “Dinner”', '?section=wallet'],
       ['Amy · Checklist', 'Checked off “Passport”', '?section=ready'],
-      ['Amy · Journal', 'Day 4 · Added a post · Added a photo', '?section=journal&day=2030-12-29'],
+      ['Amy · Journal', 'Day 4 · Added a comment · Added a photo', '?section=journal&day=2030-12-29'],
       ['Amy · Library', 'Added “Opal guide”', '?section=links'],
     ]);
   });

@@ -86,6 +86,7 @@ const days = (): TripDay[] =>
     highlight,
     coverAssetId: assetId(i + 1),
     collageVariant: 0,
+    defaultPhotoRemoved: false,
   }));
 
 // ── itinerary ────────────────────────────────────────────────────
@@ -619,9 +620,19 @@ const resourceLinks = (): ResourceLink[] => [
 ];
 
 // ── journal + photos ─────────────────────────────────────────────
+// Each day's own photo carries the filer's "No photos yet." (as the server writes it);
+// Day 1 and Day 2 show a comment each from both of us instead.
 const journal = (): JournalEntry[] => [
-  { ...meta('jn-d1-eren'), dayId: dayId(1), authorId: MEMBERS.eren.id, body: '(예시) 공항 가는 길. 짐은 가볍게, 마음은 설레게.' },
-  { ...meta('jn-d2-amy', 'amy'), dayId: dayId(2), authorId: MEMBERS.amy.id, body: '(예시) 아케이드 피아노 소리가 생각보다 따뜻했다. 다음에는 조금 더 긴 곡을 준비하고 싶다.' },
+  { ...meta('jn-d1-eren'), dayId: dayId(1), authorId: MEMBERS.eren.id, assetId: assetId(1), body: '(예시) 공항 가는 길. 짐은 가볍게, 마음은 설레게.' },
+  { ...meta('jn-d1-amy', 'amy'), dayId: dayId(1), authorId: MEMBERS.amy.id, assetId: assetId(1), body: '(예시) 출발 전에 같이 마신 커피가 제일 기억에 남는다.' },
+  { ...meta('jn-d2-amy', 'amy'), dayId: dayId(2), authorId: MEMBERS.amy.id, assetId: assetId(2), body: '(예시) 아케이드 피아노 소리가 생각보다 따뜻했다. 다음에는 조금 더 긴 곡을 준비하고 싶다.' },
+  ...DAY_DEFS.slice(2).map((_, i) => ({
+    ...meta(`jn-d${i + 3}-default`),
+    dayId: dayId(i + 3),
+    authorId: MEMBERS.eren.id,
+    assetId: assetId(i + 3),
+    body: 'No photos yet.',
+  })),
 ];
 
 const assets = (): FileAsset[] =>
@@ -641,10 +652,11 @@ const assets = (): FileAsset[] =>
       mime: 'image/webp',
       bytes: 0,
       kind: 'photo' as const,
+      isDefault: true,
       dayId: dayId(n),
       bookingId: null,
       documentId: null,
-      caption: '예시 사진',
+      caption: '',
       sortOrder: 0,
       url: photo.src,
       thumbUrl: photo.thumb,

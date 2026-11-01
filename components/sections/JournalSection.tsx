@@ -1,12 +1,13 @@
 'use client';
 // Journal · Nine Notes (plan §7.6). Root id stays "section-journal".
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useDueContext } from '@/components/checklist/useDueContext';
 import { useSectionNav } from '@/components/checklist/useSectionNav';
 import { DaySheet } from '@/components/journal/DaySheet';
 import { Photo } from '@/components/journal/Photo';
+import { commentsByPhoto, defaultPhotoId, storePhoto } from '@/components/journal/photoKit';
 import { EmptyState, ErrorState, LoadingState, MemberMarks, SectionHeading } from '@/components/ui';
-import { useAssets, useDays, useTrip } from '@/lib/data';
+import { useAssets, useDays, useFiles, useJournal, useTrip } from '@/lib/data';
 import type { FileAsset, Member, Participants, TripDay } from '@/lib/types';
 import { S } from '@/lib/strings';
 import { defaultDayPhoto } from '@/lib/url';
@@ -15,13 +16,13 @@ import styles from '@/components/journal/Journal.module.css';
 
 const VIEWS = ['days'] as const;
 
-/** Day card photo: the chosen cover while it exists, else the first photo, else the sample. */
+/** Day card photo: the chosen cover while it exists, else the first photo, else the day's own photo. */
 function coverFor(day: TripDay, photos: FileAsset[]) {
   const asset = photos.find((p) => p.id === day.coverAssetId) ?? photos[0] ?? null;
   const fallback = defaultDayPhoto(day.dayNumber);
   if (asset?.url) {
     return {
-      isDefault: asset.url === fallback.src,
+      isDefault: asset.isDefault,
       photo: { src: asset.url, thumb: asset.thumbUrl, width: asset.width, height: asset.height },
     };
   }
@@ -38,6 +39,8 @@ function addedBy(photos: FileAsset[], members: Member[]): Participants | null {
 export default function JournalSection({ layout }: SectionProps) {
   const days = useDays();
   const assets = useAssets();
+  const journal = useJournal();
+  const files = useFiles();
   const trip = useTrip();
   const due = useDueContext();
   const nav = useSectionNav('journal', VIEWS, 'days');
@@ -55,11 +58,67 @@ export default function JournalSection({ layout }: SectionProps) {
     return map;
   }, [assets]);
 
+  const comments = useMemo(
+    () => commentsByPhoto(journal.status === 'ready' ? journal.data : [], [...photosByDay.values()].flat()),
+    [journal, photosByDay],
+  );
+
+  // Each day's own Nine Notes photo is filed once, by whoever opens the Journal first,
+  // as if added, chosen as the day cover and noted "No photos yet." (owner, 2026-11-01;
+  // the server sets the cover and the note). Once deleted it is not filed again.
+  const filing = useRef(new Set<string>());
+  useEffect(() => {
+    if (!files.available || !me || days.status !== 'ready' || assets.status !== 'ready') return;
+    const todo = days.data.filter(
+      (d) => !d.defaultPhotoRemoved && !filing.current.has(d.id) && !(photosByDay.get(d.id) ?? []).some((p) => p.isDefault),
+    );
+    if (!todo.length) return;
+    for (const d of todo) filing.current.add(d.id); // once per visit, even if it fails
+    void (async () => {
+      for (const d of todo) {
+        try {
+          const sample = defaultDayPhoto(d.dayNumber);
+          const res = await fetch(sample.src);
+          if (!res.ok) continue;
+          const blob = await res.blob();
+          const file = new File([blob], `day-${d.dayNumber}.webp`, { type: blob.type || 'image/webp' });
+          const { paths, width, height } = await storePhoto(files, file);
+          const others = photosByDay.get(d.id) ?? [];
+          const row = await assets.create({
+            id: defaultPhotoId(d.id),
+            storagePath: paths[0],
+            displayPath: paths[1],
+            thumbPath: paths[2],
+            width,
+            height,
+            focalX: 0.5,
+            focalY: 0.4,
+            zoom: 1,
+            mime: file.type,
+            bytes: file.size,
+            kind: 'photo',
+            isDefault: true,
+            dayId: d.id,
+            bookingId: null,
+            documentId: null,
+            caption: '',
+            sortOrder: Math.min(10, ...others.map((p) => p.sortOrder)) - 10, // first on the day
+          });
+          // Filed meanwhile on the other device (or deleted before): this copy of the files goes.
+          if (!row.ok || row.row.storagePath !== paths[0]) await files.remove(paths).catch(() => undefined);
+        } catch {
+          // Tried again the next time the Journal opens.
+        }
+      }
+    })();
+  }, [files, me, days, assets, photosByDay]);
+
   const openDay = nav.item ? (dayRows.find((d) => d.id === nav.item) ?? null) : null;
   // Set by the empty state's Add a photo; a card click or close clears it.
   const [startAdding, setStartAdding] = useState(false);
   const status = [days, assets].find((r) => r.status === 'error') ?? [days, assets].find((r) => r.status === 'loading');
-  const daysWithPhotos = dayRows.filter((d) => photosByDay.has(d.id)).length;
+  // Our own photos: the day's own photo does not count.
+  const daysWithPhotos = dayRows.filter((d) => (photosByDay.get(d.id) ?? []).some((p) => !p.isDefault)).length;
 
   /** Empty state: today's page while the trip is under way, else Day 1. */
   const startFirst = () => {
@@ -136,6 +195,7 @@ export default function JournalSection({ layout }: SectionProps) {
         open={!!openDay}
         day={openDay}
         photos={openDay ? (photosByDay.get(openDay.id) ?? []) : []}
+        comments={comments}
         me={me}
         partner={partner}
         members={members}

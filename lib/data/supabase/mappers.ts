@@ -46,6 +46,7 @@ const DAYS: Cols<EditableFields<TripDay>> = {
   highlight: 'highlight',
   coverAssetId: 'cover_asset_id',
   collageVariant: 'collage_variant',
+  defaultPhotoRemoved: 'default_photo_removed',
 };
 
 const BOOKINGS: Cols<EditableFields<Booking>> = {
@@ -158,6 +159,7 @@ const SETTLEMENTS: Cols<EditableFields<Settlement>> = {
 const JOURNAL: Cols<EditableFields<JournalEntry>> = {
   dayId: 'day_id',
   authorId: 'author_id',
+  assetId: 'asset_id',
   body: 'body',
 };
 
@@ -182,6 +184,7 @@ const ASSETS: Cols<Omit<EditableFields<FileAsset>, 'url' | 'thumbUrl'>> = {
   mime: 'mime',
   bytes: 'bytes',
   kind: 'kind',
+  isDefault: 'is_default',
   dayId: 'day_id',
   bookingId: 'booking_id',
   documentId: 'document_id',

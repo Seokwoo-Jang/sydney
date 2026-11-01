@@ -1,13 +1,13 @@
 'use client';
-// One day of Nine Notes (plan §7.6): the day's photo posts, each a photo with
-// its text and the mark of whoever added it. Either of us adds posts, sets the
-// cover, reorders and deletes; a post's text is its author's to edit.
+// One day of Nine Notes (plan §7.6): the day's photos, each with our comments
+// (one each, marked E / A). Either of us adds photos, sets the cover, reorders
+// and deletes; each comment is its writer's to edit.
 // Mobile full screen, PC wide panel (Sheet size "full"). Edit on a photo opens
 // PhotoSheet on top (text, day cover, delete).
 import { useEffect, useRef, useState } from 'react';
 import { Button, Sheet, useToast } from '@/components/ui';
 import { useAssets } from '@/lib/data';
-import type { FileAsset, Member, TripDay } from '@/lib/types';
+import type { FileAsset, JournalEntry, Member, TripDay } from '@/lib/types';
 import { S } from '@/lib/strings';
 import { formatDayLabel } from '@/lib/time/zone';
 import { defaultDayPhoto } from '@/lib/url';
@@ -22,6 +22,7 @@ export function DaySheet({
   open,
   day,
   photos,
+  comments,
   me,
   partner,
   members,
@@ -31,6 +32,8 @@ export function DaySheet({
   open: boolean;
   day: TripDay | null;
   photos: FileAsset[];
+  /** Live comments by photo id, oldest first. */
+  comments: Map<string, JournalEntry[]>;
   me: Member | null;
   partner: Member | null;
   members: Member[];
@@ -128,7 +131,7 @@ export function DaySheet({
         day ? (
           <div ref={actions} className={styles.dayActions}>
             <div className={styles.photoActions}>
-              <AddPhotos day={day} photos={photos} notify={notify} autoFocus={startAdding} />
+              <AddPhotos day={day} photos={photos} me={me} notify={notify} autoFocus={startAdding} />
             </div>
             {photos.length > 1 && (
               <Button variant={reordering ? 'primary' : 'secondary'} size="sm" onClick={() => setReordering((r) => !r)}>
@@ -145,6 +148,7 @@ export function DaySheet({
           {photos.length ? (
             <PhotoPages
               photos={shown}
+              comments={comments}
               dayNumber={day.dayNumber}
               coverId={cover?.id ?? null}
               members={members}
@@ -174,7 +178,7 @@ export function DaySheet({
           index={photos.indexOf(editing) + 1}
           day={day}
           coverId={cover?.id ?? null}
-          author={members.find((m) => m.id === editing.createdBy) ?? null}
+          comments={comments.get(editing.id) ?? []}
           me={me}
           partner={partner}
           onDeleted={() => {

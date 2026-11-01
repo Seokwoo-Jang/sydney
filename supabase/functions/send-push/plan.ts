@@ -536,7 +536,7 @@ export function partnerPhrase(c: Pick<ChangeRow, 'entity' | 'action' | 'label'>,
   const title = clean(c.label, 48);
   switch (c.entity) {
     case 'journal':
-      return `${verb} a post`;
+      return `${verb} a comment`;
     case 'photo':
       if (c.label === 'cover') return 'Changed the cover photo';
       if (c.label === 'layout') return 'Shuffled the photo layout';

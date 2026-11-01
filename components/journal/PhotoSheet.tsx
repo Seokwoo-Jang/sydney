@@ -1,25 +1,30 @@
 'use client';
-// Edit one journal post (plan §7.6.1): its text, whether its photo is the
-// day's cover, change the photo itself, and delete. Only the post's author edits
-// the text; cover, change and delete are open to both of us. The text saves with the usual version check;
-// the cover is a field of the day. Mounted per photo, so every open starts fresh.
+// Edit one journal photo (plan §7.6.1): your comment on it, whether it is the
+// day's cover, change the photo itself, and delete. Each of us has one comment
+// per photo and edits only our own (owner, 2026-11-01): the other's shows read
+// only with their mark. Cover, change and delete are open to both of us. The
+// comment saves with the usual version check; the cover is a field of the day.
+// Mounted per photo, so every open starts fresh.
 import { useRef, useState, type CSSProperties } from 'react';
 import { CheckField, ConfirmDelete, ConfirmDiscard, ConflictBlock } from '@/components/checklist/FormBits';
 import { conflictSource, useSaveFlow } from '@/components/checklist/useSaveFlow';
-import { Button, ConflictNotice, Field, SaveStatus, Sheet, TextArea, useToast } from '@/components/ui';
-import { useAssets, useDays, useFiles } from '@/lib/data';
-import { PHOTO_MIME, fileProblem, makePhotoVariants, variantExt } from '@/lib/files';
-import type { FileAsset, Member, SaveResult, TripDay } from '@/lib/types';
+import { Button, ConflictNotice, Field, MemberMarks, SaveStatus, Sheet, TextArea, useToast } from '@/components/ui';
+import { newId, useAssets, useDays, useFiles, useJournal } from '@/lib/data';
+import { PHOTO_MIME, fileProblem } from '@/lib/files';
+import type { FileAsset, JournalEntry, Member, SaveResult, TripDay } from '@/lib/types';
 import { S } from '@/lib/strings';
-import { ORIGINAL_EXT } from './AddPhotos';
 import { Photo } from './Photo';
+import { moveCover, storePhoto } from './photoKit';
 import styles from './Journal.module.css';
 import form from '@/components/checklist/Form.module.css';
 
 interface Draft {
+  /** Photo row version (Change photo). */
   version: number;
-  caption: string;
-  captionTouched: boolean;
+  comment: string;
+  commentTouched: boolean;
+  /** Version of my comment row, when I have one. */
+  commentVersion: number;
   cover: boolean;
   coverTouched: boolean;
 }
@@ -29,7 +34,7 @@ export function PhotoSheet({
   index,
   day,
   coverId,
-  author,
+  comments,
   me,
   partner,
   onDeleted,
@@ -41,8 +46,8 @@ export function PhotoSheet({
   day: TripDay;
   /** The photo the day card shows (chosen cover, else the first photo). */
   coverId: string | null;
-  /** Who added the post; null when unknown (then the text stays open to both). */
-  author: Member | null;
+  /** Live comments on this photo, oldest first. */
+  comments: JournalEntry[];
   me: Member | null;
   partner: Member | null;
   /** The row is gone: the day sheet says so and moves focus (this sheet closes). */
@@ -50,17 +55,21 @@ export function PhotoSheet({
   onClose: () => void;
 }) {
   const assets = useAssets();
+  const journal = useJournal();
   const days = useDays();
   const files = useFiles();
   const toast = useToast();
-  const save = useSaveFlow<FileAsset>();
+  const save = useSaveFlow<JournalEntry>();
   const isCover = asset.id === coverId;
-  const canWrite = !author || author.id === me?.id;
   const chosen = day.coverAssetId === asset.id;
+  const mine = me ? (comments.find((c) => c.authorId === me.id) ?? null) : null;
+  const theirs = comments.filter((c) => c.authorId !== me?.id);
+  const newCommentId = useRef(newId()).current;
   const [draft, setDraft] = useState<Draft>(() => ({
     version: asset.version,
-    caption: asset.caption,
-    captionTouched: false,
+    comment: mine?.body ?? '',
+    commentTouched: false,
+    commentVersion: mine?.version ?? 0,
     cover: isCover,
     coverTouched: false,
   }));
@@ -74,7 +83,7 @@ export function PhotoSheet({
     setDraft((d) => ({ ...d, ...p }));
     save.markDirty();
   };
-  const dirty = (draft.captionTouched && draft.caption.trim() !== asset.caption) || (draft.coverTouched && draft.cover !== isCover);
+  const dirty = (draft.commentTouched && draft.comment.trim() !== (mine?.body.trim() ?? '')) || (draft.coverTouched && draft.cover !== isCover);
 
   const requestClose = () => {
     if (dirty && !discarding) {
@@ -84,52 +93,37 @@ export function PhotoSheet({
     onClose();
   };
 
-  /**
-   * Moves the day cover from `from` to `to`. The day row also holds its title,
-   * so a version conflict retries once on the latest row, but only while that
-   * row's cover is still `from`: a cover chosen elsewhere is never overwritten.
-   * Returns the latest day when that happened.
-   */
-  const setCover = async (to: string | null, from: string | null): Promise<'ok' | 'error' | TripDay> => {
-    let version = day.version;
-    for (let attempt = 0; attempt < 2; attempt++) {
-      const r = await days.update(day.id, { coverAssetId: to }, version);
-      if (r.ok) return 'ok';
-      if (r.reason !== 'conflict' || !r.latest) return 'error';
-      if (r.latest.coverAssetId === to) return 'ok';
-      if (r.latest.coverAssetId !== from) return r.latest;
-      version = r.latest.version;
-    }
-    return 'error';
+  /** My comment: added, changed, or (emptied) deleted. Null when there was nothing to write. */
+  const writeComment = async (): Promise<SaveResult<JournalEntry> | null> => {
+    const text = draft.comment.trim();
+    if (!me || !draft.commentTouched || text === (mine?.body.trim() ?? '')) return null;
+    if (mine) return text ? journal.update(mine.id, { body: text }, draft.commentVersion) : journal.remove(mine.id, draft.commentVersion);
+    return journal.create({ id: newCommentId, dayId: day.id, assetId: asset.id, authorId: me.id, body: text });
   };
 
   const submit = async () => {
-    const caption = draft.caption.trim();
     setCoverClash(null);
-    const result = await save.run(async (): Promise<SaveResult<FileAsset>> => {
-      let row = asset;
-      if (canWrite && draft.captionTouched && caption !== asset.caption) {
-        const r = await assets.update(asset.id, { caption }, draft.version);
-        if (!r.ok) return r;
-        row = r.row;
-        setDraft((d) => ({ ...d, version: r.row.version, captionTouched: false }));
-      }
+    const result = await save.run(async (): Promise<SaveResult<JournalEntry>> => {
+      const c = await writeComment();
+      if (c && !c.ok) return c;
+      if (c?.ok) setDraft((d) => ({ ...d, commentVersion: c.row.version, commentTouched: false }));
       if (draft.coverTouched && draft.cover !== isCover) {
-        const r = await setCover(draft.cover ? asset.id : null, day.coverAssetId);
+        const r = await moveCover(days, day, draft.cover ? asset.id : null, day.coverAssetId);
         if (r === 'error') return { ok: false, reason: 'error', message: S.sync.failed };
         if (r !== 'ok') {
           setCoverClash(r);
           return { ok: false, reason: 'conflict', latest: null };
         }
       }
-      return { ok: true, row };
+      // Nothing else to report: the sheet only needs to know it all went through.
+      return { ok: true, row: c?.ok ? c.row : (mine as JournalEntry) };
     });
     if (result.ok) onClose();
     else if (result.reason === 'error') toast.show(S.sync.failed, { tone: 'error' });
   };
 
   /**
-   * Swaps the picture and keeps the post (text, author, order, cover): new files in a
+   * Swaps the picture and keeps the photo (comments, order, cover): new files in a
    * fresh folder, then the row points at them; the old files go afterwards.
    */
   const changePhoto = async (file: File) => {
@@ -141,16 +135,10 @@ export function PhotoSheet({
     setPhotoError(null);
     setChanging(true);
     try {
-      const v = await makePhotoVariants(file);
-      const ext = variantExt(v.variantType);
-      const paths = await files.upload([
-        { name: `original.${ORIGINAL_EXT[file.type]}`, blob: file, contentType: file.type },
-        { name: `display.${ext}`, blob: v.display, contentType: v.variantType },
-        { name: `thumb.${ext}`, blob: v.thumb, contentType: v.variantType },
-      ]);
+      const { paths, width, height } = await storePhoto(files, file);
       const r = await assets.update(
         asset.id,
-        { storagePath: paths[0], displayPath: paths[1], thumbPath: paths[2], width: v.width, height: v.height, mime: file.type, bytes: file.size },
+        { storagePath: paths[0], displayPath: paths[1], thumbPath: paths[2], width, height, mime: file.type, bytes: file.size },
         draft.version,
       );
       if (!r.ok) {
@@ -170,9 +158,9 @@ export function PhotoSheet({
   };
 
   const remove = async () => {
-    const result = await save.run(() => assets.remove(asset.id, draft.version));
-    if (!result.ok) {
-      if (result.reason === 'error') toast.show(S.sync.failed, { tone: 'error' });
+    const r = await assets.remove(asset.id, draft.version);
+    if (!r.ok) {
+      toast.show(r.reason === 'conflict' ? S.sync.conflict : S.sync.failed, { tone: 'error' });
       return;
     }
     onDeleted();
@@ -183,8 +171,11 @@ export function PhotoSheet({
     } catch {
       // Left for the server-side cleanup rule (plan §8.2-8).
     }
-    if (chosen) await setCover(null, asset.id); // a cover chosen elsewhere meanwhile stays
+    if (chosen) await moveCover(days, day, null, asset.id); // a cover chosen elsewhere meanwhile stays
   };
+
+  const nameOf = (c: JournalEntry) => (c.authorId === partner?.id ? partner.displayName : S.journal.someone);
+  const keyOf = (c: JournalEntry) => (c.authorId === partner?.id ? partner.profileKey : me?.profileKey);
 
   return (
     <Sheet
@@ -237,10 +228,10 @@ export function PhotoSheet({
               latest={save.conflict.latest}
               me={me}
               partner={partner}
-              onRebase={(l) => setDraft((d) => ({ ...d, version: l.version }))}
-              renderLatest={(l) => <p className={form.latestBody}>{l.caption}</p>}
+              onRebase={(l) => setDraft((d) => ({ ...d, commentVersion: l.version }))}
+              renderLatest={(l) => <p className={form.latestBody}>{l.body}</p>}
               onUseLatest={(l) => {
-                setDraft((d) => ({ ...d, version: l.version, caption: l.caption, captionTouched: false }));
+                setDraft((d) => ({ ...d, commentVersion: l.version, comment: l.body, commentTouched: false }));
                 save.clearConflict();
               }}
             />
@@ -283,26 +274,25 @@ export function PhotoSheet({
             </p>
           )}
         </div>
-        {canWrite || !author ? (
-          <Field label={S.journal.text}>
+        {theirs.map((c) => (
+          <div key={c.id} className={styles.readText}>
+            <p className={styles.commentHead}>
+              <MemberMarks who={keyOf(c) ?? 'together'} size="sm" />
+              <span>{S.journal.theirComment(nameOf(c))}</span>
+            </p>
+            <p className={styles.readBody}>{c.body}</p>
+          </div>
+        ))}
+        {me && (
+          <Field label={S.journal.myComment}>
             <TextArea
               rows={4}
               className={styles.noteField}
               placeholder={S.journal.textPrompt}
-              value={draft.caption}
-              onChange={(e) => edit({ caption: e.target.value, captionTouched: true })}
+              value={draft.comment}
+              onChange={(e) => edit({ comment: e.target.value, commentTouched: true })}
             />
           </Field>
-        ) : (
-          <div className={styles.readText}>
-            {asset.caption && (
-              <dl className={form.readonly}>
-                <dt>{S.journal.text}</dt>
-                <dd className={styles.readBody}>{asset.caption}</dd>
-              </dl>
-            )}
-            <p className={form.hint}>{S.journal.onlyAuthor(author.displayName)}</p>
-          </div>
         )}
         <CheckField
           label={S.journal.useAsCover}

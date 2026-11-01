@@ -84,6 +84,7 @@ export function DocumentFile({
         mime: file.type,
         bytes: file.size,
         kind: 'document',
+      isDefault: false,
         dayId: null,
         bookingId: null,
         documentId: doc.id,

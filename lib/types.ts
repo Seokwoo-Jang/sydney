@@ -61,6 +61,8 @@ export interface TripDay extends RowMeta {
   highlight: string;
   coverAssetId: string | null;
   collageVariant: number;
+  /** The day's own Nine Notes photo was deleted: it is not filed again. */
+  defaultPhotoRemoved: boolean;
 }
 
 export type BookingKind = 'flight' | 'stay' | 'car';
@@ -235,7 +237,9 @@ export interface Settlement extends RowMeta {
 
 export interface JournalEntry extends RowMeta {
   dayId: string;
-  authorId: string; // member id
+  authorId: string; // member id; set by the server to whoever writes it
+  /** The photo it comments on (one comment per photo and person); null = an old day note. */
+  assetId: string | null;
   body: string;
 }
 
@@ -270,6 +274,8 @@ export interface FileAsset extends RowMeta {
   mime: string;
   bytes: number;
   kind: 'photo' | 'document';
+  /** The day's own Nine Notes photo, filed as a photo of that day. */
+  isDefault: boolean;
   dayId: string | null;
   bookingId: string | null;
   documentId: string | null;

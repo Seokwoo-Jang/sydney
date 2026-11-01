@@ -1,10 +1,10 @@
 'use client';
-// Photos chosen for upload (plan §7.6.1): a preview and its text for each, then
-// one Upload; each becomes a post by whoever uploads it. A photo that failed
-// stays listed with an error so it can be retried. Closing with text typed (or
-// several photos chosen) asks before discarding.
+// Photos chosen for upload (plan §7.6.1): a preview, the uploader's comment and
+// "Use as day cover" (one at most) for each, then one Upload. A photo that failed
+// stays listed with an error so it can be retried. Closing with a comment typed
+// (or several photos chosen) asks before discarding.
 import { useId, useState } from 'react';
-import { ConfirmDiscard } from '@/components/checklist/FormBits';
+import { CheckField, ConfirmDiscard } from '@/components/checklist/FormBits';
 import { Button, IconButton, Sheet, TextArea } from '@/components/ui';
 import { S } from '@/lib/strings';
 import styles from './Journal.module.css';
@@ -12,10 +12,14 @@ import form from '@/components/checklist/Form.module.css';
 
 export interface PendingPhoto {
   key: string;
+  /** Id of the uploader's comment, kept for a retry. */
+  commentKey: string;
   file: File;
   /** Object URL for the preview; revoked when the photo leaves the list. */
   url: string;
   note: string;
+  /** Picked as the day cover (one photo at most). */
+  cover: boolean;
   failed: boolean;
 }
 
@@ -24,6 +28,7 @@ export function AddPhotosSheet({
   progress,
   notice,
   onNote,
+  onCover,
   onRemove,
   onUpload,
   onClose,
@@ -33,6 +38,7 @@ export function AddPhotosSheet({
   /** Why some chosen files were left out (type or size). */
   notice: string | null;
   onNote: (key: string, note: string) => void;
+  onCover: (key: string, on: boolean) => void;
   onRemove: (key: string) => void;
   onUpload: () => void;
   onClose: () => void;
@@ -85,7 +91,7 @@ export function AddPhotosSheet({
             <img src={p.url} alt={S.files.previewAlt(i + 1)} className={styles.pendingImg} decoding="async" draggable={false} />
             <div className={styles.pendingBody}>
               <label htmlFor={`${id}-${p.key}`} className={styles.pendingLabel}>
-                {S.journal.text}
+                {S.journal.myComment}
               </label>
               <TextArea
                 id={`${id}-${p.key}`}
@@ -96,6 +102,7 @@ export function AddPhotosSheet({
                 disabled={busy}
                 onChange={(e) => onNote(p.key, e.target.value)}
               />
+              <CheckField label={S.journal.useAsCover} checked={p.cover} disabled={busy} onChange={(on) => onCover(p.key, on)} />
               {p.failed && (
                 <p className={form.error} role="alert">
                   {S.files.failed}

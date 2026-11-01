@@ -104,7 +104,8 @@ export function useOverviewSummary(): OverviewSummary {
     if (assets.status !== 'ready' || days.status !== 'ready') return null;
     // Days with at least one photo post (the Journal is photos with their text).
     const dayIds = new Set(days.data.map((d) => d.id));
-    const withPhotos = new Set(assets.data.filter((a) => a.kind === 'photo' && a.dayId && dayIds.has(a.dayId)).map((a) => a.dayId)).size;
+    // The day's own Nine Notes photo is not one of ours.
+    const withPhotos = new Set(assets.data.filter((a) => a.kind === 'photo' && !a.isDefault && a.dayId && dayIds.has(a.dayId)).map((a) => a.dayId)).size;
     return {
       value: S.overview.journalValue(withPhotos, days.data.length),
       sub: withPhotos ? S.overview.journalSome(withPhotos) : S.overview.journalEmpty,

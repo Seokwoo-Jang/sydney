@@ -1,21 +1,23 @@
 'use client';
 // Adds photos to one day (plan §7.6.1). Chosen photos wait in a list where
-// each can get its text; Upload sends them one by one. The original is kept as
-// uploaded, plus a 2048 px display copy and a 480 px thumbnail made in the
-// browser. The three files share one private `<trip_id>/<uuid>/` folder and one
-// file_assets row; the text is its caption. The repository records who added it.
+// each can get the uploader's comment and one can be picked as the day cover;
+// Upload sends them one by one. The original is kept as uploaded, plus a
+// 2048 px display copy and a 480 px thumbnail made in the browser. The three
+// files share one private `<trip_id>/<uuid>/` folder and one file_assets row;
+// the comment is a journal entry of whoever uploads (the server records who).
 import { useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui';
-import { newId, useAssets, useFiles } from '@/lib/data';
-import { PHOTO_MIME, fileProblem, makePhotoVariants, variantExt } from '@/lib/files';
-import type { FileAsset, TripDay } from '@/lib/types';
+import { newId, useAssets, useDays, useFiles, useJournal } from '@/lib/data';
+import { PHOTO_MIME, fileProblem } from '@/lib/files';
+import type { FileAsset, Member, TripDay } from '@/lib/types';
 import { S } from '@/lib/strings';
 import { AddPhotosSheet, type PendingPhoto } from './AddPhotosSheet';
+import { moveCover, storePhoto } from './photoKit';
 import styles from './Journal.module.css';
 
-export const ORIGINAL_EXT: Record<string, string> = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp' };
+export { ORIGINAL_EXT } from './photoKit';
 
-/** Files already in storage for a listed photo, so a retry only creates the row. */
+/** Files already in storage for a listed photo, so a retry only creates the rows. */
 interface Stored {
   paths: string[];
   width: number;
@@ -25,17 +27,21 @@ interface Stored {
 export function AddPhotos({
   day,
   photos,
+  me,
   notify,
   autoFocus,
 }: {
   day: TripDay;
   photos: FileAsset[];
-  notify: (message: string) => void;
+  me: Member | null;
+  notify: (message: string, tone?: 'error') => void;
   /** Takes focus as the day sheet opens (Sheet keeps a focus already inside it). */
   autoFocus?: boolean;
 }) {
   const files = useFiles();
   const assets = useAssets();
+  const journal = useJournal();
+  const days = useDays();
   const input = useRef<HTMLInputElement>(null);
   const [pending, setPending] = useState<PendingPhoto[]>([]);
   const [progress, setProgress] = useState<{ n: number; total: number } | null>(null);
@@ -51,27 +57,15 @@ export function AddPhotos({
     const { key, file } = item;
     let done = stored.current.get(key);
     if (!done) {
-      let variants;
       try {
-        variants = await makePhotoVariants(file);
-      } catch {
-        return false;
-      }
-      const ext = variantExt(variants.variantType);
-      try {
-        const paths = await files.upload([
-          { name: `original.${ORIGINAL_EXT[file.type]}`, blob: file, contentType: file.type },
-          { name: `display.${ext}`, blob: variants.display, contentType: variants.variantType },
-          { name: `thumb.${ext}`, blob: variants.thumb, contentType: variants.variantType },
-        ]);
-        done = { paths, width: variants.width, height: variants.height };
+        done = await storePhoto(files, file);
       } catch {
         return false;
       }
       stored.current.set(key, done);
     }
-    // The list key is the row id: if an earlier try reached the server after
-    // all, create returns that row instead of adding the photo twice.
+    // The list keys are the row ids: if an earlier try reached the server after
+    // all, create returns that row instead of adding the photo (or comment) twice.
     const res = await assets.create({
       id: key,
       storagePath: done.paths[0],
@@ -85,16 +79,23 @@ export function AddPhotos({
       mime: file.type,
       bytes: file.size,
       kind: 'photo',
+      isDefault: false,
       dayId: day.id,
       bookingId: null,
       documentId: null,
-      caption: item.note.trim(),
+      caption: '',
       sortOrder,
     });
     // A failed create keeps the files for the retry: the row may exist anyway.
     // A photo then dropped from the list leaves them to the cleanup rule (plan §8.2-8).
-    if (res.ok) stored.current.delete(key);
-    return res.ok;
+    if (!res.ok) return false;
+    const note = item.note.trim();
+    if (note && me) {
+      const c = await journal.create({ id: item.commentKey, dayId: day.id, assetId: key, authorId: me.id, body: note });
+      if (!c.ok) return false;
+    }
+    stored.current.delete(key);
+    return true;
   }
 
   function choose(list: File[]) {
@@ -102,7 +103,10 @@ export function AddPhotos({
     setError(problems.find(Boolean) ?? null);
     const ok = list.filter((_, i) => !problems[i]);
     if (!ok.length) return;
-    setPending((all) => [...all, ...ok.map((file) => ({ key: newId(), file, url: URL.createObjectURL(file), note: '', failed: false }))]);
+    setPending((all) => [
+      ...all,
+      ...ok.map((file) => ({ key: newId(), commentKey: newId(), file, url: URL.createObjectURL(file), note: '', cover: false, failed: false })),
+    ]);
   }
 
   function drop(key: string) {
@@ -126,12 +130,14 @@ export function AddPhotos({
     const list = pending;
     let order = Math.max(0, ...photos.map((p) => p.sortOrder));
     let added = 0;
+    let cover: string | null = null;
     for (let i = 0; i < list.length; i++) {
       const item = list[i];
       setProgress({ n: i + 1, total: list.length });
       order += 10;
       if (await addOne(item, order)) {
         added++;
+        if (item.cover) cover = item.key;
         drop(item.key);
       } else {
         setPending((all) => all.map((p) => (p.key === item.key ? { ...p, failed: true } : p)));
@@ -139,6 +145,8 @@ export function AddPhotos({
     }
     setProgress(null);
     if (added) notify(S.files.photosAdded(added));
+    // The photo picked as cover becomes the day's cover (a cover chosen meanwhile elsewhere stays).
+    if (cover && (await moveCover(days, day, cover, day.coverAssetId)) !== 'ok') notify(S.journal.coverNotSet, 'error');
   }
 
   return (
@@ -181,6 +189,7 @@ export function AddPhotos({
         progress={progress}
         notice={error}
         onNote={(key, note) => setPending((all) => all.map((p) => (p.key === key ? { ...p, note } : p)))}
+        onCover={(key, on) => setPending((all) => all.map((p) => ({ ...p, cover: p.key === key ? on : on ? false : p.cover })))}
         onRemove={drop}
         onUpload={() => void upload()}
         onClose={cancel}

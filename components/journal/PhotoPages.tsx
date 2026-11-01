@@ -1,13 +1,13 @@
 'use client';
-// Photo posts of one day (plan §7.6.1): each post is a photo, its text and the
-// circled mark of whoever added it. Rows come from photoLayout(); DOM order =
-// photo order. Each photo is printed whole (natural ratio, paper border, tape,
-// slight tilt); its text is the figcaption, led by the mark. A post without
-// text keeps the mark on the frame corner. Reorder mode lists the posts flat
-// with Move up / Move down.
+// Photos of one day (plan §7.6.1): each photo with our comments on it, each
+// comment led by the circled mark of whoever wrote it (one each per photo).
+// Rows come from photoLayout(); DOM order = photo order. Each photo is printed
+// whole (natural ratio, paper border, tape, slight tilt); the comments are the
+// figcaption. A photo without comments keeps the mark of whoever added it on
+// the frame corner. Reorder mode lists the photos flat with Move up / Move down.
 import type { CSSProperties } from 'react';
 import { Icon, MemberMarks } from '@/components/ui';
-import type { FileAsset, Member } from '@/lib/types';
+import type { FileAsset, JournalEntry, Member } from '@/lib/types';
 import { S } from '@/lib/strings';
 import { photoLayout, type PhotoRow, type PlacedPhoto } from './photoLayout';
 import { Photo } from './Photo';
@@ -35,6 +35,7 @@ function AuthorMark({ author, className }: { author: Member | null; className: s
 
 export function PhotoPages({
   photos,
+  comments,
   dayNumber,
   coverId,
   members,
@@ -43,6 +44,8 @@ export function PhotoPages({
   onMove,
 }: {
   photos: FileAsset[];
+  /** Live comments by photo id, oldest first. */
+  comments: Map<string, JournalEntry[]>;
   dayNumber: number;
   coverId: string | null;
   members: Member[];
@@ -52,13 +55,15 @@ export function PhotoPages({
   onMove: (index: number, dir: -1 | 1) => void;
 }) {
   const authorOf = (a: FileAsset) => members.find((m) => m.id === a.createdBy) ?? null;
+  const writerOf = (c: JournalEntry) => members.find((m) => m.id === c.authorId) ?? null;
+  const notesOf = (a: FileAsset) => comments.get(a.id) ?? [];
 
   if (reordering) {
     return (
       <ol role="list" className={styles.reorder}>
         {photos.map((asset, i) => {
           const n = i + 1;
-          const text = asset.caption.trim();
+          const text = notesOf(asset)[0]?.body.trim() ?? '';
           return (
             <li key={asset.id} className={styles.reorderItem}>
               <span className={styles.reorderThumb}>
@@ -102,12 +107,14 @@ export function PhotoPages({
     );
   }
 
-  const rows = photoLayout(photos);
+  // The layout leaves room beside a photo that has words under it.
+  const rows = photoLayout(photos.map((p) => ({ ...p, caption: notesOf(p).map((c) => c.body).join(' ') })));
   const byId = new Map(photos.map((p, i) => [p.id, { asset: p, n: i + 1 }]));
 
   const figure = (placed: PlacedPhoto, sizes: string) => {
     const { asset, n } = byId.get(placed.id)!;
-    const text = asset.caption.trim();
+    const notes = notesOf(asset);
+    const text = notes.length > 0;
     const author = authorOf(asset);
     return (
       <figure
@@ -135,10 +142,14 @@ export function PhotoPages({
         </div>
         {text && (
           <figcaption className={styles.photoNote}>
-            <span className={styles.noteHead}>
-              <AuthorMark author={author} className={styles.mark} />
-            </span>
-            {text}
+            {notes.map((c) => (
+              <span key={c.id} className={styles.comment}>
+                <span className={styles.noteHead}>
+                  <AuthorMark author={writerOf(c)} className={styles.mark} />
+                </span>
+                {c.body.trim()}
+              </span>
+            ))}
           </figcaption>
         )}
       </figure>
@@ -156,7 +167,7 @@ export function PhotoPages({
         className={styles.row}
         data-kind={r.kind}
         data-side={r.side}
-        data-note={byId.get(r.photo.id)!.asset.caption.trim() ? '' : undefined}
+        data-note={notesOf(byId.get(r.photo.id)!.asset).length ? '' : undefined}
       >
         {figure(r.photo, SIZES[r.photo.shape])}
       </li>
