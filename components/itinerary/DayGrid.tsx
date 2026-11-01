@@ -50,9 +50,7 @@ export function DayGrid({
               <span className={styles.dayTheme}>{d.title}</span>
               <span className={styles.dayMeta}>
                 {i.prelude && (
-                  <span className={styles.preludeDot}>
-                    <span className="sr-only">{S.itinerary.preludeDay}</span>
-                  </span>
+                  <Icon name="note" size={14} className={styles.preludeNote} label={S.itinerary.preludeDay} />
                 )}
                 <span className={styles.dayMetaText}>{meta}</span>
               </span>

@@ -171,12 +171,12 @@ export interface LineStyle {
   dashArray: string | null;
 }
 
-/** Walk: thin solid · Train/ferry: dashed · Drive: thick solid. Idea: faint, and solid lines turn dashed. */
-export function lineStyle(lane: Lane, mode: TravelMode, idea: boolean): LineStyle {
-  const color = LANE_COLOR[lane];
-  if (mode === 'drive') return { color, weight: idea ? 5 : 6, opacity: idea ? 0.5 : 0.9, dashArray: idea ? '12 9' : null };
-  if (mode === 'transit') return { color, weight: 3, opacity: idea ? 0.5 : 0.9, dashArray: idea ? '2 7' : '10 7' };
-  return { color, weight: 3, opacity: idea ? 0.5 : 0.9, dashArray: idea ? '6 7' : null };
+/**
+ * Lines differ only by person (owner, 2026-11-01): Together Ink, Eren Harbour Blue,
+ * Amy Brass, all solid. Travel mode and Idea status are not drawn differently.
+ */
+export function lineStyle(lane: Lane, _mode?: TravelMode, _idea?: boolean): LineStyle {
+  return { color: LANE_COLOR[lane], weight: lane === 'together' ? 4 : 3.5, opacity: 0.9, dashArray: null };
 }
 
 /** Side-by-side lanes: E a few pixels to one side, A to the other, so shared stretches stay visible. */

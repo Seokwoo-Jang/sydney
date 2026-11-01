@@ -54,12 +54,10 @@
   color: var(--porcelain);
 }
 
+/* Prelude marker: a small brass music note. */
 .dot {
-  display: inline-block;
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: var(--brass);
+  flex: none;
+  color: var(--brass);
 }
 
 .chips {

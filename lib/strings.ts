@@ -488,6 +488,7 @@ export const S = {
     activities: (n: number) => `${n} ${n === 1 ? 'activity' : 'activities'}`,
     route: (from: string, to: string) => `${from} → ${to}`,
     flightDay: 'Flight',
+    preludeMark: "Amy's Prelude",
     preludeDay: 'Includes a plan from Amy’s Prelude',
     mix: { together: 'Together', mixed: 'Together & on our own', solo: 'On our own' },
     viewAll: (n: number) => `View all ${n}`,

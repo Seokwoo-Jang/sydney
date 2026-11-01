@@ -71,6 +71,8 @@ export function ItineraryRow({
     : item.summary.trim() || [S.labels.itineraryCategory[item.category], item.place.trim()].filter(Boolean).join(' · ');
 
   const shown = shownStatus(item.status, state === 'past');
+  // Amy's Prelude: a Business plan or one linked to a Prelude activity gets a music note.
+  const prelude = item.category === 'business' || !!links.activity;
   const badges = (
     <>
       {state === 'now' && <Badge tone="now">{S.time.now}</Badge>}
@@ -94,7 +96,11 @@ export function ItineraryRow({
     layout === 'board' ? (
       <>
         {timeCell}
-        <span className={styles.dot} aria-hidden="true" />
+        {prelude ? (
+          <Icon name="note" size={14} className={styles.noteMark} label={S.itinerary.preludeMark} />
+        ) : (
+          <span className={styles.dot} aria-hidden="true" />
+        )}
         <span className={styles.marks}>
           <MemberMarks who={item.participants} />
         </span>
@@ -110,7 +116,10 @@ export function ItineraryRow({
       <>
         {timeCell}
         <span className={styles.text}>
-          <span className={styles.title}>{item.title}</span>
+          <span className={styles.title}>
+            {prelude && <Icon name="note" size={14} className={styles.noteInline} label={S.itinerary.preludeMark} />}
+            {item.title}
+          </span>
           <span className={styles.subLine}>
             <MemberMarks who={item.participants} size="sm" />
             <span className={styles.sub}>{summary}</span>

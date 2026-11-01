@@ -225,20 +225,8 @@ export default function RouteView({
       <div className={styles.legend} aria-label={S.route.legendLabel} role="group">
         <ul className={styles.legendKeys}>
           <li>
-            <i className={[styles.swatch, styles.walk].join(' ')} aria-hidden="true" />
-            {S.labels.travelMode.walk}
-          </li>
-          <li>
-            <i className={[styles.swatch, styles.transit].join(' ')} aria-hidden="true" />
-            {S.labels.travelMode.transit}
-          </li>
-          <li>
-            <i className={[styles.swatch, styles.drive].join(' ')} aria-hidden="true" />
-            {S.labels.travelMode.drive}
-          </li>
-          <li>
-            <i className={[styles.swatch, styles.ideaSwatch].join(' ')} aria-hidden="true" />
-            {S.route.ideaLine}
+            <i className={styles.swatch} aria-hidden="true" />
+            {S.people.participants.together}
           </li>
           <li>
             <i className={[styles.swatch, styles.erenSwatch].join(' ')} aria-hidden="true" />
@@ -249,7 +237,6 @@ export default function RouteView({
             {S.people.participants.amy}
           </li>
         </ul>
-        <p className={styles.note}>{S.maps.linesNote}</p>
       </div>
 
       {dayRoute ? (

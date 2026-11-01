@@ -677,3 +677,22 @@ button.toggle:hover .title {
   overflow: hidden;
   text-overflow: ellipsis;
 }
+
+/* Amy's Prelude mark (music note, Brass Deep) on day cards and list rows. */
+.preludeNote,
+.noteMark {
+  flex: none;
+  color: var(--brass-deep);
+}
+
+.noteMark {
+  justify-self: center;
+  margin-top: 3px;
+}
+
+.noteInline {
+  display: inline-block;
+  margin-right: 4px;
+  vertical-align: -1px;
+  color: var(--brass-deep);
+}

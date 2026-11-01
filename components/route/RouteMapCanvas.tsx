@@ -241,7 +241,6 @@ export default function RouteMapCanvas(props: RouteMapCanvasProps) {
         const lane = groupLane(g);
         const focused = isFocusLane(lane, people);
         const fade = focused ? 1 : OTHER;
-        const idea = g.stops.every((s) => s.item.status === 'idea');
         const done = g.stops.every((s) => s.item.status === 'completed');
         const meet = g.stops.some((s) => s.meetUp);
         const isNow = g.stops.some((s) => now.has(s.item.id));
@@ -249,7 +248,6 @@ export default function RouteMapCanvas(props: RouteMapCanvasProps) {
         const cls = [
           numbered ? styles.pin : styles.dot,
           styles[`lane_${lane}`],
-          idea ? styles.idea : '',
           done ? styles.done : '',
           isNow ? styles.now : '',
         ]

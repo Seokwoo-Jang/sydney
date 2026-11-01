@@ -1,5 +1,6 @@
 'use client';
 import { useRef, type KeyboardEvent, type ReactNode } from 'react';
+import { Icon } from './Icon';
 import styles from './SegmentedControl.module.css';
 
 export interface SegmentOption<V extends string> {
@@ -70,9 +71,7 @@ export function SegmentedControl<V extends string>({
           >
             {o.label}
             {o.dot && (
-              <span className={styles.dot}>
-                {o.dotLabel && <span className="sr-only">{o.dotLabel}</span>}
-              </span>
+              <Icon name="note" size={13} className={styles.dot} label={o.dotLabel} />
             )}
           </button>
         );

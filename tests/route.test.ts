@@ -164,20 +164,14 @@ describe('buildDayRoute', () => {
 });
 
 describe('lineStyle', () => {
-  it('walk thin solid, transit dashed, drive thick solid', () => {
-    expect(lineStyle('together', 'walk', false)).toMatchObject({ weight: 3, dashArray: null, opacity: 0.9 });
-    expect(lineStyle('together', 'transit', false).dashArray).not.toBeNull();
-    expect(lineStyle('together', 'drive', false)).toMatchObject({ weight: 6, dashArray: null });
-  });
-  it('ideas are faint and dashed; lanes use the E/A colours', () => {
+  it('tells people apart only: solid, same look for every mode and status', () => {
     for (const m of ['walk', 'transit', 'drive'] as const) {
-      const s = lineStyle('eren', m, true);
-      expect(s.opacity).toBeLessThan(0.9);
-      expect(s.dashArray).not.toBeNull();
+      for (const idea of [true, false]) {
+        expect(lineStyle('eren', m, idea)).toEqual({ color: '#286A82', weight: 3.5, opacity: 0.9, dashArray: null });
+      }
     }
-    expect(lineStyle('eren', 'walk', false).color).toBe('#286A82');
-    expect(lineStyle('amy', 'walk', false).color).toBe('#A98248');
-    expect(lineStyle('together', 'walk', false).color).toBe('#172F3B');
+    expect(lineStyle('amy').color).toBe('#A98248');
+    expect(lineStyle('together')).toMatchObject({ color: '#172F3B', weight: 4, dashArray: null });
   });
 });
 
