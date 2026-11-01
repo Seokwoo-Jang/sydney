@@ -149,12 +149,11 @@ describe('buildDayRoute', () => {
     expect(r.segments.every((s) => !('mode' in s))).toBe(true);
   });
 
-  it('numbers places, not plans: plans in a row at one place share the first one’s number', () => {
-    const P = { mapLat: -33.86, mapLng: 151.2 };
-    const near = { mapLat: -33.8602, mapLng: 151.2003 }; // ~35 m from P: the same place
-    const Q = { mapLat: -33.865, mapLng: 151.2 }; // ~550 m away
+  it('numbers places, not plans: the same Google Maps link in a row shares the first one’s number', () => {
+    const P = { mapUrl: 'https://maps.app.goo.gl/place-p', mapLat: -33.86, mapLng: 151.2 };
+    const Q = { mapUrl: 'https://maps.app.goo.gl/place-q', mapLat: -33.865, mapLng: 151.2 };
     const r = buildDayRoute(
-      [at('a', '09:00', P), at('b', '10:00', near), at('c', '11:00', P), at('d', '12:00', Q), at('e', '13:00', P)],
+      [at('a', '09:00', P), at('b', '10:00', P), at('c', '11:00', P), at('d', '12:00', Q), at('e', '13:00', P)],
       D,
       'together',
       SYDNEY_TZ,
@@ -171,7 +170,6 @@ describe('buildDayRoute', () => {
       [2, ['d']],
       [3, ['e']],
     ]);
-    // No zero-length lines inside a place; P's pin shows both of its numbers.
     expect(segs(r)).toEqual(['c>d:together', 'd>e:together']);
     expect(groupStops(r.stops).map((g) => pinText(g.stops.map((x) => x.n)))).toEqual(['1·3', '2']);
   });
@@ -230,27 +228,27 @@ describe('pins and labels', () => {
     expect(pinText([])).toBe('');
   });
 
-  it('groupStops: links a few metres apart share one pin, a street away do not', () => {
+  it('different links are different places, even a few metres apart; the same link is one', () => {
     const r = buildDayRoute(
       [
-        at('a', '09:00', { mapLat: -33.86, mapLng: 151.2 }),
-        at('b', '10:00', { mapLat: -33.8602, mapLng: 151.2003 }), // ~35 m
-        at('c', '11:00', { mapLat: -33.865, mapLng: 151.2 }), // ~550 m
+        at('a', '09:00', { mapUrl: 'https://maps.app.goo.gl/one', mapLat: -33.86, mapLng: 151.2 }),
+        at('b', '10:00', { mapUrl: 'https://maps.app.goo.gl/two', mapLat: -33.8602, mapLng: 151.2003 }), // ~35 m
+        at('c', '11:00', { mapUrl: 'https://maps.app.goo.gl/one', mapLat: -33.86, mapLng: 151.2 }),
       ],
       D,
       'together',
       SYDNEY_TZ,
     );
-    expect(groupStops(r.stops).map((g) => ids(g.stops))).toEqual([['a', 'b'], ['c']]);
-    expect(metresBetween({ lat: -33.86, lng: 151.2 }, { lat: -33.8602, lng: 151.2003 })).toBeLessThan(80);
+    expect(r.stops.map((s) => s.n)).toEqual([1, 2, 3]);
+    expect(groupStops(r.stops).map((g) => ids(g.stops))).toEqual([['a', 'c'], ['b']]);
   });
 
-  it('lines follow the numbers: none inside one place, always one between two places', () => {
+  it('without the same link, the same place name is one place; lines only between places', () => {
     const r = buildDayRoute(
       [
-        at('a', '09:00', { mapLat: -33.87, mapLng: 151.2 }),
-        at('b', '10:00', { mapLat: -33.87127, mapLng: 151.2 }), // 140 m on: still place 1
-        at('c', '11:00', { mapLat: -33.87254, mapLng: 151.2 }), // 281 m from a: place 2, only 140 m from b
+        at('a', '09:00', { place: 'Plaza', mapLat: -33.87, mapLng: 151.2 }),
+        at('b', '10:00', { place: 'Plaza · east gate', mapLat: -33.8713, mapLng: 151.2 }),
+        at('c', '11:00', { place: 'Hilltop', mapLat: -33.8725, mapLng: 151.2 }),
       ],
       D,
       'together',
@@ -260,34 +258,18 @@ describe('pins and labels', () => {
     expect(segs(r)).toEqual(['b>c:together']);
   });
 
-  it('pins agree with the numbers even when a stop is nearer another place’s first plan', () => {
+  it('a place still to be decided ("숙소 미정") stays off the map, even with a link', () => {
     const r = buildDayRoute(
-      [
-        at('a', '09:00', { mapLat: -33.87, mapLng: 151.2 }),
-        at('b', '10:00', { mapLat: -33.8722, mapLng: 151.2 }), // 243 m from a: place 2
-        at('c', '11:00', { mapLat: -33.87105, mapLng: 151.2008 }), // 147 m from b (place 2), 138 m from a
-      ],
+      [at('move', '14:00', { place: 'Airport area' }), at('hotel', '16:30', { place: 'Airport area · 숙소 미정' })],
       D,
       'together',
       SYDNEY_TZ,
     );
-    expect(r.stops.map((s) => s.n)).toEqual([1, 2, 2]);
-    expect(groupStops(r.stops).map((g) => ids(g.stops))).toEqual([['a'], ['b', 'c']]);
+    expect(ids(r.stops)).toEqual(['move']);
+    expect(r.notOnMap.map((i) => i.id)).toEqual(['hotel']);
   });
 
-  it('groupStops never moves a place onto another: each stop joins the nearest pin of its own place', () => {
-    const r = buildDayRoute(
-      [
-        at('a', '09:00', { mapLat: -33.86, mapLng: 151.2 }),
-        at('c', '10:00', { mapLat: -33.8624, mapLng: 151.2 }), // ~265 m from a
-        at('b', '11:00', { mapLat: -33.8613, mapLng: 151.2 }), // ~145 m from a, ~120 m from c: c's place
-      ],
-      D,
-      'together',
-      SYDNEY_TZ,
-    );
-    expect(groupStops(r.stops).map((g) => ids(g.stops))).toEqual([['a'], ['c', 'b']]);
-  });
+
 
   it('groupLane: shared pin of different people is Together', () => {
     const r = buildDayRoute(

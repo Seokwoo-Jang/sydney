@@ -27,8 +27,10 @@ export interface RouteStop {
   lat: number;
   lng: number;
   lane: Lane;
-  /** The place's name as the map shows it, normalised ('icn t1'); null without one. */
+  /** Its Google Maps link, as typed; null without one. */
   key: string | null;
+  /** Its place name as the map shows it, normalised ('icn t1'); null without one. */
+  name: string | null;
   /** Untimed stops get a pin but no line (they have no place in the order). */
   timed: boolean;
   /** Eren and Amy rejoin here after going separately. */
@@ -125,8 +127,8 @@ export function flightAirports(i: Pick<ItineraryItem, 'place'>): { from: LatLng 
   return from && to ? { from, to } : null;
 }
 
-/** Plans this close are one place: two links for one place rarely give the same point. */
-export const SAME_PLACE_M = 150;
+/** Stops this close are on one spot (a flight leaving from the stop it joins). */
+export const SAME_PLACE_M = 1;
 /** A flight leaves from, and lands at, a stop already at its airport within this. */
 const AIRPORT_AREA_M = 3000;
 
@@ -149,15 +151,28 @@ function nearest<T extends LatLng>(points: T[], to: LatLng, within: number): T |
   return best;
 }
 
+/** A stop's Google Maps link for comparing; null without one. */
+export function placeKey(i: Pick<ItineraryItem, 'mapUrl'>): string | null {
+  return i.mapUrl?.trim() || null;
+}
+
 /** A stop's place name for comparing ('ICN T1' = 'icn t1'); null when the item names no place. */
-export function placeKey(i: Pick<ItineraryItem, 'place' | 'title'>): string | null {
+export function placeName(i: Pick<ItineraryItem, 'place' | 'title'>): string | null {
   if (!i.place.trim()) return null;
   return stopLabel(i).toLowerCase().replace(/\s+/g, ' ').trim() || null;
 }
 
-/** Two stops are one place: the same place name (owner, 2026-11-01), or links to one spot. */
-export const samePlace = (a: LatLng & { key: string | null }, b: LatLng & { key: string | null }): boolean =>
-  (!!a.key && a.key === b.key) || metresBetween(a, b) <= SAME_PLACE_M;
+type Placed = LatLng & { key: string | null; name: string | null };
+
+/**
+ * Two stops are one place (owner, 2026-11-01): the same Google Maps link; failing that,
+ * the same place name; or the very same spot (a flight on the stop it leaves from).
+ */
+export const samePlace = (a: Placed, b: Placed): boolean =>
+  (!!a.key && a.key === b.key) || (!!a.name && a.name === b.name) || metresBetween(a, b) <= SAME_PLACE_M;
+
+/** A place still to be decided ("숙소 미정") is not on the map, link or not. */
+const undecided = (i: Pick<ItineraryItem, 'place'>) => i.place.includes('미정');
 
 /** The airport a place names on its own ('ICN T1'), or a flight leaves from. */
 function airportOf(i: ItineraryItem): LatLng | null {
@@ -169,24 +184,28 @@ function airportOf(i: ItineraryItem): LatLng | null {
 
 /**
  * Where each item sits:
- * - its own spot (a Google Maps link);
- * - else, at a place named like another plan of the day ('ICN T1'), that plan's spot;
+ * - its own spot (its Google Maps link);
+ * - else, with the same link or place name as another plan of the day, that plan's spot;
  * - else, at an airport ('ICN T1', or a flight's departure), where its people already are
  *   there, or the first plan of the day there, or the airport itself.
- * So everything at one place shares one spot, and one number when it comes in a row.
+ * A place still to be decided is not on the map.
  */
 function spotsOf(ordered: ItineraryItem[]): Map<string, LatLng> {
   const spots = new Map<string, LatLng>();
-  for (const i of ordered) if (hasCoords(i)) spots.set(i.id, { lat: i.mapLat!, lng: i.mapLng! });
-  const own = ordered.filter((i) => spots.has(i.id));
+  const live = ordered.filter((i) => !undecided(i));
+  for (const i of live) if (hasCoords(i)) spots.set(i.id, { lat: i.mapLat!, lng: i.mapLng! });
+  const own = live.filter((i) => spots.has(i.id));
   const last: Partial<Record<Lane, LatLng>> = {};
-  for (const i of ordered) {
+  for (const i of live) {
     const lane = laneOf(i);
     if (!spots.has(i.id)) {
       const key = placeKey(i);
-      const named = key ? ordered.find((o) => o !== i && spots.has(o.id) && placeKey(o) === key) : undefined;
-      const air = named ? null : airportOf(i);
-      let p: LatLng | null = named ? spots.get(named.id)! : null;
+      const name = placeName(i);
+      const twin =
+        (key ? own.find((o) => o !== i && placeKey(o) === key) : undefined) ??
+        (name ? live.find((o) => o !== i && spots.has(o.id) && placeName(o) === name) : undefined);
+      const air = twin ? null : airportOf(i);
+      let p: LatLng | null = twin ? spots.get(twin.id)! : null;
       if (air) {
         const before = last[lane];
         const there = own.find((o) => metresBetween(spots.get(o.id)!, air) <= AIRPORT_AREA_M);
@@ -251,7 +270,7 @@ export function buildDayRoute(items: ItineraryItem[], date: string, filter: Peop
 
   // Each route is numbered on its own, by place: the number goes up only when the place
   // changes from that route's previous stop (measured from the first plan there).
-  const at: Record<Lane, { n: number; first: (LatLng & { key: string | null }) | null }> = {
+  const at: Record<Lane, { n: number; first: Placed | null }> = {
     together: { n: 0, first: null },
     eren: { n: 0, first: null },
     amy: { n: 0, first: null },
@@ -261,7 +280,7 @@ export function buildDayRoute(items: ItineraryItem[], date: string, filter: Peop
     .map((item) => {
       const p = spots.get(item.id)!;
       const lane = laneOf(item);
-      const here = { lat: p.lat, lng: p.lng, key: placeKey(item) };
+      const here = { lat: p.lat, lng: p.lng, key: placeKey(item), name: placeName(item) };
       const routes: Partial<Record<Lane, number>> = {};
       for (const l of ['together', 'eren', 'amy'] as const) {
         if (!onRoutes.get(item.id)?.has(l)) continue;
@@ -386,7 +405,9 @@ export function groupStops(stops: RouteStop[]): PinGroup[] {
     const own = groups.find((g) => g.stops.some((t) => t.lane === s.lane && t.n === s.n));
     // (a pin of one place on one route; the routes a stop is also on number it there)
     const fits = (g: PinGroup) => g.stops.every((t) => t.lane !== s.lane || samePlace(t, s));
-    const named = s.key ? groups.find((g) => fits(g) && g.stops.some((t) => t.key === s.key)) : undefined;
+    const named = groups.find(
+      (g) => fits(g) && g.stops.some((t) => (!!s.key && t.key === s.key) || (!!s.name && t.name === s.name)),
+    );
     const g = own ?? named ?? nearest(groups.filter(fits), s, SAME_PLACE_M);
     if (g) g.stops.push(s);
     else groups.push({ key: `${s.lat.toFixed(5)},${s.lng.toFixed(5)}`, lat: s.lat, lng: s.lng, stops: [s] });
