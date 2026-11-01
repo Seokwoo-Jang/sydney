@@ -270,6 +270,7 @@ export function ItineraryBody({
             onToggle={() => expanded.toggle(r.item.id)}
             onEdit={() => setSheet({ kind: 'edit', item: r.item })}
             onViewPlan={(a) => goToSection('prelude', { item: a.id })}
+            onViewBooking={(b) => goToSection('ready', { view: 'bookings', mark: b.id })}
             onOpenExpenses={() => goToSection('wallet')}
           />
         );

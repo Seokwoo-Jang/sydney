@@ -47,6 +47,7 @@ export function ItineraryRow({
   onToggle,
   onEdit,
   onViewPlan,
+  onViewBooking,
   onOpenExpenses,
 }: {
   row: DayRow;
@@ -62,6 +63,7 @@ export function ItineraryRow({
   onToggle: () => void;
   onEdit: () => void;
   onViewPlan: (activity: PreludeActivity) => void;
+  onViewBooking: (booking: Booking) => void;
   onOpenExpenses: () => void;
 }) {
   const { item, continuation } = row;
@@ -167,7 +169,18 @@ export function ItineraryRow({
             <p className={styles.metaLine}>
               <Icon name={BOOKING_ICON[links.booking.kind]} size={16} />
               <span>
-                <span className={styles.metaLabel}>{S.itinerary.booking}</span> {bookingLine(links.booking)}
+                <span className={styles.metaLabel}>{S.itinerary.booking}</span>{' '}
+                {/* Opens the booking's card in Checklist › Bookings, with a ring. */}
+                <a
+                  href={hrefFor({ section: 'ready', day: null, view: 'bookings', item: null, mark: links.booking.id })}
+                  className={styles.planLink}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    onViewBooking(links.booking!);
+                  }}
+                >
+                  {bookingLine(links.booking)}
+                </a>
               </span>
             </p>
           )}
