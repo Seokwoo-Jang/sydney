@@ -29,6 +29,7 @@ import {
 } from './logic';
 import { useExpanded } from './useExpanded';
 import { DayTitle } from './DayTitle';
+import { meetUpIds } from '@/components/route/routeLogic';
 import styles from './itinerary.module.css';
 
 export type ItineraryMode = 'day' | 'full';
@@ -176,6 +177,7 @@ export function ItineraryBody({
   }, [days, live, tz, bookingById, activityByItem]);
 
   const hasExample = visible.some((i) => i.isExample);
+  const meetUps = useMemo(() => meetUpIds(live, data.bookings, tz), [live, data.bookings, tz]);
 
   // ── navigation ────────────────────────────────────────────────
   const selectDay = (date: string, via: 'click' | 'key') => {
@@ -272,6 +274,7 @@ export function ItineraryBody({
             state={rowState(r.item, date)}
             open={expanded.isOpen(r.item.id)}
             highlighted={highlight === r.item.id}
+            meetUp={meetUps.has(r.item.id)}
             links={linksFor(r.item)}
             onToggle={() => expanded.toggle(r.item.id)}
             onEdit={() => setSheet({ kind: 'edit', item: r.item })}

@@ -44,6 +44,7 @@ export function ItineraryRow({
   state,
   open,
   highlighted,
+  meetUp,
   links,
   onToggle,
   onEdit,
@@ -60,6 +61,8 @@ export function ItineraryRow({
   open: boolean;
   /** Ringed for a moment after a link (Library, Amy's Prelude) lands on it. */
   highlighted?: boolean;
+  /** Where we meet again (as on the Route). */
+  meetUp?: boolean;
   links: RowLinks;
   onToggle: () => void;
   onEdit: () => void;
@@ -86,6 +89,7 @@ export function ItineraryRow({
     <>
       {state === 'now' && <Badge tone="now">{S.time.now}</Badge>}
       {state === 'upNext' && <Badge tone="soft">{S.time.upNext}</Badge>}
+      {meetUp && !continuation && <Badge tone="soft">{S.maps.meetUp}</Badge>}
       {/* Also on the next day's continuation (an overnight flight stays Fixed on Day 2). */}
       <Badge tone={STATUS_TONE[shown]}>{S.labels.itineraryStatus[shown]}</Badge>
     </>

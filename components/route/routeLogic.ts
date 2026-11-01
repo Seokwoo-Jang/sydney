@@ -2,6 +2,7 @@
 // Lines are order lines between stops, never road geometry.
 import { matchesFilter, type PeopleFilter } from '@/components/itinerary/logic';
 import { formatWallTime, S } from '@/lib/strings';
+import { itemInstantRange } from '@/lib/time/now';
 import { addDays, zonedToInstant } from '@/lib/time/zone';
 import type { Booking, ItineraryItem, TripDay } from '@/lib/types';
 
@@ -185,6 +186,45 @@ export function apartOvernight(bookings: Booking[], date: string): boolean {
   return stays.some((s) => s.guests !== 'both') && !stays.some((s) => s.guests === 'both');
 }
 
+/**
+ * We start `date` apart: separate stays the night before, and no Together plan (an
+ * overnight flight we take together) still running when the day begins.
+ */
+export function startsApart(items: ItineraryItem[], bookings: Booking[], date: string, tz: string): boolean {
+  if (!apartOvernight(bookings, date)) return false;
+  const dayStart = zonedToInstant(date, '00:00', tz).getTime();
+  return !items.some((i) => {
+    if (!onRouteMap(i) || i.participants !== 'together' || i.date >= date) return false;
+    const end = itemInstantRange(i)?.end;
+    return !!end && end.getTime() > dayStart;
+  });
+}
+
+/**
+ * One day's Meet ups, over all its timed plans in order (with a map link or not): a Together
+ * plan after either of us went on alone, or the day's first one after separate stays.
+ */
+function dayMeetUps(ordered: ItineraryItem[], apartAtStart: boolean): Set<string> {
+  const ids = new Set<string>();
+  let apart = apartAtStart;
+  for (const it of ordered.filter(isTimed)) {
+    if (laneOf(it) !== 'together') apart = true;
+    else {
+      if (apart) ids.add(it.id);
+      apart = false;
+    }
+  }
+  return ids;
+}
+
+/** Every Meet up of the trip, for the itinerary list (the same as the Route's). */
+export function meetUpIds(items: ItineraryItem[], bookings: Booking[], tz: string): Set<string> {
+  const dates = [...new Set(items.map((i) => i.date))];
+  return new Set(
+    dates.flatMap((date) => [...dayMeetUps(orderForRoute(items.filter((i) => i.date === date && onRouteMap(i))), startsApart(items, bookings, date, tz))]),
+  );
+}
+
 export function buildDayRoute(
   items: ItineraryItem[],
   date: string,
@@ -200,10 +240,9 @@ export function buildDayRoute(
   const notOnMap = ordered.filter((i) => !spots.has(i.id) && matchesFilter(i, filter));
 
   const raw: Array<{ from: ItineraryItem; to: ItineraryItem; lane: Lane }> = [];
-  const meetUps = new Set<string>();
+  const meetUps = dayMeetUps(ordered, apartAtStart);
   let lastE: ItineraryItem | null = null;
   let lastA: ItineraryItem | null = null;
-  let apart = apartAtStart;
   for (const it of placed.filter(isTimed)) {
     const lane = laneOf(it);
     if (lane === 'together') {
@@ -212,17 +251,13 @@ export function buildDayRoute(
         if (lastE) raw.push({ from: lastE, to: it, lane: 'eren' });
         if (lastA) raw.push({ from: lastA, to: it, lane: 'amy' });
       }
-      if (apart) meetUps.add(it.id);
       lastE = lastA = it;
-      apart = false;
     } else if (lane === 'eren') {
       if (lastE) raw.push({ from: lastE, to: it, lane });
       lastE = it;
-      apart = true;
     } else {
       if (lastA) raw.push({ from: lastA, to: it, lane });
       lastA = it;
-      apart = true;
     }
   }
 
@@ -302,7 +337,7 @@ export function buildTripRoutes(
   tripTz: string,
   bookings: Booking[] = [],
 ): DayRoute[] {
-  return days.map((d) => buildDayRoute(items, d.date, filter, tripTz, apartOvernight(bookings, d.date)));
+  return days.map((d) => buildDayRoute(items, d.date, filter, tripTz, startsApart(items, bookings, d.date, tripTz)));
 }
 
 /**

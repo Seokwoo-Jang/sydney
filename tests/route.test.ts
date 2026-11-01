@@ -2,6 +2,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   apartOvernight,
+  startsApart,
   boundsOf,
   buildDayRoute,
   buildTripRoutes,
@@ -12,6 +13,7 @@ import {
   incomingSegment,
   isFocusLane,
   lineStyle,
+  meetUpIds,
   metresBetween,
   narrowRoute,
   numberText,
@@ -475,6 +477,13 @@ describe('people filter on the map', () => {
     expect(apartOvernight(apart, D)).toBe(true); // the night of the 28th
     expect(apartOvernight(apart, '2030-12-27')).toBe(false); // no stay the night before
     expect(apartOvernight([...apart, stay('b', 'both', '2030-12-28', '2030-12-29')], D)).toBe(false);
+    // The list's Meet ups: the same rule, also over plans without a map link.
+    const noLink = item('solo', { date: D, startTime: '12:00', participants: 'amy' });
+    expect([...meetUpIds([at('meet', '07:30'), at('train', '08:00'), noLink, at('dinner', '18:00')], apart, SYDNEY_TZ)].sort()).toEqual(['dinner', 'meet']);
+    // An overnight flight we take together runs into the day: we did not wake up apart.
+    const flight = item('fly', { date: '2030-12-28', startTime: '21:50', endTime: '10:05', endDate: D, timezone: SEOUL_TZ });
+    expect(startsApart([flight], apart, D, SYDNEY_TZ)).toBe(false);
+    expect(startsApart([], apart, D, SYDNEY_TZ)).toBe(true);
     const r = buildDayRoute([at('meet', '07:30'), at('train', '08:00')], D, 'all', SYDNEY_TZ, true);
     expect(r.stops.map((x) => [x.item.id, numberText(x.n), x.meetUp])).toEqual([
       ['meet', 'M', true],
