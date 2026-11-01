@@ -36,11 +36,17 @@ export function countDue(items: ChecklistItem[], ctx: DueContext): { overdue: nu
   return { overdue, soon };
 }
 
-/** Open tasks for "Coming up": overdue first, then by due date; undated last. */
+/** High, then Normal, then Low (owner, 2026-11-01). */
+export const PRIORITY_RANK: Record<ChecklistItem['priority'], number> = { high: 0, normal: 1, low: 2 };
+
+/** Open tasks for "Coming up": by due date first (overdue first, undated last), then priority. */
 export function upcomingTasks(items: ChecklistItem[], ctx: DueContext, limit = 4): ChecklistItem[] {
   return items
     .filter((i) => i.kind === 'task' && i.isApplicable && !i.checked && !(ctx.underway && i.dueDate && i.dueDate < ctx.tripStart))
-    .sort((a, b) => (a.dueDate ?? '9999').localeCompare(b.dueDate ?? '9999') || a.sortOrder - b.sortOrder)
+    .sort(
+      (a, b) =>
+        (a.dueDate ?? '9999').localeCompare(b.dueDate ?? '9999') || PRIORITY_RANK[a.priority] - PRIORITY_RANK[b.priority] || a.sortOrder - b.sortOrder,
+    )
     .slice(0, limit);
 }
 

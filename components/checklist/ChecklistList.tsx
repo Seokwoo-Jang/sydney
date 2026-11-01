@@ -8,6 +8,7 @@ import type { ChecklistItem, ChecklistKind, Member } from '@/lib/types';
 import { S } from '@/lib/strings';
 import { ChecklistRow } from './ChecklistRow';
 import type { DueContext } from './due';
+import { PRIORITY_RANK } from './due';
 import styles from './Checklist.module.css';
 
 /** Everyone / one person = what is still to do; Finished = done or not needed (owner, 2026-11-01). */
@@ -95,7 +96,10 @@ export function ChecklistList({
       {!visible.length && <p className={styles.muted}>{S.checklist.noMatches}</p>}
       {groups.map((cat, gi) => {
         const all = ofKind.filter((i) => i.category === cat);
-        const rows = visible.filter((i) => i.category === cat).sort((a, b) => Number(!a.isApplicable) - Number(!b.isApplicable));
+        // High, Normal, Low (items marked not needed last); the saved order within each.
+        const rows = visible
+          .filter((i) => i.category === cat)
+          .sort((a, b) => Number(!a.isApplicable) - Number(!b.isApplicable) || PRIORITY_RANK[a.priority] - PRIORITY_RANK[b.priority] || a.sortOrder - b.sortOrder);
         if (!all.length && extra.includes(cat)) return null;
         if (!rows.length && person !== 'all') return null;
         const live = all.filter((i) => i.isApplicable);

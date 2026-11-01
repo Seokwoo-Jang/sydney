@@ -100,6 +100,8 @@ export default function LibrarySection({ layout }: SectionProps) {
         (nav.view === 'all' || r.category === nav.view) &&
         (!q || [r.title, r.note, hostOf(r.url)].some((t) => t.toLowerCase().includes(q))),
     );
+    // Pinned first (in their pinned order), then the rest by title.
+    rest.sort((a, b) => (a.pinnedOrder ?? 99) - (b.pinnedOrder ?? 99) || a.title.localeCompare(b.title));
     const shown = board && !expanded ? rest.slice(0, BOARD_LIMIT) : rest;
     const counts = new Map(RESOURCE_CATEGORIES.map((c) => [c, resources.filter((r) => r.category === c).length]));
     body = (
