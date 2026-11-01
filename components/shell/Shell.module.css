@@ -74,8 +74,17 @@
 .shell[data-layout='board'] .grid {
   display: grid;
   grid-template-columns: repeat(12, minmax(0, 1fr));
-  gap: var(--s4) 36px;
+  gap: var(--s10) 36px;
   align-items: start;
+}
+
+/* Sits in the middle of the gap above its row (rows 2 and 3), across both columns. */
+.rowRule {
+  grid-column: 1 / -1;
+  align-self: start;
+  height: 1px;
+  margin-top: calc(-1 * var(--s10) / 2);
+  background: var(--line-strong);
 }
 
 .slot {

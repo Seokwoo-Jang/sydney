@@ -243,6 +243,8 @@ function ShellLayout({ mode }: { mode: LayoutMode }) {
                       </div>
                     );
                   })}
+                  {/* PC: a full-width hairline between the board's rows, so each pair of sections reads as its own band. */}
+                  {!tabs ? [2, 3].map((row) => <div key={`rule-${row}`} className={styles.rowRule} style={{ gridRow: row }} aria-hidden="true" />) : null}
                 </div>
               </div>
             </main>
