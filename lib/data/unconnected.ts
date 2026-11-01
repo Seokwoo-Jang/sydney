@@ -47,6 +47,9 @@ export function createUnconnectedRepository(): TripRepository {
     uploadFiles: reject,
     async removeFiles() {},
     signedUrl: reject,
+    async resolveMapLink() {
+      return null;
+    },
     loadLocations: reject,
     shareLocation: reject,
     stopSharing: reject,

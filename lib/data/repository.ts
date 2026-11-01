@@ -104,6 +104,15 @@ export interface LocationsSnapshot {
   mySessionId: string | null;
 }
 
+/** Coordinates found for a Google Maps link by the server (plan §7.2.5). */
+export interface ResolvedMapLink {
+  lat: number;
+  lng: number;
+  /** `view` = map centre only (less exact than a place pin). */
+  precision: 'pin' | 'view';
+  name: string | null;
+}
+
 export interface UploadFile {
   /** File name inside the new folder (sanitised by the repository). */
   name: string;
@@ -182,6 +191,10 @@ export interface TripRepository {
   removeFiles(paths: string[]): Promise<void>;
   /** Short-lived URL for one stored path. Never persist it. Throws RepositoryError. */
   signedUrl(path: string, ttlSeconds?: number): Promise<string>;
+
+  // ── map links (plan §7.2.5) ──
+  /** Follows a short / place link to its coordinates. null when none can be found. Never throws. */
+  resolveMapLink(url: string): Promise<ResolvedMapLink | null>;
 
   // ── live location (plan §7.8). Throw RepositoryError on failure ──
   loadLocations(): Promise<LocationsSnapshot>;

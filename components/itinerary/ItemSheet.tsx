@@ -18,14 +18,15 @@ import {
   type SaveState,
   type SelectOption,
 } from '@/components/ui';
-import { newId, useEntityOps, useServerManagesPreludeStatus } from '@/lib/data';
-import { parseMapUrl } from '@/lib/maps';
+import { newId, useEntityOps, useMapLinkResolver, useServerManagesPreludeStatus, type ResolvedMapLink } from '@/lib/data';
+import { needsLookup, parseMapUrl, type MapLinkResult } from '@/lib/maps';
 import { formatWallTime, S } from '@/lib/strings';
 import { addDays, formatDayLabel } from '@/lib/time/zone';
 import type {
   ItineraryCategory,
   ItineraryItem,
   ItineraryStatus,
+  MapSource,
   Member,
   Participants,
   PreludeActivity,
@@ -36,6 +37,12 @@ import { activityPatchesForItem, type ActivityPatch } from './logic';
 import styles from './ItemSheet.module.css';
 
 export type SheetTarget = { kind: 'add'; date: string } | { kind: 'edit'; item: ItineraryItem };
+
+/** Server lookup for the link in the form (short / place links only). */
+type Lookup =
+  | { url: string; status: 'resolving'; promise: Promise<ResolvedMapLink | null> }
+  | { url: string; status: 'found'; lat: number; lng: number }
+  | { url: string; status: 'none' };
 
 interface Draft {
   title: string;
@@ -158,11 +165,19 @@ export function ItemSheet({
   const serverManaged = useServerManagesPreludeStatus();
   const toast = useToast();
   const fallbackDate = days[0]?.date ?? '';
+  const resolveLink = useMapLinkResolver();
   const [form, setForm] = useState<FormState>(() => initForm(target, tripTz, activities, fallbackDate));
+  const [lookup, setLookup] = useState<Lookup | null>(null);
   // Reset when a different target opens (derived state, no effect).
-  if (form.target !== target && target !== null) setForm(initForm(target, tripTz, activities, fallbackDate));
+  if (form.target !== target && target !== null) {
+    setForm(initForm(target, tripTz, activities, fallbackDate));
+    setLookup(null);
+  }
   const formRef = useRef(form);
   formRef.current = form;
+  const lookupRef = useRef(lookup);
+  lookupRef.current = lookup;
+  const lookupTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const { draft, row } = form;
   const set = <K extends keyof Draft>(key: K, value: Draft[K]) =>
@@ -178,6 +193,24 @@ export function ItemSheet({
     map: mapCheck && !mapCheck.ok ? S.maps.notAMapLink : null,
   };
   const invalid = Boolean(errors.title || errors.start || errors.map);
+  const storedLink = row?.mapUrl ? parseMapUrl(row.mapUrl) : null;
+  const mapHint = !mapCheck?.ok
+    ? S.maps.linkHint
+    : mapCheck.lat !== null
+      ? S.maps.locatedFromLink
+      : storedLink?.ok && storedLink.url === mapCheck.url && row?.mapLat != null
+        ? S.maps.keptLocation
+        : lookup?.url === mapCheck.url
+          ? lookup.status === 'resolving'
+            ? S.maps.locating
+            : lookup.status === 'found'
+              ? S.maps.located
+              : S.maps.noLocation
+          : needsLookup(mapCheck)
+            ? lookupTimer.current
+              ? S.maps.locating
+              : S.maps.lookupOnSave
+            : S.maps.noLocation;
   const endsNextDay = timed && draft.startTime && draft.endTime && draft.endTime <= draft.startTime;
 
   const requestClose = () => {
@@ -188,6 +221,60 @@ export function ItemSheet({
     }
     onClose();
   };
+
+  // ── map link → coordinates (plan §7.2.5, §7.2.7) ─────────────
+  function startLookup(url: string): Promise<ResolvedMapLink | null> {
+    const promise = resolveLink(url);
+    setLookup({ url, status: 'resolving', promise });
+    void promise.then((r) => {
+      setLookup((l) => (l?.url !== url ? l : r ? { url, status: 'found', lat: r.lat, lng: r.lng } : { url, status: 'none' }));
+      // Fill an empty Location with the place name the link points to.
+      if (r?.name) {
+        const name = r.name;
+        setForm((f) => {
+          const now = f.draft.mapUrl.trim() ? parseMapUrl(f.draft.mapUrl) : null;
+          return now?.ok && now.url === url && !f.draft.place.trim() ? { ...f, draft: { ...f.draft, place: name } } : f;
+        });
+      }
+    });
+    return promise;
+  }
+
+  /** Waits briefly after typing, then looks up links whose address has no coordinates. */
+  function scheduleLookup(value: string) {
+    if (lookupTimer.current) clearTimeout(lookupTimer.current);
+    const parsed = value.trim() ? parseMapUrl(value) : null;
+    if (!parsed?.ok || !needsLookup(parsed)) {
+      setLookup(null);
+      return;
+    }
+    if (lookupRef.current?.url === parsed.url) return;
+    const url = parsed.url;
+    lookupTimer.current = setTimeout(() => void startLookup(url), 500);
+  }
+
+  /**
+   * Coordinates for a saved link: from the address itself, else the row's own
+   * (same link as stored), else a server lookup (awaited when still running).
+   */
+  async function linkCoords(
+    link: Extract<MapLinkResult, { ok: true }>,
+    current: ItineraryItem | null,
+  ): Promise<{ lat: number; lng: number; source: MapSource; name: string | null } | null> {
+    if (link.lat !== null && link.lng !== null) return { lat: link.lat, lng: link.lng, source: 'link', name: null };
+    // Same link as stored: keep the stored spot and where it came from (link, pin or search).
+    const stored = current?.mapUrl ? parseMapUrl(current.mapUrl) : null;
+    if (stored?.ok && stored.url === link.url && current?.mapLat != null && current.mapLng != null) {
+      return { lat: current.mapLat, lng: current.mapLng, source: current.mapSource ?? 'link', name: null };
+    }
+    if (!needsLookup(link)) return null;
+    if (lookupTimer.current) clearTimeout(lookupTimer.current);
+    const l = lookupRef.current;
+    if (l?.url === link.url && l.status === 'found') return { lat: l.lat, lng: l.lng, source: 'link', name: null };
+    // 'resolving' is awaited; nothing yet or an earlier miss (maybe a network error) is tried again.
+    const r = await (l?.url === link.url && l.status === 'resolving' ? l.promise : startLookup(link.url));
+    return r ? { lat: r.lat, lng: r.lng, source: 'link', name: r.name } : null;
+  }
 
   // ── writes ────────────────────────────────────────────────────
   async function applyActivityPatches(patches: ActivityPatch[], itemId: string, itemStatus: ItineraryStatus | null, selected: string | null) {
@@ -217,7 +304,11 @@ export function ItemSheet({
     const isTimed = d.timeKind === 'timed';
     const parsed = d.mapUrl.trim() ? parseMapUrl(d.mapUrl) : null;
     const link = parsed?.ok ? parsed : null;
-    const keepPin = !link && f.row?.mapSource === 'pin';
+    // Without a link, a spot set on the Route (Pin on map / Find on map) stays.
+    const keptSpot = !link && (f.row?.mapSource === 'pin' || f.row?.mapSource === 'search') && f.row.mapLat != null ? f.row : null;
+    // The form is locked while saving (fieldset below), so `d` cannot go stale during the lookup.
+    setForm((s) => ({ ...s, save: 'saving', tried: true, confirm: null }));
+    const coords = link ? await linkCoords(link, f.row) : null;
     const fields = {
       dayId: day.id,
       date: day.date,
@@ -230,14 +321,13 @@ export function ItemSheet({
       status: d.status,
       title: d.title.trim(),
       detail: d.detail.trim(),
-      place: d.place.trim(),
+      place: d.place.trim() || (coords?.name ?? ''),
       mapUrl: link?.url ?? null,
-      mapLat: link ? link.lat : keepPin ? (f.row?.mapLat ?? null) : null,
-      mapLng: link ? link.lng : keepPin ? (f.row?.mapLng ?? null) : null,
-      mapSource: link ? ('link' as const) : keepPin ? ('pin' as const) : null,
+      mapLat: link ? (coords?.lat ?? null) : (keptSpot?.mapLat ?? null),
+      mapLng: link ? (coords?.lng ?? null) : (keptSpot?.mapLng ?? null),
+      mapSource: link ? (coords?.source ?? 'link') : (keptSpot?.mapSource ?? null),
       participants: d.participants,
     };
-    setForm((s) => ({ ...s, save: 'saving', tried: true, confirm: null }));
     const res = f.row
       ? await itemOps.update(f.row.id, fields, f.baseVersion)
       : await itemOps.create({
@@ -375,6 +465,7 @@ export function ItemSheet({
       footer={footer}
     >
       <form id="itin-item-form" className={styles.form} onSubmit={(e) => void save(e)} noValidate>
+        <fieldset disabled={busy} className={styles.lock}>
         {form.conflict && (
           <ConflictNotice
             source={conflictSource}
@@ -454,7 +545,7 @@ export function ItemSheet({
           <TextInput value={draft.place} onChange={(e) => set('place', e.target.value)} autoComplete="off" />
         </Field>
 
-        <Field label={S.maps.link} optional hint={S.maps.linkHint} error={errors.map}>
+        <Field label={S.maps.link} optional hint={mapHint} error={errors.map}>
           <TextInput
             type="url"
             inputMode="url"
@@ -464,6 +555,7 @@ export function ItemSheet({
             onChange={(e) => {
               const value = e.target.value;
               const parsed = value.trim() ? parseMapUrl(value) : null;
+              scheduleLookup(value);
               setForm((f) => ({
                 ...f,
                 draft: {
@@ -494,6 +586,7 @@ export function ItemSheet({
         <Field label={S.itinerary.details} optional hint={S.itinerary.detailsHint}>
           <TextArea value={draft.detail} onChange={(e) => set('detail', e.target.value)} rows={4} />
         </Field>
+        </fieldset>
       </form>
     </Sheet>
   );

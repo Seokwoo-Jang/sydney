@@ -20,21 +20,47 @@ function isAllowed(u: URL): boolean {
 }
 
 function validCoords(lat: number, lng: number): boolean {
-  return Number.isFinite(lat) && Number.isFinite(lng) && Math.abs(lat) <= 90 && Math.abs(lng) <= 180;
+  return Number.isFinite(lat) && Number.isFinite(lng) && Math.abs(lat) <= 90 && Math.abs(lng) <= 180 && !(lat === 0 && lng === 0);
 }
 
-function extractCoords(u: URL): [number, number] | null {
-  const s = decodeURIComponent(u.pathname + u.search);
-  const patterns = [/!3d(-?\d+(?:\.\d+)?)!4d(-?\d+(?:\.\d+)?)/, /@(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?)/];
-  for (const re of patterns) {
-    const m = re.exec(s);
-    if (m && validCoords(Number(m[1]), Number(m[2]))) return [Number(m[1]), Number(m[2])];
+function safeDecode(s: string): string {
+  try {
+    return decodeURIComponent(s);
+  } catch {
+    return s;
   }
-  for (const key of ['q', 'query', 'll']) {
+}
+
+/**
+ * Coordinates written in the address, most precise first: the place pin
+ * (!3d…!4d…), explicit coordinates (?q= / query / ll / destination / center,
+ * or /maps/place/lat,lng), then the map view (@lat,lng). Same rules as the
+ * resolve-map-link Edge Function.
+ */
+function extractCoords(u: URL): [number, number] | null {
+  const s = safeDecode(u.pathname + u.search);
+  const pin = /!3d(-?\d+(?:\.\d+)?)!4d(-?\d+(?:\.\d+)?)/.exec(s);
+  if (pin && validCoords(Number(pin[1]), Number(pin[2]))) return [Number(pin[1]), Number(pin[2])];
+  for (const key of ['q', 'query', 'll', 'destination', 'center']) {
     const m = /^\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*$/.exec(u.searchParams.get(key) ?? '');
     if (m && validCoords(Number(m[1]), Number(m[2]))) return [Number(m[1]), Number(m[2])];
   }
+  const path = /\/maps\/(?:place|search)\/(-?\d+(?:\.\d+)?),\s*\+?(-?\d+(?:\.\d+)?)(?:[/?#]|$)/.exec(s);
+  if (path && validCoords(Number(path[1]), Number(path[2]))) return [Number(path[1]), Number(path[2])];
+  const at = /@(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?)/.exec(s);
+  if (at && validCoords(Number(at[1]), Number(at[2]))) return [Number(at[1]), Number(at[2])];
   return null;
+}
+
+/**
+ * True when a valid link has no coordinates in its address but the server can
+ * find them: short share links and place pages. Search links name no single
+ * place, so they are never looked up (Find on map covers them).
+ */
+export function needsLookup(link: Extract<MapLinkResult, { ok: true }>): boolean {
+  if (link.lat !== null) return false;
+  const u = new URL(link.url);
+  return u.hostname === 'maps.app.goo.gl' || u.hostname === 'goo.gl' || /\/maps\/place\//.test(u.pathname);
 }
 
 function extractName(u: URL): string | null {

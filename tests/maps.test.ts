@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { NOT_A_MAP_LINK, mapHref, parseMapUrl, searchMapUrl } from '@/lib/maps';
+import { NOT_A_MAP_LINK, mapHref, needsLookup, parseMapUrl, searchMapUrl } from '@/lib/maps';
 
 describe('parseMapUrl', () => {
   it('accepts the allowed hosts', () => {
@@ -15,9 +15,9 @@ describe('parseMapUrl', () => {
   });
   it('reads place name and coordinates from a full URL', () => {
     const r = parseMapUrl(
-      'https://www.google.com/maps/place/Queen+Victoria+Building/@-33.8718,151.2067,17z/data=!3m1!4b1?entry=ttu',
+      'https://www.google.com/maps/place/Example+Hall/@-33.8718,151.2067,17z/data=!3m1!4b1?entry=ttu',
     );
-    expect(r).toMatchObject({ ok: true, name: 'Queen Victoria Building', lat: -33.8718, lng: 151.2067 });
+    expect(r).toMatchObject({ ok: true, name: 'Example Hall', lat: -33.8718, lng: 151.2067 });
     if (r.ok) expect(r.url).toContain('entry=ttu');
   });
   it('prefers !3d!4d pin coordinates', () => {
@@ -70,5 +70,50 @@ describe('search links', () => {
     expect(mapHref({ ...base, mapUrl: 'https://evil.com/maps', place: 'Example Hall' })?.kind).toBe('search');
     expect(mapHref({ ...base, mapLat: -33.8, mapLng: 151.2 })?.href).toContain('-33.8%2C151.2');
     expect(mapHref(base)).toBeNull();
+  });
+});
+
+describe('coordinates in other link shapes', () => {
+  const at = (url: string) => {
+    const r = parseMapUrl(url);
+    return r.ok ? [r.lat, r.lng] : null;
+  };
+  it('reads explicit coordinates before the map view', () => {
+    expect(at('https://www.google.com/maps?q=-33.86,151.21')).toEqual([-33.86, 151.21]);
+    expect(at('https://maps.google.com/?ll=-33.86,151.21&z=15')).toEqual([-33.86, 151.21]);
+    expect(at('https://www.google.com/maps/dir/?api=1&destination=-33.86,151.21')).toEqual([-33.86, 151.21]);
+    expect(at('https://www.google.com/maps/place/-33.86,151.21/@-33.9,151.3,12z')).toEqual([-33.86, 151.21]);
+    expect(at('https://www.google.com/maps/search/-33.86,+151.21')).toEqual([-33.86, 151.21]);
+  });
+  it('survives a malformed escape and rejects out-of-range numbers', () => {
+    expect(at('https://www.google.com/maps/place/A%ZZ/@-33.86,151.21,15z')).toEqual([-33.86, 151.21]);
+    expect(at('https://www.google.com/maps?q=-133.86,151.21')).toEqual([null, null]);
+  });
+});
+
+describe('needsLookup', () => {
+  const link = (url: string) => {
+    const r = parseMapUrl(url);
+    if (!r.ok) throw new Error(url);
+    return r;
+  };
+  it('looks up short links and place pages without coordinates only', () => {
+    expect(needsLookup(link('https://maps.app.goo.gl/AbCdEf123'))).toBe(true);
+    expect(needsLookup(link('https://goo.gl/maps/AbCdEf123'))).toBe(true);
+    expect(needsLookup(link('https://www.google.com/maps/place/Example+Hall/data=!4m2!3m1!1s0x0:0x1'))).toBe(true);
+    expect(needsLookup(link('https://www.google.com/maps/place/Example+Hall/@-33.87,151.2,17z'))).toBe(false);
+    expect(needsLookup(link('https://www.google.com/maps/search/?api=1&query=Example%20Hall'))).toBe(false);
+  });
+});
+
+describe('review fixes', () => {
+  it('reads path coordinates followed by a query string', () => {
+    const r = parseMapUrl('https://www.google.com/maps/search/-33.8688,+151.2093?entry=tts&g_ep=abc');
+    expect(r).toMatchObject({ ok: true, lat: -33.8688, lng: 151.2093 });
+    const p = parseMapUrl('https://www.google.com/maps/place/-33.8688,151.2093?entry=ttu');
+    expect(p).toMatchObject({ ok: true, lat: -33.8688, lng: 151.2093 });
+  });
+  it('treats 0,0 as no coordinates (same as the server)', () => {
+    expect(parseMapUrl('https://www.google.com/maps?q=0,0')).toMatchObject({ ok: true, lat: null, lng: null });
   });
 });

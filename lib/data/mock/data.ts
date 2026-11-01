@@ -213,6 +213,26 @@ const EVENTS: Ev[][] = [
   ],
 ];
 
+// Fictional route-map coordinates (plan §7.2.7). Not derived from any real route:
+// each day gets a made-up anchor and its stops step along a small grid. Stops
+// whose place is undecided (stays, car depots, "도심") stay off the map.
+const DAY_ANCHOR: Record<number, [lat: number, lng: number]> = {
+  2: [12.3, 45.6],
+  3: [12.42, 45.48],
+  4: [12.26, 45.66],
+  5: [12.33, 45.6],
+  6: [12.5, 45.8],
+  7: [12.7, 45.95],
+  8: [12.62, 45.7],
+  9: [12.36, 45.52],
+};
+
+function exampleSpot(dayNumber: number, index: number, place: string): [number, number] | null {
+  const anchor = DAY_ANCHOR[dayNumber];
+  if (!anchor || place.includes('미정') || place === '예시 도심' || place.includes('인천')) return null;
+  return [+(anchor[0] + (index % 4) * 0.006).toFixed(4), +(anchor[1] + Math.floor(index / 4) * 0.008).toFixed(4)];
+}
+
 const itemId = (evId: string) => `it-${evId}`;
 
 const itinerary = (): ItineraryItem[] =>
@@ -233,9 +253,9 @@ const itinerary = (): ItineraryItem[] =>
       detail: notes,
       place,
       mapUrl: null,
-      mapLat: null,
-      mapLng: null,
-      mapSource: null,
+      mapLat: exampleSpot(d + 1, i, place)?.[0] ?? null,
+      mapLng: exampleSpot(d + 1, i, place)?.[1] ?? null,
+      mapSource: exampleSpot(d + 1, i, place) ? ('pin' as const) : null,
       travelMode: (extra.travelMode ?? null) as TravelMode | null,
       participants: who,
       bookingId: extra.bookingId ?? null,

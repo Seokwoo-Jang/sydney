@@ -2,9 +2,10 @@
 // Itinerary body once data is ready (plan §7.2). Board: 3×3 Day cards + the
 // selected day's timeline. Tabs: sticky Day 1–9 strip + one day's timeline.
 // The selected day lives in the URL; time passing never changes it.
+import dynamic from 'next/dynamic';
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useShellNav } from '@/components/shell/ShellNav';
-import { Button, Chip, ChipGroup, EmptyState, Icon } from '@/components/ui';
+import { Button, Chip, ChipGroup, EmptyState, Icon, LoadingState, SegmentedControl } from '@/components/ui';
 import { useServerNow } from '@/lib/data';
 import { useReducedMotion } from '@/lib/hooks/useReducedMotion';
 import { S } from '@/lib/strings';
@@ -43,6 +44,12 @@ export interface ItineraryData {
   resourceLinks: ResourceLink[];
   expenses: Expense[];
 }
+
+// Route map (plan §7.2.7): its own chunk with Leaflet, fetched the first time Route is chosen.
+const RouteView = dynamic(() => import('@/components/route/RouteView'), {
+  ssr: false,
+  loading: () => <LoadingState variant="block" />,
+});
 
 const OVERVIEW_LIMIT = 4;
 const DAY_KEY = 'sydney.itinerary.day';
@@ -98,6 +105,7 @@ export function ItineraryBody({
   }, [selectedDay]);
 
   const [filter, setFilter] = useState<PeopleFilter>('together');
+  const [view, setView] = useState<'list' | 'route'>('list');
   const [showAllDay, setShowAllDay] = useState<string | null>(null);
   const [sheet, setSheet] = useState<SheetTarget | null>(null);
   const rootRef = useRef<HTMLDivElement>(null);
@@ -203,6 +211,7 @@ export function ItineraryBody({
     const item = live.find((i) => i.id === url.item);
     if (!item) return;
     setMode('day');
+    setView('list');
     setFilter((f) => (matchesFilter(item, f) ? f : 'together'));
     setShowAllDay(item.date);
     expanded.open(item.id);
@@ -321,6 +330,45 @@ export function ItineraryBody({
 
   const footnote = hasExample ? <p className={styles.footnote}>{S.data.exampleNote}</p> : null;
 
+  // List / Route (plan §7.2.7). Trip chip = Full Itinerary mode; Day chips = the selected day.
+  const viewToggle = (
+    <SegmentedControl
+      label={S.route.viewLabel}
+      size="sm"
+      value={view}
+      onChange={setView}
+      options={[
+        { value: 'list', label: S.maps.list },
+        { value: 'route', label: S.maps.route },
+      ]}
+    />
+  );
+  const routeView =
+    view === 'route' ? (
+      <RouteView
+        layout={layout}
+        days={days}
+        items={live}
+        filter={filter}
+        tripTz={tz}
+        scope={mode === 'full' ? 'trip' : 'day'}
+        selectedDay={selectedDay}
+        nowIds={selectedDay === today ? nowInfo.nowIds : []}
+        me={data.me}
+        partner={data.partner}
+        onTrip={() => setMode('full')}
+        onSelectDay={(d) => selectDay(d, 'click')}
+        onOpenItem={(item) => {
+          setView('list');
+          setMode('day');
+          setShowAllDay(item.date);
+          expanded.open(item.id);
+          if (item.date !== selectedDay) push({ day: item.date });
+          queueScroll(item.date, rowKeyFor(item.date, { item, continuation: false }));
+        }}
+      />
+    ) : null;
+
   const sheetEl = (
     <ItemSheet
       target={sheet}
@@ -353,16 +401,17 @@ export function ItineraryBody({
             </h3>
             <div className={styles.tlControls}>
               {jumpButton}
+              {viewToggle}
               {filterChips}
             </div>
           </div>
-          {mode === 'day' ? (
+          {routeView ?? (mode === 'day' ? (
             <div data-day-panel className={styles.panel}>
               {renderDay(selectedDay, true)}
             </div>
           ) : (
             fullDays
-          )}
+          ))}
           {footnote}
         </div>
         {sheetEl}
@@ -389,18 +438,19 @@ export function ItineraryBody({
         {jumpButton}
       </div>
       <div className={styles.controls}>
+        {viewToggle}
         {filterChips}
         <Button variant="link" size="sm" className={styles.fullToggle} aria-pressed={mode === 'full'} onClick={() => setMode(mode === 'full' ? 'day' : 'full')}>
           {S.itinerary.fullItinerary}
         </Button>
       </div>
-      {mode === 'day' ? (
+      {routeView ?? (mode === 'day' ? (
         <div id={PANEL_ID} role="tabpanel" aria-labelledby={chipId(selectedDay)} data-day-panel className={styles.listCard}>
           {renderDay(selectedDay, false)}
         </div>
       ) : (
         <div className={styles.listCard}>{fullDays}</div>
-      )}
+      ))}
       {footnote}
       {sheetEl}
     </div>

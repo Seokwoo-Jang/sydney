@@ -30,6 +30,7 @@ import {
   type EntityName,
   type EntityRowMap,
   type NewRow,
+  type ResolvedMapLink,
   type RowPatch,
   type TripPatch,
   type TripSnapshot,
@@ -329,6 +330,13 @@ export function useFiles(): FilesApi {
       signedUrl: (path, ttl) => repo().signedUrl(path, ttl),
     };
   }, [store, available]);
+}
+
+// ── map links (plan §7.2.5) ──────────────────────────────────────
+/** Server lookup of coordinates for a short / place link. Resolves null when unavailable. */
+export function useMapLinkResolver(): (url: string) => Promise<ResolvedMapLink | null> {
+  const { store } = useTripDataContext();
+  return useCallback((url: string) => store.get().repo?.resolveMapLink(url) ?? Promise.resolve(null), [store]);
 }
 
 // ── live location (plan §7.8) ────────────────────────────────────

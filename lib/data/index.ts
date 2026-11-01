@@ -13,6 +13,7 @@ export {
   useJournal,
   useLibrary,
   useLocations,
+  useMapLinkResolver,
   usePrelude,
   useReconnecting,
   useServerManagesPreludeStatus,
@@ -47,6 +48,7 @@ export type {
   TripPatch,
   TripRepository,
   TripSnapshot,
+  ResolvedMapLink,
   UploadFile,
 } from './repository';
 export { RepositoryError } from './repository';

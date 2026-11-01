@@ -13,6 +13,7 @@ import {
   type LocationFix,
   type LocationsSnapshot,
   type NewRow,
+  type ResolvedMapLink,
   type RowPatch,
   type ShareStatus,
   type TripPatch,
@@ -407,6 +408,18 @@ class SupabaseRepository implements TripRepository {
     const res = await this.sb.storage.from(BUCKET).createSignedUrl(path, ttlSeconds);
     if (res.error || !res.data?.signedUrl) throw toRepoError(res.error);
     return res.data.signedUrl;
+  }
+
+  // ── map links ──
+  async resolveMapLink(url: string): Promise<ResolvedMapLink | null> {
+    try {
+      const res = await this.sb.functions.invoke('resolve-map-link', { body: { url } });
+      const d = res.data as { found?: boolean; lat?: number; lng?: number; precision?: 'pin' | 'view'; name?: string | null } | null;
+      if (res.error || !d?.found || typeof d.lat !== 'number' || typeof d.lng !== 'number') return null;
+      return { lat: d.lat, lng: d.lng, precision: d.precision === 'view' ? 'view' : 'pin', name: d.name ?? null };
+    } catch {
+      return null;
+    }
   }
 
   // ── live location (plan §7.8) ──

@@ -19,6 +19,7 @@ import {
   type LocationFix,
   type LocationsSnapshot,
   type NewRow,
+  type ResolvedMapLink,
   type RowPatch,
   type TripPatch,
   type TripRepository,
@@ -313,6 +314,14 @@ class MockRepository implements TripRepository, MockControls {
     const url = this.files.get(path) ?? this.db.assets.find((a) => a.storagePath === path || a.displayPath === path)?.url;
     if (!url) throw new RepositoryError('unknown', 'Example file not available.');
     return url;
+  }
+
+  // ── map links: no server in development, so only a short link becomes an example point ──
+  async resolveMapLink(url: string): Promise<ResolvedMapLink | null> {
+    await this.delay();
+    return /^https:\/\/(maps\.app\.goo\.gl|goo\.gl\/maps)\//.test(url)
+      ? { lat: 12.31, lng: 45.61, precision: 'pin', name: '예시 장소' }
+      : null;
   }
 
   // ── live location ──
