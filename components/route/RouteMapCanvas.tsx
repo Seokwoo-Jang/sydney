@@ -172,26 +172,17 @@ export default function RouteMapCanvas(props: RouteMapCanvasProps) {
     const popupFor = (g: PinGroup, route: DayRoute): HTMLElement => {
       const root = el('div', styles.popup);
       if (trip) root.append(el('p', styles.popDay, S.time.day(dayNumbers.get(route.date) ?? 0)));
-      // Only the chosen person's plans here (owner, 2026-11-01); a faded pin lists its own.
-      // Kept short for phones: each plan is its time and a tappable title (opens it),
-      // the place and Directions come once for the pin.
+      // What this place is, and Directions (owner, 2026-11-01): no times or plan list here,
+      // the stops list under the map opens the plans. The chosen person's number leads.
       const mine = g.stops.filter((s) => isFocusLane(s.lane, people));
       const shown = mine.length ? mine : g.stops;
-      for (const s of shown) {
-        const block = el('div', styles.popStop);
-        const head = el('p', styles.popHead);
-        if (mine.length) head.append(el('span', styles.popNum, String(s.n)));
-        head.append(el('span', undefined, stopTime(s.item)));
-        if (s.meetUp) head.append(el('span', styles.popMeet, S.maps.meetUp));
-        const title = el('button', styles.popTitleButton, s.item.title);
-        title.type = 'button';
-        title.setAttribute('aria-label', `${S.actions.viewDetails}: ${s.item.title}`);
-        title.addEventListener('click', () => cbRef.current.onOpenItem(s.item));
-        block.append(head, title);
-        root.append(block);
-      }
       const first = shown[0];
-      if (first.item.place.trim()) root.append(el('p', styles.popPlace, first.item.place));
+      const head = el('p', styles.popHead);
+      if (mine.length && !trip) head.append(el('span', styles.popNum, pinText(mine.map((s) => s.n))));
+      head.append(el('span', styles.popTitle, stopLabel(first.item)));
+      root.append(head);
+      const place = first.item.place.trim();
+      if (place && place !== stopLabel(first.item)) root.append(el('p', styles.popPlace, place));
       const seg = incomingSegment(route, first.item.id, me);
       const dir = el('a', styles.popLink, S.maps.directions);
       dir.href = directionsUrl(first, seg ? seg.from : null);
