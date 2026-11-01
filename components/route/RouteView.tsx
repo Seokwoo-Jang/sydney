@@ -13,7 +13,7 @@ import { S } from '@/lib/strings';
 import type { ItineraryItem, MapSource, Member, TripDay } from '@/lib/types';
 import { searchPlaces } from './nominatim';
 import RouteMapCanvas from './RouteMapCanvas';
-import { buildTripRoutes, placeLabel, stopTime, type LatLng, type PlaceCandidate } from './routeLogic';
+import { buildTripRoutes, narrowRoute, placeLabel, stopTime, type LatLng, type PlaceCandidate } from './routeLogic';
 import styles from './route.module.css';
 
 export interface RouteViewProps {
@@ -76,7 +76,9 @@ export default function RouteView({
 
   useEffect(() => () => searchAbort.current?.abort(), []);
 
-  const routes = useMemo(() => buildTripRoutes(items, days, filter, tripTz), [items, days, filter, tripTz]);
+  // The map always draws everyone (the other person is faded); lists show the filtered view with the same numbers.
+  const mapRoutes = useMemo(() => buildTripRoutes(items, days, 'together', tripTz), [items, days, tripTz]);
+  const routes = useMemo(() => mapRoutes.map((r) => narrowRoute(r, filter)), [mapRoutes, filter]);
   // The clock re-renders the parent every 30 s; redraw the map only when the Now set itself changes.
   const nowKey = nowIds.join('|');
   const stableNowIds = useMemo(() => (nowKey ? nowKey.split('|') : []), [nowKey]);
@@ -198,7 +200,8 @@ export default function RouteView({
         )}
         <div className={styles.mapBox}>
           <RouteMapCanvas
-            routes={routes}
+            routes={mapRoutes}
+            people={filter}
             dayNumbers={dayNumbers}
             scope={mapScope}
             focus={focus}

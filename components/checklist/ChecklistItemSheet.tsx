@@ -1,7 +1,7 @@
 'use client';
 // Add / edit one Packing item or To-do (plan §7.4 A–B).
 import { useMemo, useState } from 'react';
-import { Button, Field, SaveStatus, Select, Sheet, TextArea, TextInput } from '@/components/ui';
+import { Button, Field, SaveStatus, SegmentedControl, Select, Sheet, TextArea, TextInput } from '@/components/ui';
 import { newId, PACKING_CATEGORIES, TASK_CATEGORIES, useChecklist } from '@/lib/data';
 import type { Booking, ChecklistItem, ChecklistKind, Member, Resource } from '@/lib/types';
 import { S } from '@/lib/strings';
@@ -214,9 +214,12 @@ export function ChecklistItemSheet({
               <TextInput type="date" value={draft.dueDate} onChange={(e) => edit({ dueDate: e.target.value })} />
             </Field>
             <Field label={S.checklist.priority}>
-              <Select
+              <SegmentedControl<Draft['priority']>
+                label={S.checklist.priority}
+                size="sm"
+                fill
                 value={draft.priority}
-                onChange={(e) => edit({ priority: e.target.value as Draft['priority'] })}
+                onChange={(priority) => edit({ priority })}
                 options={(['low', 'normal', 'high'] as const).map((p) => ({ value: p, label: S.checklist.priorities[p] }))}
               />
             </Field>

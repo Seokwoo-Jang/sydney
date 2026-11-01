@@ -4,6 +4,7 @@ import { Button, SegmentedControl } from '@/components/ui';
 import { useSession, useTrip } from '@/lib/data';
 import { useCountdown } from '@/lib/hooks/useCountdown';
 import { useCurrencyFirst } from '@/lib/hooks/useCurrencyFirst';
+import { InstallMenuItem } from './InstallCard';
 import type { SectionLayout } from '@/lib/hooks/useLayoutMode';
 import { S } from '@/lib/strings';
 import type { Currency } from '@/lib/types';
@@ -111,6 +112,7 @@ export function ProfileMenu({ layout }: { layout: SectionLayout }) {
             ]}
           />
         </div>
+        <InstallMenuItem />
         <Button
           variant="secondary"
           size="sm"

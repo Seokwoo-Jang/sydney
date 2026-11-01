@@ -176,6 +176,7 @@ export const S = {
     reviewLatest: 'Review latest',
     keepEditing: 'Keep editing',
     openWebsite: 'Open website',
+    open: 'Open',
     openDocument: 'Open document',
     linkExpense: 'Link expense',
     linkToItinerary: 'Link to itinerary',
@@ -424,6 +425,19 @@ export const S = {
     devices: 'Devices',
   },
 
+  // ── shared: home-screen app (plan §11.3) ────────────────────
+  pwa: {
+    installTitle: 'Keep it on your home screen',
+    installBody: 'Opens full screen, like an app.',
+    install: 'Install app',
+    howToInstall: 'Add to Home Screen',
+    iosSteps: 'Tap Share, then Add to Home Screen.',
+    dismiss: 'Not now',
+    updateReady: 'A new version is available.',
+    refresh: 'Refresh',
+    iosReenter: 'Opened from the home screen? Enter your name once more here. Your trip stays the same.',
+  },
+
   // ── shared: fx (plan §4.6) ──────────────────────────────────
   fx: {
     rateLine: (rate: string, date: string) => `1 AUD = ${rate} · ECB reference rate · ${date}`,
@@ -593,8 +607,9 @@ export const S = {
     editPacking: 'Edit packing item',
     editTask: 'Edit to-do',
     priority: 'Priority',
-    priorities: { low: 'Low', normal: 'Normal', high: 'High' },
+    priorities: { low: 'Low', normal: 'Middle', high: 'High' },
     highPriority: 'High priority',
+    noNotes: 'No notes yet.',
     quantityShort: (n: number) => `×${n}`,
     emptyPacking: 'Nothing to pack yet.',
     emptyTask: 'No to-dos yet.',

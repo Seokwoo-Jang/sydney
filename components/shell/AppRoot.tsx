@@ -4,6 +4,7 @@
 import { ToastProvider } from '@/components/ui';
 import { TripDataProvider, useSession } from '@/lib/data';
 import { EntryScreen } from './EntryScreen';
+import { PwaManager } from './PwaManager';
 import { Shell } from './Shell';
 
 function Gate() {
@@ -16,6 +17,7 @@ export function AppRoot() {
   return (
     <TripDataProvider>
       <ToastProvider>
+        <PwaManager />
         <Gate />
       </ToastProvider>
     </TripDataProvider>

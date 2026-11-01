@@ -145,6 +145,24 @@ export function buildTripRoutes(items: ItineraryItem[], days: Pick<TripDay, 'dat
   return days.map((d) => buildDayRoute(items, d.date, filter, tripTz));
 }
 
+/**
+ * One person's view of an everyone route (the map keeps drawing everyone and only
+ * fades the other person): their stops and lines with the SAME numbers as the map,
+ * and their unplaced items.
+ */
+export function narrowRoute(route: DayRoute, filter: PeopleFilter): DayRoute {
+  if (filter === 'together') return route;
+  return {
+    ...route,
+    stops: route.stops.filter((s) => matchesFilter(s.item, filter)),
+    segments: route.segments.filter((s) => laneVisible(s.lane, filter)),
+    notOnMap: route.notOnMap.filter((i) => matchesFilter(i, filter)),
+  };
+}
+
+/** Lanes drawn at full strength for a people filter; the other person's lane is faded. */
+export const isFocusLane = (lane: Lane, filter: PeopleFilter): boolean => laneVisible(lane, filter);
+
 // ── drawing ──────────────────────────────────────────────────────
 export interface LineStyle {
   color: string;

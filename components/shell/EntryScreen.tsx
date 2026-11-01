@@ -2,9 +2,10 @@
 // Name entry (plan §8.1). Eren or Amy, trimmed and case-insensitive. This picks
 // one of two shared profiles; it is not identity verification and never says so.
 // `checking` renders the same brand frame without the form (static HTML).
-import { useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import { Button, Field, TextInput } from '@/components/ui';
 import { normalizeEntryName, useSession } from '@/lib/data';
+import { isIOS, isStandalone } from '@/lib/pwa';
 import { S } from '@/lib/strings';
 import { TimeOfDayBackdrop } from './TimeOfDayBackdrop';
 import styles from './EntryScreen.module.css';
@@ -39,6 +40,9 @@ function EntryForm() {
   const [name, setName] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  // The iPhone home-screen app has its own storage: say why the name is asked again (plan §11.3).
+  const [reenterHint, setReenterHint] = useState(false);
+  useEffect(() => setReenterHint(isIOS() && isStandalone()), []);
 
   const onSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -61,7 +65,7 @@ function EntryForm() {
       <h2 id="entry-heading" className="sr-only">
         {S.entry.heading}
       </h2>
-      <Field label={S.entry.nameLabel} hint={S.entry.hint} error={error ?? undefined}>
+      <Field label={S.entry.nameLabel} hint={reenterHint ? `${S.entry.hint} ${S.pwa.iosReenter}` : S.entry.hint} error={error ?? undefined}>
         <TextInput
           name="name"
           value={name}

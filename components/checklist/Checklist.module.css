@@ -101,7 +101,8 @@
   grid-template-columns: minmax(0, 1fr) auto;
   grid-template-areas:
     'check edit'
-    'meta edit';
+    'meta edit'
+    'details details';
   align-items: center;
   column-gap: var(--s1);
   padding: 2px 0 8px;
@@ -116,10 +117,48 @@
   grid-area: check;
   display: flex;
   align-items: center;
-  gap: 10px;
   min-height: var(--touch);
   min-width: 0;
+}
+
+/* 44px hit area around the 20px box; only the box marks the row done. */
+.boxHit {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: var(--touch);
+  margin-left: -10px;
   cursor: pointer;
+}
+
+/* The title opens the notes (not a toggle for done). */
+.titleButton {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  min-height: var(--touch);
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.titleButton:focus-visible {
+  outline: 2px solid var(--harbour);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+.titleChevron {
+  flex: none;
+  color: var(--muted);
+  transition: transform var(--motion-fast) var(--ease);
 }
 
 .box {
@@ -298,5 +337,44 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: var(--s3);
     align-items: start;
+  }
+}
+
+/* Notes under a row, opened from its title. */
+.rowDetails {
+  grid-area: details;
+  padding: 2px 0 6px 30px;
+}
+
+.rowNotes {
+  font-size: var(--text-sm);
+  line-height: 1.5;
+  color: var(--ink-soft);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.rowNoNotes {
+  font-size: var(--text-sm);
+  color: var(--muted);
+}
+
+/* High-priority open task: a soft brass tint and edge, plus the chip in Brass Deep. */
+.rowHigh {
+  background: var(--brass-wash);
+  box-shadow: inset 3px 0 0 var(--brass);
+  border-radius: 8px;
+  padding-left: 10px;
+  padding-right: 4px;
+}
+
+.high {
+  font-weight: 500;
+  color: var(--brass-deep);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .titleChevron {
+    transition: none;
   }
 }

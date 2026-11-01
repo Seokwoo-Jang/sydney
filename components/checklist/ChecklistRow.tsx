@@ -1,8 +1,9 @@
 'use client';
-// One Packing or To-do row: native checkbox (44px target), title, chips for
-// assignee / quantity / due date, and an edit button.
-import { useId } from 'react';
-import { IconButton, MemberMarks } from '@/components/ui';
+// One Packing or To-do row: native checkbox (44px target) marks it done; the
+// title opens the notes below it; chips for assignee / quantity / due date /
+// priority; an edit button. High-priority open tasks are tinted.
+import { useId, useState } from 'react';
+import { Icon, IconButton, MemberMarks } from '@/components/ui';
 import type { ChecklistItem, Member } from '@/lib/types';
 import { S } from '@/lib/strings';
 import { formatDayLabel } from '@/lib/time/zone';
@@ -33,8 +34,10 @@ export function ChecklistRow({
   compact?: boolean;
 }) {
   const metaId = useId();
+  const detailsId = useId();
+  const [open, setOpen] = useState(false);
   const state = due ? dueState(item, due) : 'none';
-  const meta: Array<{ key: string; text: string; tone?: 'overdue' | 'soon' }> = [];
+  const meta: Array<{ key: string; text: string; tone?: 'overdue' | 'soon' | 'high' }> = [];
   if (!item.isApplicable) meta.push({ key: 'na', text: S.checklist.notNeeded });
   if (item.dueDate && item.kind === 'task') {
     const label = formatDayLabel(item.dueDate);
@@ -43,27 +46,46 @@ export function ChecklistRow({
     else meta.push({ key: 'due', text: S.checklist.due(label), tone: state === 'soon' ? 'soon' : undefined });
   }
   if (item.quantity && item.quantity > 1) meta.push({ key: 'qty', text: S.checklist.quantityShort(item.quantity) });
-  if (item.priority === 'high' && !item.checked) meta.push({ key: 'pri', text: S.checklist.highPriority });
+  const high = item.kind === 'task' && item.priority === 'high' && !item.checked;
+  if (high) meta.push({ key: 'pri', text: S.checklist.highPriority, tone: 'high' });
   const who = item.assignee === 'both' || item.assignee === null ? 'together' : item.assignee;
 
   return (
     <li
-      className={[styles.row, compact ? styles.rowCompact : '', item.isApplicable ? '' : styles.rowNa, item.checked ? styles.rowDone : '']
+      className={[
+        styles.row,
+        compact ? styles.rowCompact : '',
+        item.isApplicable ? '' : styles.rowNa,
+        item.checked ? styles.rowDone : '',
+        high ? styles.rowHigh : '',
+      ]
         .filter(Boolean)
         .join(' ')}
     >
-      <label className={styles.check}>
-        <input
-          type="checkbox"
-          className={styles.box}
-          checked={item.checked}
-          disabled={busy}
-          aria-busy={busy || undefined}
-          aria-describedby={metaId}
-          onChange={() => onToggle(item)}
-        />
-        <span className={styles.rowTitle}>{item.title}</span>
-      </label>
+      <div className={styles.check}>
+        <label className={styles.boxHit}>
+          <input
+            type="checkbox"
+            className={styles.box}
+            checked={item.checked}
+            disabled={busy}
+            aria-busy={busy || undefined}
+            aria-label={`${item.kind === 'packing' ? S.labels.packed : S.labels.done}: ${item.title}`}
+            aria-describedby={metaId}
+            onChange={() => onToggle(item)}
+          />
+        </label>
+        <button
+          type="button"
+          className={styles.titleButton}
+          aria-expanded={open}
+          aria-controls={detailsId}
+          onClick={() => setOpen((v) => !v)}
+        >
+          <span className={styles.rowTitle}>{item.title}</span>
+          <Icon name="chevron" size={16} rotate={open ? 180 : 0} className={styles.titleChevron} />
+        </button>
+      </div>
       <span id={metaId} className={styles.rowMeta}>
         <span className={styles.metaWho}>
           <span aria-hidden="true">
@@ -83,6 +105,9 @@ export function ChecklistRow({
         className={styles.rowEdit}
         onClick={() => onEdit(item)}
       />
+      <div id={detailsId} className={styles.rowDetails} hidden={!open}>
+        {item.notes.trim() ? <p className={styles.rowNotes}>{item.notes}</p> : <p className={styles.rowNoNotes}>{S.checklist.noNotes}</p>}
+      </div>
     </li>
   );
 }

@@ -7,6 +7,7 @@ import 'leaflet/dist/leaflet.css';
 import * as L from 'leaflet';
 import { useEffect, useLayoutEffect, useRef } from 'react';
 import { S } from '@/lib/strings';
+import type { PeopleFilter } from '@/components/itinerary/logic';
 import type { ItineraryItem } from '@/lib/types';
 import {
   LANE_OFFSET_PX,
@@ -14,6 +15,7 @@ import {
   type Bounds,
   directionsUrl,
   groupLane,
+  isFocusLane,
   groupStops,
   incomingSegment,
   lineStyle,
@@ -30,7 +32,10 @@ import {
 import styles from './route.module.css';
 
 export interface RouteMapCanvasProps {
+  /** Everyone's routes. */
   routes: DayRoute[];
+  /** Together = everyone at full strength; Eren / Amy = the other person is faded. */
+  people: PeopleFilter;
   dayNumbers: Map<string, number>;
   /** 'trip' or the selected date. */
   scope: string;
@@ -51,8 +56,10 @@ const TILE_URL = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
 const TILE_ATTRIBUTION =
   '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap</a> contributors';
 const DEFAULT_CENTER: [number, number] = [-33.8688, 151.2093]; // Sydney CBD
-const FIT: L.FitBoundsOptions = { padding: [36, 36], maxZoom: 15, animate: false };
-const DIM = 0.18;
+// Labels sit to the right of pins: keep extra room on that side.
+const FIT: L.FitBoundsOptions = { paddingTopLeft: [36, 36], paddingBottomRight: [120, 36], maxZoom: 15, animate: false };
+/** The other person's lines and pins when one person is chosen: faded, still readable. */
+const OTHER = 0.45;
 
 const CHECK_SVG =
   '<svg viewBox="0 0 16 16" width="10" height="10" aria-hidden="true"><path d="M3.5 8.5l3 3 6-7" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
@@ -72,7 +79,7 @@ interface LaneLine {
 }
 
 export default function RouteMapCanvas(props: RouteMapCanvasProps) {
-  const { routes, dayNumbers, scope, focus, nowIds, me, pinMode, draft, ariaLabel } = props;
+  const { routes, people, dayNumbers, scope, focus, nowIds, me, pinMode, draft, ariaLabel } = props;
   const elRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
   const layerRef = useRef<L.LayerGroup | null>(null);
@@ -196,13 +203,13 @@ export default function RouteMapCanvas(props: RouteMapCanvasProps) {
       return root;
     };
 
-    const drawRoute = (route: DayRoute, active: boolean) => {
-      const fade = active ? 1 : DIM;
+    const drawRoute = (route: DayRoute) => {
       for (const seg of route.segments) {
+        const fade = isFocusLane(seg.lane, people) ? 1 : OTHER;
         const st = lineStyle(seg.lane, seg.mode, seg.idea);
         const a = L.latLng(seg.from.lat, seg.from.lng);
         const b = L.latLng(seg.to.lat, seg.to.lng);
-        if (active && seg.lane === 'together') {
+        if (seg.lane === 'together') {
           // Paper casing keeps the Ink line readable over busy tiles.
           L.polyline([a, b], { color: '#FFFDF9', weight: st.weight + 4, opacity: 0.7 * st.opacity, interactive: false }).addTo(layer);
         }
@@ -212,9 +219,9 @@ export default function RouteMapCanvas(props: RouteMapCanvasProps) {
           opacity: st.opacity * fade,
           dashArray: st.dashArray ?? undefined,
           lineCap: 'round',
-          interactive: active,
+          interactive: true,
         }).addTo(layer);
-        if (active) {
+        {
           const pop = el('div', styles.popup);
           pop.append(el('p', styles.popTitle, `${seg.from.n} → ${seg.to.n}`), el('p', styles.popPlace, `${seg.from.item.title} → ${seg.to.item.title}`));
           const dir = el('a', styles.popLink, S.maps.directions);
@@ -229,11 +236,13 @@ export default function RouteMapCanvas(props: RouteMapCanvasProps) {
 
       groupStops(route.stops).forEach((g, k) => {
         const lane = groupLane(g);
+        const focused = isFocusLane(lane, people);
+        const fade = focused ? 1 : OTHER;
         const idea = g.stops.every((s) => s.item.status === 'idea');
         const done = g.stops.every((s) => s.item.status === 'completed');
         const meet = g.stops.some((s) => s.meetUp);
         const isNow = g.stops.some((s) => now.has(s.item.id));
-        const numbered = active && !trip;
+        const numbered = !trip;
         const cls = [
           numbered ? styles.pin : styles.dot,
           styles[`lane_${lane}`],
@@ -247,19 +256,19 @@ export default function RouteMapCanvas(props: RouteMapCanvasProps) {
         const html =
           `<span class="${cls}" style="opacity:${fade}">${text ? `<span>${text}</span>` : ''}${numbered && done ? CHECK_SVG : ''}</span>` +
           (numbered && meet ? `<span class="${styles.meet}">${S.maps.meetUp}</span>` : '');
-        const size = active ? 44 : 14;
+        const size = 44;
         const marker = L.marker([g.lat, g.lng], {
           icon: L.divIcon({ className: styles.hit, html, iconSize: [size, size], iconAnchor: [size / 2, size / 2], popupAnchor: [0, -12] }),
-          interactive: active,
+          interactive: true,
           keyboard: numbered,
-          zIndexOffset: active ? 1000 + (meet ? 200 : 0) : 0,
+          zIndexOffset: (focused ? 1000 : 500) + (meet ? 200 : 0),
         }).addTo(layer);
-        if (!active) return;
         marker.bindPopup(popupFor(g, route), { maxWidth: 280, minWidth: 200 });
         const name = g.stops.map((s) => s.item.title).join(', ');
         marker.getElement()?.setAttribute('aria-label', S.route.stopLabel(pinText(g.stops.map((s) => s.n)), name));
         for (const s of g.stops) markersRef.current.set(s.item.id, marker);
-        const label = numbered ? placeLabel(g.stops[0].item.place, g.stops[0].item.title) : k === 0 ? S.time.day(dayNumbers.get(route.date) ?? 0) : '';
+        // The other person's stops keep their pins but no name labels, so the chosen route reads first.
+        const label = !focused ? '' : numbered ? placeLabel(g.stops[0].item.place, g.stops[0].item.title) : k === 0 ? S.time.day(dayNumbers.get(route.date) ?? 0) : '';
         if (label) {
           marker.bindTooltip(el('span', undefined, label), {
             permanent: true,
@@ -273,13 +282,16 @@ export default function RouteMapCanvas(props: RouteMapCanvasProps) {
       });
     };
 
-    for (const r of routes) if (!isActive(r)) drawRoute(r, false);
-    for (const r of routes) if (isActive(r)) drawRoute(r, true);
+    // Only the chosen day (or every day on Trip); other days are not drawn.
+    for (const r of routes) if (isActive(r)) drawRoute(r);
 
-    // Fit when the scope changes (not on every data refresh), or when nothing was fitted yet.
-    const pts = routes.filter(isActive).flatMap((r) => r.stops);
-    if (fittedRef.current !== scope) {
-      const all = pts.length ? pts : routes.flatMap((r) => r.stops);
+    // Fit when the day or the person changes (not on every data refresh): the chosen person's
+    // stops (plus Together), else every stop of the day.
+    const fitKey = `${scope}|${people}`;
+    const dayStops = routes.filter(isActive).flatMap((r) => r.stops);
+    const pts = dayStops.filter((s) => isFocusLane(s.lane, people));
+    if (fittedRef.current !== fitKey) {
+      const all = pts.length ? pts : dayStops.length ? dayStops : routes.flatMap((r) => r.stops);
       const b = boundsOf(all);
       if (b) {
         // A map that has no size yet (just shown) cannot fit; the resize observer fits it then.
@@ -290,13 +302,13 @@ export default function RouteMapCanvas(props: RouteMapCanvasProps) {
         } else {
           pendingFitRef.current = b;
         }
-        fittedRef.current = scope;
+        fittedRef.current = fitKey;
       }
     }
     reoffset();
     const raf = requestAnimationFrame(relabel);
     return () => cancelAnimationFrame(raf);
-  }, [routes, scope, nowIds, me, dayNumbers]);
+  }, [routes, people, scope, nowIds, me, dayNumbers]);
 
   // ── focus a stop (from the list or after saving a spot) ───────
   useEffect(() => {

@@ -1,0 +1,54 @@
+/* Install hint (plan §11.3): a quiet card on the mobile overview. */
+.card {
+  display: grid;
+  grid-template-columns: 48px minmax(0, 1fr);
+  gap: var(--s1-5);
+  align-items: start;
+  padding: var(--s2);
+  border-radius: var(--radius-card);
+  background: var(--porcelain);
+  box-shadow: var(--shadow-card);
+}
+
+.icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+}
+
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.title {
+  font-family: var(--font-serif);
+  font-size: var(--title-xs);
+  font-weight: 500;
+  line-height: var(--leading-tight);
+}
+
+.text {
+  font-size: var(--text-sm);
+  color: var(--muted);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s1);
+  margin-top: 4px;
+}
+
+.menuHint {
+  font-size: var(--text-xs);
+  line-height: 1.45;
+  color: var(--muted);
+}
+
+.menuHint strong {
+  font-weight: 500;
+  color: var(--ink);
+}

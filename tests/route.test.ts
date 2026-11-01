@@ -9,7 +9,9 @@ import {
   groupLane,
   groupStops,
   incomingSegment,
+  isFocusLane,
   lineStyle,
+  narrowRoute,
   nominatimUrl,
   offsetSegment,
   orderForRoute,
@@ -297,5 +299,21 @@ describe('place search', () => {
     expect(gate.reserve()).toBe(1700);
     t += 5000;
     expect(gate.reserve()).toBe(0);
+  });
+});
+
+describe('people filter on the map', () => {
+  it('narrowRoute keeps the map numbers and drops the other person', () => {
+    const all = buildDayRoute([at('t1', '09:00'), at('a1', '10:00', { participants: 'amy' }), at('e1', '10:30', { participants: 'eren' }), at('t2', '11:00')], D, 'together', SYDNEY_TZ);
+    const eren = narrowRoute(all, 'eren');
+    expect(eren.stops.map((x) => [x.item.id, x.n])).toEqual([['t1', 1], ['e1', 3], ['t2', 4]]);
+    expect(segs(eren).every((id) => !id.endsWith(':amy'))).toBe(true);
+    expect(narrowRoute(all, 'together')).toBe(all);
+  });
+  it('isFocusLane fades only the other person', () => {
+    expect(isFocusLane('together', 'eren')).toBe(true);
+    expect(isFocusLane('eren', 'eren')).toBe(true);
+    expect(isFocusLane('amy', 'eren')).toBe(false);
+    expect(isFocusLane('amy', 'together')).toBe(true);
   });
 });
