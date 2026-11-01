@@ -1,0 +1,104 @@
+.empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--s1-5);
+  padding: var(--s5) var(--s3);
+  border: 1px dashed var(--line-strong);
+  border-radius: var(--radius-card-sm);
+  text-align: center;
+}
+
+.compact {
+  padding: var(--s3) var(--s2);
+}
+
+.emptyIcon {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-button-lg);
+  background: var(--sky);
+  color: var(--harbour);
+}
+
+.emptyTitle {
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-size: var(--text-lg);
+  color: var(--ink-soft);
+}
+
+.loading {
+  display: grid;
+  gap: var(--s1-5);
+}
+
+.cards {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.bone {
+  display: block;
+  height: 56px;
+  border-radius: var(--radius-button-lg);
+  background: linear-gradient(90deg, rgba(232, 221, 204, 0.55) 0%, rgba(232, 221, 204, 0.9) 50%, rgba(232, 221, 204, 0.55) 100%);
+  background-size: 200% 100%;
+  animation: shimmer 1.4s linear infinite;
+}
+
+.cards .bone {
+  height: 104px;
+  border-radius: var(--radius-card-sm);
+}
+
+.block .bone {
+  height: 220px;
+  border-radius: var(--radius-card);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bone {
+    animation: none;
+  }
+}
+
+@keyframes shimmer {
+  from {
+    background-position: 100% 0;
+  }
+  to {
+    background-position: -100% 0;
+  }
+}
+
+.error {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--s1);
+  padding: var(--s3);
+  border-radius: var(--radius-card-sm);
+  background: var(--porcelain);
+  border: 1px solid var(--line);
+}
+
+.errorTitle {
+  font-family: var(--font-serif);
+  font-size: var(--title-xs);
+  font-weight: 500;
+  line-height: 1.2;
+}
+
+.errorMessage {
+  color: var(--ink-soft);
+  font-size: var(--text-md);
+}
+
+.errorActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s1);
+  margin-top: var(--s1);
+}

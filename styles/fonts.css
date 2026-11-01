@@ -1,0 +1,41 @@
+/*
+ * Font faces. Self-hosted woff2 files (styles/fonts/*.woff2, referenced with
+ * relative url() so Next hashes them under basePath) are not added yet:
+ * downloading the OFL sources needs the owner's approval. Until then each face
+ * resolves to an installed copy via local() and the stacks in tokens fall back
+ * to system serif / sans / Korean fonts.
+ * Headings should use font-variant-numeric: lining-nums.
+ */
+
+@font-face {
+  font-family: 'Cormorant Garamond';
+  font-style: normal;
+  font-weight: 500 600;
+  font-display: swap;
+  src: local('Cormorant Garamond Medium'), local('CormorantGaramond-Medium'), local('Cormorant Garamond');
+}
+
+@font-face {
+  font-family: 'Cormorant Garamond';
+  font-style: italic;
+  font-weight: 500;
+  font-display: swap;
+  src: local('Cormorant Garamond Medium Italic'), local('CormorantGaramond-MediumItalic');
+}
+
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 400 600;
+  font-display: swap;
+  src: local('Inter'), local('Inter Variable');
+}
+
+@font-face {
+  font-family: 'Pretendard';
+  font-style: normal;
+  font-weight: 400 600;
+  font-display: swap;
+  src: local('Pretendard'), local('Pretendard Variable');
+  unicode-range: U+1100-11FF, U+3130-318F, U+AC00-D7A3;
+}

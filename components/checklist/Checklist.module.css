@@ -1,0 +1,302 @@
+/* Before We Go (plan §7.4, pc.png aside). */
+.root {
+  min-width: 0;
+}
+
+/* Board: the whole section is one aside card, heading inside (design sample). */
+.boardCard {
+  padding: var(--s3);
+}
+
+.boardCard h2 {
+  font-size: 30px;
+}
+
+.summaryBoard,
+.summaryTabs {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s2-5);
+}
+
+.summaryTabs {
+  padding: var(--s2-5);
+  border-radius: var(--radius-card);
+  background: var(--porcelain);
+  box-shadow: var(--shadow-card);
+}
+
+.views {
+  margin-top: var(--s3);
+}
+
+.viewBody {
+  margin-top: var(--s2);
+}
+
+/* ── progress ──────────────────────────────── */
+.progress {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s1-5);
+}
+
+.progressHead {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--s1);
+  font-size: var(--text-sm);
+}
+
+.progressValue {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums lining-nums;
+}
+
+.bar {
+  height: 4px;
+  margin-top: 6px;
+  border-radius: 4px;
+  background: var(--sand);
+  overflow: hidden;
+}
+
+.bar i {
+  display: block;
+  height: 100%;
+  border-radius: 4px;
+  background: var(--harbour);
+  transition: width var(--motion-slow) var(--ease);
+}
+
+/* ── coming up ─────────────────────────────── */
+.comingUp {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.subhead {
+  font-size: var(--text-2xs);
+  font-weight: 500;
+  letter-spacing: var(--tracking-eyebrow);
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.muted {
+  font-size: var(--text-sm);
+  color: var(--muted);
+}
+
+/* ── rows ──────────────────────────────────── */
+.rows {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas:
+    'check edit'
+    'meta edit';
+  align-items: center;
+  column-gap: var(--s1);
+  padding: 2px 0 8px;
+  border-top: 1px solid var(--line);
+}
+
+.rowCompact {
+  padding-bottom: 6px;
+}
+
+.check {
+  grid-area: check;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: var(--touch);
+  min-width: 0;
+  cursor: pointer;
+}
+
+.box {
+  appearance: none;
+  flex: none;
+  width: 20px;
+  height: 20px;
+  margin: 0;
+  border: 1.5px solid var(--past);
+  border-radius: 5px;
+  background: var(--porcelain);
+  cursor: pointer;
+  transition:
+    background-color var(--motion-fast) var(--ease),
+    border-color var(--motion-fast) var(--ease);
+}
+
+.box:checked {
+  border-color: var(--harbour);
+  background: var(--harbour)
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23fff' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 12.5l4.5 4.5L19 7.5'/%3E%3C/svg%3E")
+    center / 14px no-repeat;
+}
+
+.box:focus-visible {
+  outline: 2px solid var(--harbour);
+  outline-offset: 2px;
+}
+
+.box:disabled {
+  opacity: 0.55;
+  cursor: progress;
+}
+
+.rowTitle {
+  min-width: 0;
+  font-size: var(--text-md);
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.rowDone .rowTitle {
+  color: var(--muted);
+  text-decoration: line-through;
+}
+
+.rowNa .rowTitle {
+  color: var(--past);
+}
+
+.rowNa .box {
+  border-style: dashed;
+}
+
+.rowMeta {
+  grid-area: meta;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px var(--s1);
+  padding-left: 30px;
+  font-size: var(--text-xs);
+  color: var(--muted);
+}
+
+.metaWho {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.overdue {
+  color: var(--danger);
+  font-weight: 500;
+}
+
+.soon {
+  color: var(--harbour);
+  font-weight: 500;
+}
+
+.rowEdit {
+  grid-area: edit;
+  color: var(--muted);
+}
+
+/* ── list view ─────────────────────────────── */
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s1);
+}
+
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s1);
+  margin-bottom: var(--s1);
+}
+
+.filters {
+  min-width: 0;
+}
+
+.group {
+  border-top: 1px solid var(--line);
+}
+
+.groupHeading {
+  margin: 0;
+  font: inherit;
+}
+
+.groupHead {
+  display: flex;
+  align-items: center;
+  gap: var(--s1);
+  width: 100%;
+  min-height: var(--touch);
+  padding: 6px 0;
+  border: 0;
+  background: none;
+  text-align: left;
+}
+
+.groupTitle {
+  flex: 1;
+  min-width: 0;
+  font-family: var(--font-serif);
+  font-size: var(--title-xs);
+  font-weight: 500;
+  line-height: 1.15;
+}
+
+.groupCount {
+  font-size: var(--text-xs);
+  color: var(--muted);
+  font-variant-numeric: tabular-nums lining-nums;
+  white-space: nowrap;
+}
+
+.chev {
+  flex: none;
+  color: var(--muted);
+  transition: transform var(--motion) var(--ease);
+}
+
+.groupBody {
+  padding-bottom: var(--s1);
+}
+
+.groupHint {
+  margin: 0 0 6px;
+  font-size: var(--text-xs);
+  color: var(--muted);
+  font-style: italic;
+}
+
+.groupEmpty {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s1);
+}
+
+/* Board aside is narrow: tighter group titles. */
+.root[data-layout='board'] .groupTitle {
+  font-size: 19px;
+}
+
+@media (min-width: 768px) and (max-width: 1023px) {
+  .summaryTabs {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--s3);
+    align-items: start;
+  }
+}

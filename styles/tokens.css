@@ -1,0 +1,185 @@
+/*
+ * Design tokens (plan §5.2, CLAUDE.md §4). Light mode only.
+ * Components read these variables; never hard-code colours or durations.
+ */
+:root {
+  color-scheme: light;
+
+  /* ── Colour ─────────────────────────────────────────── */
+  --paper: #f7f4ee;
+  --porcelain: #fffdf9;
+  --ink: #172f3b;
+  --harbour: #286a82; /* Eren marker E, links, selection */
+  --sky: #dceef3;
+  --sand: #e8ddcc;
+  --brass: #a98248; /* decoration only, Amy marker A */
+  --brass-deep: #7e5e2e; /* brass-family text (>= 4.5:1 on Paper) */
+  --muted: #536570;
+
+  --ink-soft: #33505d;
+  --past: #66757d; /* past rows, still >= 4.5:1 on Porcelain */
+  --danger: #9b3b2e;
+  --line: rgba(23, 47, 59, 0.12);
+  --line-strong: rgba(23, 47, 59, 0.2);
+  --harbour-wash: rgba(40, 106, 130, 0.12);
+  --harbour-ring: rgba(40, 106, 130, 0.15);
+  --brass-wash: rgba(169, 130, 72, 0.14);
+  --brass-line: rgba(169, 130, 72, 0.45);
+  --brass-on-dark: #e9c995; /* eyebrow on the piano photo */
+  --now-wash: linear-gradient(90deg, rgba(220, 238, 243, 0.9), rgba(220, 238, 243, 0.3));
+  --scrim: rgba(23, 47, 59, 0.36);
+
+  --member-eren: var(--harbour);
+  --member-amy: var(--brass);
+
+  /* ── Type ───────────────────────────────────────────── */
+  --font-serif: 'Cormorant Garamond', 'Iowan Old Style', Georgia, 'Pretendard', serif;
+  --font-sans: 'Inter', 'Pretendard', system-ui, -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif;
+
+  --text-2xs: 11px; /* eyebrow, badges */
+  --text-xs: 12px;
+  --text-sm: 13px;
+  --text-md: 14px;
+  --text-base: 16px;
+  --text-lg: 18px;
+  --title-xs: 22px;
+  --title-sm: 28px;
+  --title-md: 36px;
+  --title-lg: 48px;
+  --cover-title: 56px; /* PC short cover */
+  --hero-title: clamp(40px, 9vw, 52px); /* mobile hero 40–52 */
+  --hero-title-desktop: clamp(64px, 5.6vw, 88px);
+  --leading-tight: 1.05;
+  --leading-body: 1.5;
+  --tracking-eyebrow: 0.16em;
+
+  /* ── Space (8px grid) ───────────────────────────────── */
+  --s-half: 4px;
+  --s1: 8px;
+  --s1-5: 12px;
+  --s2: 16px;
+  --s2-5: 20px;
+  --s3: 24px;
+  --s4: 32px;
+  --s5: 40px;
+  --s6: 48px;
+  --s8: 64px;
+  --s10: 80px;
+
+  /* ── Radius ─────────────────────────────────────────── */
+  --radius-card-sm: 16px;
+  --radius-card: 20px;
+  --radius-card-lg: 24px;
+  --radius-button: 10px;
+  --radius-button-lg: 12px;
+  --radius-field: 10px;
+  --radius-chip: 999px; /* badges and filter chips only */
+
+  /* ── Elevation ──────────────────────────────────────── */
+  --shadow-card: 0 1px 0 rgba(23, 47, 59, 0.04), 0 12px 32px -18px rgba(23, 47, 59, 0.18);
+  --shadow-float: 0 16px 48px -16px rgba(23, 47, 59, 0.32);
+
+  /* ── Motion (160–240ms) ─────────────────────────────── */
+  --motion-fast: 160ms;
+  --motion: 200ms;
+  --motion-slow: 240ms;
+  --motion-cover: 800ms;
+  --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
+
+  /* ── Layout ─────────────────────────────────────────── */
+  --page-max: 1480px;
+  --toc-width: 160px;
+  --gutter: 16px;
+  --topbar-h: 56px;
+  --section-links-h: 0px;
+  --bottom-nav-h: 64px;
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --scroll-offset: 16px;
+  --touch: 44px;
+  --z-sticky: 20;
+  --z-nav: 30;
+  --z-menu: 40;
+  --z-sheet: 50;
+  --z-toast: 60;
+}
+
+@media (min-width: 380px) {
+  :root {
+    --gutter: 20px;
+  }
+}
+
+@media (min-width: 768px) {
+  :root {
+    --gutter: 32px;
+  }
+}
+
+@media (min-width: 1024px) {
+  :root {
+    --gutter: 40px;
+    --topbar-h: 64px;
+    --section-links-h: 52px;
+    --scroll-offset: calc(var(--section-links-h) + 20px);
+  }
+}
+
+@media (min-width: 1440px) {
+  :root {
+    --section-links-h: 0px;
+    --scroll-offset: 24px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --motion-fast: 0ms;
+    --motion: 0ms;
+    --motion-slow: 0ms;
+    --motion-cover: 0ms;
+  }
+}
+
+/*
+ * Cover phase tokens (plan §6.1). Set data-cover-phase on the cover root and on
+ * each image layer. No attribute = static Paper placeholder.
+ */
+[data-cover-phase] {
+  --cover-text: var(--ink);
+  --cover-overlay: none;
+  --cover-overlay-vertical: none;
+  --cover-position: 50% 50%;
+  --cover-clock-bg: rgba(255, 253, 249, 0.75);
+  --cover-clock-text: var(--ink);
+  --cover-clock-line: rgba(23, 47, 59, 0.08);
+}
+
+[data-cover-phase='day'] {
+  --cover-text: var(--ink);
+  --cover-overlay: linear-gradient(90deg, rgba(255, 253, 249, 0.92) 0%, rgba(255, 253, 249, 0.6) 40%, rgba(255, 253, 249, 0) 66%);
+  --cover-overlay-vertical: linear-gradient(0deg, rgba(255, 253, 249, 0.94) 0%, rgba(255, 253, 249, 0.72) 40%, rgba(255, 253, 249, 0) 72%);
+  --cover-position: 40% 55%;
+  --cover-clock-bg: rgba(255, 253, 249, 0.78);
+  --cover-clock-text: var(--ink);
+  --cover-clock-line: rgba(23, 47, 59, 0.08);
+}
+
+[data-cover-phase='evening'] {
+  --cover-text: var(--porcelain);
+  --cover-overlay: linear-gradient(90deg, rgba(14, 28, 36, 0.8) 0%, rgba(14, 28, 36, 0.38) 44%, rgba(14, 28, 36, 0.06) 70%);
+  --cover-overlay-vertical: linear-gradient(0deg, rgba(14, 28, 36, 0.84) 0%, rgba(14, 28, 36, 0.48) 42%, rgba(14, 28, 36, 0) 74%);
+  --cover-position: 35% 60%;
+  --cover-clock-bg: rgba(14, 28, 36, 0.42);
+  --cover-clock-text: var(--porcelain);
+  --cover-clock-line: rgba(255, 253, 249, 0.3);
+}
+
+[data-cover-phase='night'] {
+  --cover-text: var(--porcelain);
+  --cover-overlay: linear-gradient(90deg, rgba(8, 14, 18, 0.72) 0%, rgba(8, 14, 18, 0.28) 46%, rgba(8, 14, 18, 0.04) 72%);
+  --cover-overlay-vertical: linear-gradient(0deg, rgba(8, 14, 18, 0.8) 0%, rgba(8, 14, 18, 0.38) 44%, rgba(8, 14, 18, 0) 74%);
+  --cover-position: 50% 55%;
+  --cover-clock-bg: rgba(8, 14, 18, 0.4);
+  --cover-clock-text: var(--porcelain);
+  --cover-clock-line: rgba(255, 253, 249, 0.3);
+}

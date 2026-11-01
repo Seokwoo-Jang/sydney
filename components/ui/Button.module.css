@@ -1,0 +1,113 @@
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s1);
+  min-height: var(--touch);
+  padding: 10px 18px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-button);
+  font-size: var(--text-md);
+  font-weight: 500;
+  line-height: 1.2;
+  text-decoration: none;
+  white-space: nowrap;
+  transition:
+    background-color var(--motion-fast) var(--ease),
+    border-color var(--motion-fast) var(--ease),
+    color var(--motion-fast) var(--ease);
+}
+
+.button:disabled {
+  opacity: 0.55;
+}
+
+.button[aria-busy='true'] {
+  cursor: progress;
+}
+
+.primary {
+  background: var(--ink);
+  color: var(--porcelain);
+}
+
+.primary:hover:not(:disabled) {
+  background: #0f2430;
+}
+
+.secondary {
+  background: var(--porcelain);
+  border-color: var(--line-strong);
+  color: var(--ink);
+}
+
+.secondary:hover:not(:disabled) {
+  border-color: var(--harbour);
+  color: var(--harbour);
+}
+
+.ghost {
+  background: transparent;
+  color: var(--ink);
+}
+
+.ghost:hover:not(:disabled) {
+  background: var(--harbour-wash);
+}
+
+.link {
+  background: transparent;
+  color: var(--harbour);
+  padding-inline: 4px;
+}
+
+.link:hover:not(:disabled) {
+  text-decoration: underline;
+}
+
+.danger {
+  background: var(--porcelain);
+  border-color: rgba(155, 59, 46, 0.35);
+  color: var(--danger);
+}
+
+.danger:hover:not(:disabled) {
+  background: rgba(155, 59, 46, 0.06);
+}
+
+.onDark {
+  background: rgba(255, 253, 249, 0.12);
+  border-color: rgba(255, 253, 249, 0.32);
+  color: var(--porcelain);
+}
+
+.onDark:hover:not(:disabled) {
+  background: rgba(255, 253, 249, 0.2);
+}
+
+.sm {
+  padding: 6px 12px;
+  font-size: var(--text-sm);
+}
+
+.full {
+  width: 100%;
+}
+
+.iconButton {
+  display: inline-grid;
+  place-items: center;
+  width: var(--touch);
+  height: var(--touch);
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: var(--radius-button);
+  background: transparent;
+  color: inherit;
+  transition: background-color var(--motion-fast) var(--ease);
+}
+
+.iconButton.secondary {
+  background: var(--porcelain);
+  border-color: var(--line);
+}

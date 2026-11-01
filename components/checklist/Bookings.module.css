@@ -1,0 +1,469 @@
+/* Bookings (plan §7.1): boarding pass, car pass, stay card, documents. */
+.view {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s3);
+}
+
+.group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s1-5);
+}
+
+.groupHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s1);
+}
+
+.groupTitle {
+  font-family: var(--font-serif);
+  font-size: var(--title-xs);
+  font-weight: 500;
+  line-height: 1.15;
+}
+
+.empty {
+  font-size: var(--text-sm);
+  color: var(--muted);
+}
+
+.stack {
+  display: grid;
+  gap: var(--s1-5);
+}
+
+@media (min-width: 768px) and (max-width: 1023px) {
+  .stack {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.nextUp {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s1-5);
+}
+
+.badges {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.onDark {
+  margin-top: 2px;
+}
+
+.cancelled {
+  text-decoration: line-through;
+}
+
+/* ── flight pass (Ink) ─────────────────────── */
+.pass {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 92px;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-card-sm);
+  background: var(--ink);
+  color: var(--porcelain);
+  text-align: left;
+  overflow: hidden;
+  transition: transform var(--motion-fast) var(--ease);
+}
+
+.pass:hover {
+  transform: translateY(-1px);
+}
+
+.passCancelled {
+  opacity: 0.7;
+}
+
+.passMain {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+  padding: 16px 16px 16px 20px;
+}
+
+.passTop {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 4px var(--s1);
+  font-size: var(--text-2xs);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--porcelain) 78%, transparent);
+}
+
+.route {
+  display: flex;
+  align-items: center;
+  gap: var(--s1-5);
+}
+
+.route b {
+  font-family: var(--font-serif);
+  font-size: 34px;
+  font-weight: 500;
+  line-height: 1;
+}
+
+.routeLine {
+  position: relative;
+  flex: 1;
+  display: grid;
+  place-items: center;
+  height: 18px;
+}
+
+.routeLine::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  border-top: 1px solid color-mix(in srgb, var(--porcelain) 35%, transparent);
+}
+
+.routeLine svg {
+  position: relative;
+  padding: 0 4px;
+  background: var(--ink);
+  box-sizing: content-box;
+}
+
+.times {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--s1);
+  font-size: var(--text-xs);
+  color: color-mix(in srgb, var(--porcelain) 85%, transparent);
+}
+
+.times > span {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.timesEnd {
+  text-align: right;
+  align-items: flex-end;
+}
+
+.time {
+  font-size: var(--text-sm);
+  font-weight: 500;
+  color: var(--porcelain);
+  font-variant-numeric: tabular-nums lining-nums;
+}
+
+.time abbr {
+  text-decoration: none;
+  font-weight: 400;
+  font-size: var(--text-2xs);
+  letter-spacing: 0.06em;
+}
+
+.stub {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 12px 8px;
+  border-left: 2px dashed color-mix(in srgb, var(--porcelain) 25%, transparent);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  text-align: center;
+  color: color-mix(in srgb, var(--porcelain) 85%, transparent);
+}
+
+.stub b {
+  font-family: var(--font-serif);
+  font-size: 20px;
+  font-weight: 500;
+  line-height: 1.05;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--porcelain);
+}
+
+/* ── car pass (same family, light) ─────────── */
+.carPass {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s1-5);
+  width: 100%;
+  padding: 16px 18px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card-sm);
+  background: var(--sky);
+  color: var(--ink);
+  text-align: left;
+}
+
+.carTop {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--s1);
+}
+
+.carCompany {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 500;
+  font-size: var(--text-md);
+  color: var(--harbour);
+}
+
+.carRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  gap: var(--s1-5);
+}
+
+.carEnd {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  font-size: var(--text-xs);
+  color: var(--ink-soft);
+}
+
+.carEnd small {
+  font-size: var(--text-2xs);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.carEnd b {
+  font-family: var(--font-serif);
+  font-size: 24px;
+  font-weight: 500;
+  line-height: 1.05;
+  color: var(--ink);
+}
+
+.carEndRight {
+  text-align: right;
+  align-items: flex-end;
+}
+
+.place {
+  overflow-wrap: anywhere;
+}
+
+.carMid {
+  padding: 4px 10px;
+  border-top: 1px dashed var(--line-strong);
+  border-bottom: 1px dashed var(--line-strong);
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-size: var(--text-md);
+  white-space: nowrap;
+}
+
+/* ── stay ──────────────────────────────────── */
+.stay {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 12px 14px 6px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card-sm);
+  background: var(--porcelain);
+}
+
+.stayMain {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s1-5);
+  width: 100%;
+  min-height: var(--touch);
+  padding: 0;
+  border: 0;
+  background: none;
+  text-align: left;
+}
+
+.stayIcon,
+.docIcon {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-button);
+  background: var(--sky);
+  color: var(--harbour);
+}
+
+.stayText {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.stayLabel {
+  font-size: var(--text-2xs);
+  font-weight: 500;
+  letter-spacing: var(--tracking-eyebrow);
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.stayName {
+  font-weight: 500;
+  font-size: var(--text-md);
+  overflow-wrap: anywhere;
+}
+
+.stayDates {
+  font-size: var(--text-xs);
+  color: var(--muted);
+}
+
+.stayMeta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.mapLink {
+  align-self: flex-start;
+  margin-left: 44px;
+}
+
+/* ── documents ─────────────────────────────── */
+.docs {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.doc {
+  display: flex;
+  align-items: center;
+  gap: var(--s1-5);
+  width: 100%;
+  min-height: 56px;
+  padding: 8px 0;
+  border: 0;
+  border-top: 1px solid var(--line);
+  background: none;
+  text-align: left;
+}
+
+.docText {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+  font-size: var(--text-md);
+}
+
+.docText b {
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+
+.docText span {
+  font-size: var(--text-xs);
+  color: var(--muted);
+}
+
+/* ── sheet bits ────────────────────────────── */
+.sheetBlock {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s1);
+}
+
+.expenseList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.expenseRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px var(--s1-5);
+  padding: 8px 0;
+  border-top: 1px solid var(--line);
+}
+
+.expenseText {
+  display: flex;
+  flex: 1 1 160px;
+  flex-direction: column;
+  min-width: 0;
+  font-size: var(--text-md);
+}
+
+.expenseText b {
+  font-weight: 500;
+}
+
+.expenseText span {
+  font-size: var(--text-xs);
+  color: var(--muted);
+}
+
+.expenseAmount {
+  font-variant-numeric: tabular-nums lining-nums;
+  font-weight: 500;
+}
+
+.factRow {
+  display: grid;
+  grid-template-columns: minmax(96px, 34%) minmax(0, 1fr);
+  gap: var(--s1-5);
+  padding: 6px 0;
+  border-top: 1px solid var(--line);
+}
+
+.refLine {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px var(--s1);
+}
+
+.refLine code {
+  font-family: var(--font-sans);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+}
+
+.notes {
+  white-space: pre-wrap;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pass:hover {
+    transform: none;
+  }
+}

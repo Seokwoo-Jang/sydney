@@ -1,0 +1,18 @@
+.board {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s2-5);
+}
+
+/* Day/Evening cover sources are ~750–814px wide: cap the cover so they are not upscaled much. */
+.coverRow {
+  display: grid;
+  grid-template-columns: minmax(0, 860px) minmax(300px, 1fr);
+  gap: var(--s2-5);
+}
+
+.tabs {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s2);
+}

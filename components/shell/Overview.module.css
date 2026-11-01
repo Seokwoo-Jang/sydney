@@ -1,0 +1,347 @@
+/* ── PC cover ─────────────────────────────── */
+.coverInner {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  height: 100%;
+  padding: 26px 34px 22px;
+}
+
+.coverEyebrow {
+  color: inherit;
+  opacity: 0.85;
+}
+
+.coverTitle {
+  margin-top: 8px;
+  font-family: var(--font-serif);
+  font-size: var(--cover-title);
+  font-weight: 500;
+  line-height: 1;
+  letter-spacing: -0.01em;
+}
+
+.coverTitle em,
+.heroTitle em {
+  font-style: italic;
+  font-weight: 400;
+}
+
+.tagline {
+  margin-top: 8px;
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-size: 19px;
+  opacity: 0.92;
+}
+
+.coverFoot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 16px;
+  padding-right: 140px; /* room for the clock chip */
+  font-size: var(--text-xs);
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.dot {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0.6;
+}
+
+/* ── mobile hero ──────────────────────────── */
+.heroInner {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  gap: 6px;
+  flex: 1;
+  padding: 22px 20px 56px;
+}
+
+.heroTitle {
+  margin-top: 4px;
+  font-family: var(--font-serif);
+  font-size: var(--hero-title);
+  font-weight: 500;
+  line-height: 1;
+  letter-spacing: -0.01em;
+}
+
+.heroIntro {
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-size: 17px;
+  opacity: 0.92;
+}
+
+.heroDates {
+  margin-top: 6px;
+  font-size: var(--text-2xs);
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.heroCountdown {
+  display: flex;
+  align-items: baseline;
+  gap: var(--s1);
+  font-size: var(--text-sm);
+}
+
+.heroCountdown b {
+  font-family: var(--font-serif);
+  font-size: 26px;
+  font-weight: 600;
+  line-height: 1;
+}
+
+@media (min-width: 768px) {
+  .heroInner {
+    padding: 32px 36px 64px;
+  }
+}
+
+/* ── compact tab cover ────────────────────── */
+.compactInner {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  height: 100%;
+  padding: 18px 20px 16px;
+}
+
+.compactTitle {
+  font-family: var(--font-serif);
+  font-size: 34px;
+  font-weight: 500;
+  line-height: 1;
+  max-width: 11ch;
+}
+
+.compactIntro {
+  margin-top: 6px;
+  padding-right: 128px;
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-size: 15px;
+  opacity: 0.92;
+}
+
+@media (min-width: 768px) {
+  .compactTitle {
+    max-width: none;
+  }
+}
+
+/* ── Prelude mini (PC) ────────────────────── */
+.preludeMini {
+  position: relative;
+  isolation: isolate;
+  display: flex;
+  overflow: hidden;
+  height: 208px;
+  border-radius: var(--radius-card);
+  background: #1d130d;
+  color: var(--porcelain);
+  text-decoration: none;
+}
+
+.preludeImg {
+  position: absolute;
+  inset: 0;
+  z-index: -2;
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  object-fit: cover;
+  object-position: 50% 45%;
+  transition: transform var(--motion-slow) var(--ease);
+}
+
+.preludeMini:hover .preludeImg {
+  transform: scale(1.02);
+}
+
+.preludeShade {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: linear-gradient(180deg, rgba(23, 15, 10, 0.08) 0%, rgba(23, 15, 10, 0.55) 45%, rgba(23, 15, 10, 0.88) 100%);
+}
+
+.preludeText {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  gap: 4px;
+  width: 100%;
+  padding: 20px 22px;
+}
+
+.preludeEyebrow {
+  color: var(--brass-on-dark);
+}
+
+.preludeTitle {
+  font-family: var(--font-serif);
+  font-size: 28px;
+  font-weight: 500;
+  line-height: 1.05;
+}
+
+.preludeIntro {
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-size: 16px;
+  opacity: 0.9;
+}
+
+/* ── Prelude card (mobile overview) ───────── */
+.preludeCard {
+  display: grid;
+  grid-template-columns: 96px minmax(0, 1fr);
+  gap: var(--s2);
+  align-items: start;
+  padding: var(--s2);
+  border-radius: var(--radius-card);
+  background: var(--porcelain);
+  box-shadow: var(--shadow-card);
+}
+
+.preludeThumb {
+  width: 96px;
+  height: 96px;
+  border-radius: var(--radius-card-sm);
+  object-fit: cover;
+  object-position: 50% 40%;
+}
+
+.preludeCardBody {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  min-width: 0;
+}
+
+.preludeCardEyebrow {
+  color: var(--brass-deep);
+}
+
+.preludeCardTitle {
+  font-family: var(--font-serif);
+  font-size: 22px;
+  font-weight: 500;
+  line-height: 1.1;
+}
+
+.preludeNext {
+  display: flex;
+  flex-direction: column;
+  font-size: var(--text-sm);
+  color: var(--ink-soft);
+}
+
+.preludeNextLabel {
+  font-size: var(--text-2xs);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.preludeNextTitle {
+  font-weight: 500;
+  color: var(--ink);
+}
+
+.preludeNextWhen {
+  font-size: var(--text-xs);
+  color: var(--muted);
+}
+
+/* ── summary strip (PC) ───────────────────── */
+.strip {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+}
+
+.stripCell {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  padding: 14px 18px;
+  border-left: 1px solid var(--line);
+  color: var(--ink);
+  text-decoration: none;
+  transition: background-color var(--motion-fast) var(--ease);
+}
+
+.stripCell:first-child {
+  border-left: 0;
+  padding-left: 4px;
+}
+
+.stripCell:hover {
+  background: rgba(255, 253, 249, 0.7);
+}
+
+.stripLabel {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--s1);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.stripAside {
+  color: var(--muted);
+  font-weight: 400;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.stripValue {
+  margin-top: 4px;
+  font-family: var(--font-serif);
+  font-size: 24px;
+  font-weight: 500;
+  line-height: 1.15;
+  font-variant-numeric: lining-nums;
+}
+
+.stripSub {
+  font-size: var(--text-xs);
+  color: var(--muted);
+}
+
+.bone {
+  display: block;
+  width: 60%;
+  height: 24px;
+  border-radius: 6px;
+  background: rgba(232, 221, 204, 0.7);
+}
+
+.boneSub {
+  width: 80%;
+  height: 12px;
+  margin-top: 6px;
+}
+
+@media (max-width: 1279px) {
+  .stripAside {
+    display: none;
+  }
+}

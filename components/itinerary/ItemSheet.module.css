@@ -1,0 +1,95 @@
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s2-5);
+}
+
+.pair {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--s1-5);
+}
+
+@media (max-width: 359px) {
+  .pair {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* Day labels ('Day 4 · Sun, 29 Dec') need the full width on phones. */
+@media (max-width: 479px) {
+  .stackNarrow {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.groupLabel {
+  font-size: var(--text-sm);
+  font-weight: 500;
+}
+
+.status {
+  align-self: center;
+}
+
+.footerRow,
+.confirm {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--s1);
+  width: 100%;
+}
+
+.deleteButton {
+  margin-right: auto;
+  color: var(--danger);
+}
+
+.confirmText {
+  flex: 1 1 160px;
+  font-size: var(--text-md);
+  color: var(--ink);
+}
+
+.latest {
+  padding: var(--s1-5) var(--s2);
+  border-radius: var(--radius-button-lg);
+  background: var(--paper);
+  border: 1px solid var(--line);
+  font-size: var(--text-md);
+  color: var(--ink);
+}
+
+.latestLabel {
+  margin-bottom: var(--s1);
+  font-size: var(--text-2xs);
+  font-weight: 600;
+  letter-spacing: var(--tracking-eyebrow);
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.latestList {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: 4px var(--s1-5);
+  margin: 0;
+}
+
+.latestList dt {
+  color: var(--muted);
+  font-size: var(--text-sm);
+}
+
+.latestList dd {
+  margin: 0;
+  white-space: pre-wrap;
+}

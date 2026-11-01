@@ -1,0 +1,194 @@
+/* The Travel Library (plan §7.7). */
+.root {
+  min-width: 0;
+}
+
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s2);
+}
+
+.subhead {
+  margin-bottom: var(--s1);
+  font-size: var(--text-2xs);
+  font-weight: 500;
+  letter-spacing: var(--tracking-eyebrow);
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.muted {
+  font-size: var(--text-sm);
+  color: var(--muted);
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--s1-5);
+}
+
+@media (min-width: 768px) and (max-width: 1023px) {
+  .grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.filters {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s1-5);
+}
+
+.count {
+  font-variant-numeric: tabular-nums lining-nums;
+  opacity: 0.7;
+}
+
+/* ── card ──────────────────────────────────── */
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s1);
+  min-width: 0;
+  padding: 12px 12px 4px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card-sm);
+  background: var(--porcelain);
+  transition: border-color var(--motion-fast) var(--ease);
+}
+
+.card:hover {
+  border-color: var(--line-strong);
+}
+
+.cardPinned {
+  box-shadow: var(--shadow-card);
+}
+
+.cardMain {
+  display: grid;
+  grid-template-columns: 36px minmax(0, 1fr);
+  gap: var(--s1-5);
+  align-items: start;
+  width: 100%;
+  min-height: var(--touch);
+  padding: 0;
+  border: 0;
+  background: none;
+  text-align: left;
+}
+
+.ico {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-button);
+  background: var(--sky);
+  color: var(--harbour);
+  font-family: var(--font-serif);
+  font-size: 18px;
+  font-weight: 500;
+}
+
+.cardText {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.cardTitle {
+  font-size: var(--text-md);
+  font-weight: 500;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+
+.cardMain:hover .cardTitle {
+  text-decoration: underline;
+  text-underline-offset: 0.18em;
+}
+
+.host {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--text-xs);
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+
+.pinBadge {
+  padding: 1px 6px;
+}
+
+.note {
+  font-size: var(--text-sm);
+  color: var(--ink-soft);
+  overflow-wrap: anywhere;
+}
+
+.tags,
+.sheetTags {
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 6px;
+  margin: 0;
+  padding: 0 0 0 48px;
+}
+
+.sheetTags {
+  flex-direction: column;
+  padding: 0;
+}
+
+.sheetTag {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.tag {
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
+  max-width: 100%;
+  padding: 4px 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-button);
+  background: var(--paper);
+  color: var(--harbour);
+  font-size: var(--text-xs);
+  font-weight: 500;
+  text-align: left;
+  overflow-wrap: anywhere;
+}
+
+/* Small tags keep a 44px hit area without growing the chip. */
+.tag {
+  position: relative;
+}
+
+.tag::after {
+  content: '';
+  position: absolute;
+  inset: -6px 0;
+}
+
+.tag:hover {
+  border-color: var(--line-strong);
+}
+
+.cardActions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0 var(--s1);
+  padding-left: 40px;
+}

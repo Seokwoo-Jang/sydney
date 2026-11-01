@@ -1,0 +1,47 @@
+.head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--s2);
+  margin-bottom: var(--s2-5);
+}
+
+.tabs {
+  margin-bottom: var(--s2);
+}
+
+.tabs:not(:has(.actions)) {
+  margin-bottom: 0;
+}
+
+.text {
+  min-width: 0;
+}
+
+.title {
+  margin-top: 4px;
+  font-family: var(--font-serif);
+  font-size: clamp(var(--title-sm), 3vw, 38px);
+  font-weight: 500;
+  line-height: var(--leading-tight);
+}
+
+.intro {
+  margin-top: 2px;
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-size: 17px;
+  color: var(--muted);
+}
+
+.brass .eyebrow {
+  color: var(--brass-deep);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s1);
+  align-items: center;
+}

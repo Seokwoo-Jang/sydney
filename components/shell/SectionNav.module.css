@@ -1,0 +1,174 @@
+/* ── TOC (≥1440) ──────────────────────────── */
+.toc {
+  position: sticky;
+  top: 24px;
+  align-self: start;
+}
+
+.tocList {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.link {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 36px;
+  padding: 6px 0 6px 12px;
+  border-left: 2px solid transparent;
+  color: var(--muted);
+  font-size: var(--text-sm);
+  text-decoration: none;
+  transition:
+    color var(--motion-fast) var(--ease),
+    border-color var(--motion-fast) var(--ease);
+}
+
+.link:hover {
+  color: var(--ink);
+}
+
+.link[aria-current] {
+  color: var(--ink);
+  font-weight: 600;
+  border-left-color: var(--harbour);
+}
+
+/* Amy's Prelude: indented, Brass Deep serif italic, note mark, brass rule. */
+.prelude {
+  margin-left: 10px;
+  padding-left: 10px;
+  border-left-color: var(--brass-line);
+  color: var(--brass-deep);
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-size: 15px;
+}
+
+.prelude:hover,
+.prelude[aria-current] {
+  color: var(--brass-deep);
+  border-left-color: var(--brass);
+}
+
+.noteMark {
+  flex: none;
+  color: var(--brass);
+}
+
+/* ── sticky links (1024–1439) ─────────────── */
+.links {
+  position: sticky;
+  top: 0;
+  z-index: var(--z-sticky);
+  height: var(--section-links-h);
+  margin: 0 calc(-1 * var(--gutter));
+  padding: 0 var(--gutter);
+  background: rgba(247, 244, 238, 0.94);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--line);
+}
+
+.linksList {
+  display: flex;
+  align-items: stretch;
+  gap: var(--s3);
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.linksList .link {
+  height: 100%;
+  min-height: var(--touch);
+  padding: 0 2px;
+  border-left: 0;
+  border-bottom: 2px solid transparent;
+  white-space: nowrap;
+}
+
+.linksList .link[aria-current] {
+  border-bottom-color: var(--harbour);
+}
+
+.linksList .prelude {
+  margin-left: calc(-1 * var(--s1));
+  padding-left: 10px;
+  border-left: 1px solid var(--brass-line);
+  border-bottom-color: transparent;
+}
+
+.linksList .prelude[aria-current] {
+  border-bottom-color: var(--brass);
+}
+
+/* ── bottom tabs (≤1023) ──────────────────── */
+.bottom {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: var(--z-nav);
+  padding: 6px 4px calc(6px + var(--safe-bottom));
+  background: rgba(255, 253, 249, 0.95);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border-top: 1px solid var(--line);
+}
+
+.bottomList {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 0;
+  list-style: none;
+}
+
+.tab {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  min-height: 52px;
+  padding: 4px 0;
+  color: var(--muted);
+  text-decoration: none;
+  border-radius: var(--radius-button);
+}
+
+.tab[aria-current] {
+  color: var(--ink);
+}
+
+.tab[aria-current] svg {
+  color: var(--harbour);
+}
+
+.tabLabel {
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.2;
+  white-space: nowrap; /* never truncate or wrap */
+}
+
+@media (max-width: 340px) {
+  .tabLabel {
+    font-size: 12px;
+  }
+}
+
+/* ── itinerary sub-switch ─────────────────── */
+.subnav {
+  margin-top: var(--s2);
+}

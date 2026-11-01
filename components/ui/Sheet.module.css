@@ -1,0 +1,131 @@
+/* Mobile/tablet: bottom sheet. */
+.dialog {
+  position: fixed;
+  inset: auto 0 0 0;
+  width: 100%;
+  max-width: 100%;
+  max-height: 92dvh;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-card-lg) var(--radius-card-lg) 0 0;
+  background: var(--porcelain);
+  color: var(--ink);
+  box-shadow: var(--shadow-float);
+  overflow: hidden;
+}
+
+.dialog[open] {
+  display: flex;
+  flex-direction: column;
+  animation: sheet-up var(--motion-slow) var(--ease);
+}
+
+.dialog::backdrop {
+  background: var(--scrim);
+}
+
+.full {
+  max-height: 100dvh;
+  height: 100dvh;
+  border-radius: 0;
+}
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  flex: 1;
+}
+
+.header {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s1);
+  padding: var(--s2) var(--s1) var(--s1) var(--s2-5);
+  border-bottom: 1px solid var(--line);
+}
+
+.headings {
+  flex: 1;
+  min-width: 0;
+  padding-top: 8px;
+}
+
+.title {
+  font-family: var(--font-serif);
+  font-size: var(--title-xs);
+  font-weight: 500;
+  line-height: 1.15;
+}
+
+.description {
+  margin-top: 2px;
+  font-size: var(--text-sm);
+  color: var(--muted);
+}
+
+.body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: var(--s2-5);
+}
+
+.footer {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--s1);
+  padding: var(--s1-5) var(--s2-5) calc(var(--s1-5) + var(--safe-bottom));
+  border-top: 1px solid var(--line);
+  background: var(--porcelain);
+}
+
+/* PC: right panel. */
+@media (min-width: 1024px) {
+  .dialog {
+    inset: 0 0 0 auto;
+    width: min(480px, 100vw);
+    height: 100dvh;
+    max-height: 100dvh;
+    border-radius: var(--radius-card-lg) 0 0 var(--radius-card-lg);
+  }
+
+  .dialog[open] {
+    animation-name: panel-in;
+  }
+
+  .wide,
+  .full {
+    width: min(760px, 100vw);
+    border-radius: var(--radius-card-lg) 0 0 var(--radius-card-lg);
+  }
+
+  .header {
+    padding: var(--s3) var(--s2) var(--s2) var(--s3);
+  }
+
+  .body {
+    padding: var(--s3);
+  }
+
+  .footer {
+    padding: var(--s2) var(--s3);
+  }
+}
+
+@keyframes sheet-up {
+  from {
+    transform: translateY(24px);
+    opacity: 0;
+  }
+}
+
+@keyframes panel-in {
+  from {
+    transform: translateX(24px);
+    opacity: 0;
+  }
+}

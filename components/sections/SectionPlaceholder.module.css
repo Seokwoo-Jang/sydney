@@ -1,0 +1,9 @@
+.placeholder {
+  padding: var(--s3);
+  border: 1px dashed var(--line-strong);
+  border-radius: var(--radius-card-sm);
+  color: var(--muted);
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-size: var(--text-lg);
+}

@@ -1,0 +1,166 @@
+.brand {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--touch);
+  color: var(--ink);
+  font-family: var(--font-serif);
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.brand em {
+  font-weight: 400;
+  color: var(--brass-deep);
+}
+
+.brandShort {
+  display: none;
+}
+
+@media (max-width: 767px) {
+  .brandFull {
+    display: none;
+  }
+  .brandShort {
+    display: inline;
+  }
+}
+
+@media (min-width: 1024px) {
+  .brand {
+    font-size: 24px;
+  }
+}
+
+/* Countdown chip */
+.chip {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--s1);
+  min-width: 0;
+  padding: 6px 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-chip);
+  background: var(--porcelain);
+  color: var(--muted);
+  font-size: var(--text-xs);
+  white-space: nowrap;
+}
+
+.chipCompact {
+  padding: 4px 12px;
+}
+
+.chipValue {
+  font-family: var(--font-serif);
+  font-size: 20px;
+  font-weight: 600;
+  line-height: 1;
+  color: var(--ink);
+  font-variant-numeric: lining-nums;
+}
+
+.chipCompact .chipValue {
+  font-size: 18px;
+}
+
+.chipLabel {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.chipPlaceholder {
+  display: inline-block;
+  width: 72px;
+}
+
+/* Profile */
+.profile {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  font-size: var(--text-sm);
+  color: var(--muted);
+}
+
+.welcome {
+  white-space: nowrap;
+}
+
+.avatar {
+  display: grid;
+  place-items: center;
+  width: var(--touch);
+  height: var(--touch);
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--porcelain);
+  font-family: var(--font-serif);
+  font-size: 17px;
+  position: relative;
+}
+
+.avatar::before {
+  content: '';
+  position: absolute;
+  inset: 6px;
+  border-radius: 50%;
+  background: var(--ink);
+  z-index: -1;
+}
+
+.avatar {
+  isolation: isolate;
+}
+
+.avatar[aria-expanded='true']::before {
+  box-shadow: 0 0 0 3px var(--harbour-ring);
+}
+
+.menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: var(--z-menu);
+  display: flex;
+  flex-direction: column;
+  gap: var(--s2);
+  width: 260px;
+  padding: var(--s2);
+  border-radius: var(--radius-card-sm);
+  background: var(--porcelain);
+  box-shadow: var(--shadow-float);
+  color: var(--ink);
+  animation: menu-in var(--motion) var(--ease);
+}
+
+.menuTitle {
+  font-family: var(--font-serif);
+  font-size: var(--text-lg);
+  font-weight: 500;
+}
+
+.menuGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.menuLabel {
+  font-size: var(--text-xs);
+  color: var(--muted);
+}
+
+@keyframes menu-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+}

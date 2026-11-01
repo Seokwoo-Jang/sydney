@@ -1,0 +1,147 @@
+'use client';
+// Packing or To-do list: person filter, "hide finished", four collapsible
+// category groups (plan §4.3, §7.4). Progress ignores not-needed rows.
+import { useId, useState } from 'react';
+import { Button, Chip, ChipGroup, EmptyState, Icon } from '@/components/ui';
+import { PACKING_CATEGORIES, TASK_CATEGORIES } from '@/lib/data';
+import type { ChecklistItem, ChecklistKind, Member } from '@/lib/types';
+import { S } from '@/lib/strings';
+import { ChecklistRow } from './ChecklistRow';
+import type { DueContext } from './due';
+import styles from './Checklist.module.css';
+
+type PersonFilter = 'all' | 'eren' | 'amy' | 'both';
+
+export function ChecklistList({
+  kind,
+  items,
+  me,
+  due,
+  pending,
+  defaultOpen,
+  onToggle,
+  onEdit,
+  onAdd,
+}: {
+  kind: ChecklistKind;
+  items: ChecklistItem[];
+  me: Member | null;
+  due: DueContext | null;
+  pending: ReadonlySet<string>;
+  defaultOpen: boolean;
+  onToggle: (item: ChecklistItem) => void;
+  onEdit: (item: ChecklistItem) => void;
+  onAdd: (category: string | null) => void;
+}) {
+  const [person, setPerson] = useState<PersonFilter>('all');
+  const [hideFinished, setHideFinished] = useState(false);
+  // Collapsed state is per session; groups not yet touched follow the layout default.
+  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
+  const baseId = useId();
+
+  const categories: readonly string[] = kind === 'packing' ? PACKING_CATEGORIES : TASK_CATEGORIES;
+  const labels: Record<string, string> = kind === 'packing' ? S.labels.packingCategories : S.labels.taskCategories;
+  const ofKind = items.filter((i) => i.kind === kind);
+  const visible = ofKind.filter(
+    (i) =>
+      (person === 'all' || (person === 'both' ? i.assignee === 'both' || i.assignee === null : i.assignee === person)) &&
+      (!hideFinished || (!i.checked && i.isApplicable)),
+  );
+
+  if (!ofKind.length) {
+    return (
+      <EmptyState
+        compact
+        icon="checklist"
+        title={kind === 'packing' ? S.checklist.emptyPacking : S.checklist.emptyTask}
+        actionLabel={kind === 'packing' ? S.checklist.addPacking : S.checklist.addTask}
+        onAction={() => onAdd(null)}
+      />
+    );
+  }
+
+  // Unknown categories (renamed later) still show, in an extra group at the end.
+  const known = new Set(categories);
+  const extra = [...new Set(ofKind.map((i) => i.category).filter((c) => !known.has(c)))];
+  const groups = [...categories, ...extra];
+  const meKey = me?.profileKey ?? 'eren';
+  const people: Array<{ value: PersonFilter; label: string }> = [
+    { value: 'all', label: S.checklist.everyone },
+    { value: meKey, label: S.people.participants[meKey] },
+    { value: meKey === 'eren' ? 'amy' : 'eren', label: S.people.participants[meKey === 'eren' ? 'amy' : 'eren'] },
+    { value: 'both', label: S.people.shared },
+  ];
+
+  return (
+    <div className={styles.list}>
+      <div className={styles.toolbar}>
+        <ChipGroup label={S.checklist.assigneeFilter} className={styles.filters}>
+          {people.map((p) => (
+            <Chip key={p.value} selected={person === p.value} onClick={() => setPerson(p.value)}>
+              {p.label}
+            </Chip>
+          ))}
+          <Chip selected={hideFinished} onClick={() => setHideFinished((v) => !v)}>
+            {S.checklist.hideFinished}
+          </Chip>
+        </ChipGroup>
+        <Button variant="secondary" size="sm" iconStart="plus" onClick={() => onAdd(null)}>
+          {kind === 'packing' ? S.checklist.addPacking : S.checklist.addTask}
+        </Button>
+      </div>
+      {!visible.length && <p className={styles.muted}>{S.checklist.noMatches}</p>}
+      {groups.map((cat, gi) => {
+        const all = ofKind.filter((i) => i.category === cat);
+        const rows = visible.filter((i) => i.category === cat).sort((a, b) => Number(!a.isApplicable) - Number(!b.isApplicable));
+        if (!all.length && extra.includes(cat)) return null;
+        if (!rows.length && (person !== 'all' || hideFinished)) return null;
+        const live = all.filter((i) => i.isApplicable);
+        const done = live.filter((i) => i.checked).length;
+        const open = openGroups[cat] ?? defaultOpen;
+        const bodyId = `${baseId}-g${gi}`;
+        return (
+          <section key={cat} className={styles.group}>
+            <h3 className={styles.groupHeading}>
+              <button
+                type="button"
+                className={styles.groupHead}
+                aria-expanded={open}
+                aria-controls={bodyId}
+                onClick={() => setOpenGroups((o) => ({ ...o, [cat]: !open }))}
+              >
+                <span className={styles.groupTitle}>{labels[cat] ?? cat}</span>
+                <span className={styles.groupCount}>{S.checklist.groupCount(done, live.length)}</span>
+                <Icon name="chevron" size={18} rotate={open ? 180 : 0} className={styles.chev} />
+              </button>
+            </h3>
+            <div id={bodyId} hidden={!open} className={styles.groupBody}>
+              {cat === 'toiletries' && <p className={styles.groupHint}>{S.checklist.liquidsHint}</p>}
+              {rows.length ? (
+                <ul className={styles.rows}>
+                  {rows.map((item) => (
+                    <ChecklistRow
+                      key={item.id}
+                      item={item}
+                      me={me}
+                      due={due}
+                      busy={pending.has(item.id)}
+                      onToggle={onToggle}
+                      onEdit={onEdit}
+                    />
+                  ))}
+                </ul>
+              ) : (
+                <div className={styles.groupEmpty}>
+                  <p className={styles.muted}>{S.checklist.emptyGroup}</p>
+                  <Button variant="link" size="sm" iconStart="plus" onClick={() => onAdd(cat)}>
+                    {kind === 'packing' ? S.checklist.addPacking : S.checklist.addTask}
+                  </Button>
+                </div>
+              )}
+            </div>
+          </section>
+        );
+      })}
+    </div>
+  );
+}

@@ -1,0 +1,142 @@
+.root {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  border-radius: var(--radius-card);
+  background: var(--paper);
+  color: var(--cover-text, var(--ink));
+  transition: color var(--motion-cover) var(--ease);
+}
+
+/* Static placeholder: Paper with a faint line so the frame reads before JS. */
+.root:not([data-cover-phase]) {
+  background: linear-gradient(180deg, var(--paper), #f1ece2);
+  box-shadow: inset 0 0 0 1px var(--line);
+}
+
+.media {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+}
+
+.layer,
+.preload {
+  position: absolute;
+  inset: 0;
+}
+
+.layer::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--cover-overlay);
+}
+
+.preload {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.layer > picture,
+.preload > picture {
+  position: absolute;
+  inset: 0;
+}
+
+/* Text sits at the bottom of the tall variants: fade from below instead of from the left. */
+.hero .layer::after,
+.entry .layer::after {
+  background: var(--cover-overlay-vertical);
+}
+
+.img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: var(--cover-position);
+}
+
+.first {
+  animation: fade-in var(--motion-slow) var(--ease);
+}
+
+.fadeIn {
+  animation: fade-in var(--motion-cover) ease-in-out;
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+}
+
+.content {
+  position: relative;
+  height: 100%;
+}
+
+.clock {
+  position: absolute;
+  right: 14px;
+  bottom: 14px;
+  padding: 5px 10px;
+  border-radius: var(--radius-chip);
+  border: 1px solid var(--cover-clock-line);
+  background: var(--cover-clock-bg);
+  color: var(--cover-clock-text);
+  font-size: var(--text-2xs);
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  white-space: nowrap;
+}
+
+/* ── variants ─────────────────────────────── */
+.cover {
+  height: 208px; /* plan: 180–220px */
+}
+
+.hero {
+  min-height: clamp(300px, 46vh, 420px);
+  border-radius: var(--radius-card-lg);
+}
+
+.hero,
+.entry {
+  display: flex;
+  flex-direction: column;
+}
+
+.hero > .content,
+.entry > .content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.compact {
+  height: 168px;
+  border-radius: 18px;
+}
+
+.entry {
+  min-height: clamp(340px, 58vh, 600px);
+  border-radius: var(--radius-card-lg);
+}
+
+@media (min-width: 768px) {
+  .clock {
+    right: 20px;
+    bottom: 18px;
+    font-size: var(--text-xs);
+    padding: 6px 12px;
+  }
+}
+
+/* The entry form overlaps the bottom of the hero: keep the clock visible at the top. */
+.entry .clock {
+  top: 16px;
+  bottom: auto;
+}

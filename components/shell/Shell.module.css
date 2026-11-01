@@ -1,0 +1,157 @@
+.shell {
+  min-height: 100dvh;
+}
+
+.page {
+  max-width: var(--page-max);
+  margin: 0 auto;
+  padding: 0 var(--gutter) var(--s10);
+}
+
+/* ── top bar ──────────────────────────────── */
+.topbar {
+  display: flex;
+  align-items: center;
+  gap: var(--s1-5);
+  height: var(--topbar-h);
+}
+
+.topbar > :nth-child(2) {
+  margin-left: auto;
+}
+
+.shell[data-layout='board'] .topbar {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  gap: var(--s2);
+}
+
+.shell[data-layout='board'] .topbar > :nth-child(2) {
+  margin-left: 0;
+}
+
+.shell[data-layout='board'] .topbar > :last-child {
+  justify-self: end;
+}
+
+/* ── main column ──────────────────────────── */
+.main {
+  display: flex;
+  flex-direction: column;
+}
+
+.shell[data-layout='board'] .overview {
+  margin-bottom: 36px;
+}
+
+.shell[data-layout='tabs'] .main {
+  gap: var(--s2);
+}
+
+.shell[data-layout='tabs'] {
+  padding-bottom: calc(var(--bottom-nav-h) + var(--safe-bottom) + var(--s3));
+}
+
+.shell[data-layout='tabs'] .page {
+  padding-bottom: var(--s3);
+}
+
+/* ── board grid: 12 columns, 8:4 (pc.png) ─── */
+.board {
+  min-width: 0;
+}
+
+.shell[data-mode='board'] .board {
+  margin-top: var(--s3);
+}
+
+.shell[data-mode='wide'] .board {
+  display: grid;
+  grid-template-columns: var(--toc-width) minmax(0, 1fr);
+  gap: var(--s5);
+}
+
+.shell[data-layout='board'] .grid {
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  gap: var(--s4) 36px;
+  align-items: start;
+}
+
+.slot {
+  min-width: 0;
+}
+
+/* Main column (8) + aside (4) on every row; journal | library close the board (plan §5.3). */
+.shell[data-layout='board'] .slot[data-slot='days'] {
+  grid-column: 1 / span 8;
+  grid-row: 1;
+}
+
+.shell[data-layout='board'] .slot[data-slot='ready'] {
+  grid-column: 9 / span 4;
+  grid-row: 1;
+}
+
+.shell[data-layout='board'] .slot[data-slot='wallet'] {
+  grid-column: 1 / span 8;
+  grid-row: 2;
+}
+
+.shell[data-layout='board'] .slot[data-slot='prelude'] {
+  grid-column: 9 / span 4;
+  grid-row: 2;
+}
+
+.shell[data-layout='board'] .slot[data-slot='journal'] {
+  grid-column: 1 / span 8;
+  grid-row: 3;
+}
+
+.shell[data-layout='board'] .slot[data-slot='links'] {
+  grid-column: 9 / span 4;
+  grid-row: 3;
+}
+
+/* ── tabs ─────────────────────────────────── */
+.shell[data-layout='tabs'] .grid {
+  display: block;
+}
+
+.shell[data-layout='tabs'] .board {
+  margin-top: var(--s1);
+}
+
+/* ── data error ───────────────────────────── */
+.errorView {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s3);
+  max-width: 640px;
+  margin: var(--s2) auto 0;
+}
+
+.errorCoverInner {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  gap: 4px;
+  height: 100%;
+  padding: 18px 20px 48px;
+}
+
+.errorCoverInner :global(.eyebrow) {
+  color: inherit;
+  opacity: 0.85;
+}
+
+.errorTitle {
+  font-family: var(--font-serif);
+  font-size: 34px;
+  font-weight: 500;
+  line-height: 1;
+}
+
+.errorCover {
+  flex: none;
+}

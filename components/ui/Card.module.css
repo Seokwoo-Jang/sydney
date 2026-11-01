@@ -1,0 +1,23 @@
+.card {
+  background: var(--porcelain);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card);
+}
+
+.none {
+  padding: 0;
+}
+
+.sm {
+  padding: var(--s2);
+}
+
+.md {
+  padding: var(--s2-5);
+}
+
+@media (min-width: 1024px) {
+  .md {
+    padding: var(--s3);
+  }
+}
