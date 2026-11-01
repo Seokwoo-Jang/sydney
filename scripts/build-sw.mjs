@@ -8,5 +8,5 @@ import { fileURLToPath } from 'node:url';
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const version = (process.env.GITHUB_SHA || `local-${Date.now().toString(36)}`).slice(0, 12);
 const template = readFileSync(path.join(root, 'scripts', 'sw.template.js'), 'utf8');
-writeFileSync(path.join(root, 'public', 'sw.js'), template.replace('__VERSION__', version));
+writeFileSync(path.join(root, 'public', 'sw.js'), template.replaceAll('__VERSION__', version));
 console.log(`public/sw.js (${version})`);
