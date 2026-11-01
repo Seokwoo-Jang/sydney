@@ -39,18 +39,18 @@
   border-left-color: var(--harbour);
 }
 
-/* Amy's Prelude: indented, Brass Deep serif italic, note mark, brass rule. */
+/* Amy's Prelude: Brass Deep serif italic with a note mark; the brass rule shows only when current. */
 .prelude {
-  margin-left: 10px;
-  padding-left: 10px;
-  border-left-color: var(--brass-line);
   color: var(--brass-deep);
   font-family: var(--font-serif);
   font-style: italic;
   font-size: 15px;
 }
 
-.prelude:hover,
+.prelude:hover {
+  color: var(--brass-deep);
+}
+
 .prelude[aria-current] {
   color: var(--brass-deep);
   border-left-color: var(--brass);
@@ -101,9 +101,6 @@
 }
 
 .linksList .prelude {
-  margin-left: calc(-1 * var(--s1));
-  padding-left: 10px;
-  border-left: 1px solid var(--brass-line);
   border-bottom-color: transparent;
 }
 

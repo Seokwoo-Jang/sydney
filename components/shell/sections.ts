@@ -5,8 +5,8 @@ import type { BoardSectionKey, SectionKey } from '@/lib/url';
 /** Mobile bottom tabs; `prelude` lives inside the `days` tab. */
 export type TabKey = Exclude<SectionKey, 'prelude'>;
 
-/** PC TOC order = DOM order of the board (plan §4.4). */
-export const BOARD_ORDER: BoardSectionKey[] = ['overview', 'days', 'prelude', 'ready', 'wallet', 'journal', 'links'];
+/** PC TOC order follows where the sections sit on the board: Prelude is in the aside next to Budget. */
+export const BOARD_ORDER: BoardSectionKey[] = ['overview', 'days', 'ready', 'wallet', 'prelude', 'journal', 'links'];
 
 /** Mobile tab order: before → during → after the trip (plan §4.4). */
 export const TAB_ORDER: TabKey[] = ['ready', 'days', 'wallet', 'links', 'journal'];
