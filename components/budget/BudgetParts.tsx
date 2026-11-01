@@ -8,19 +8,21 @@ import { balances, formatMoney, summarizeBudget } from '@/lib/money';
 import type { Booking, Currency, Expense, FxRate, ItineraryItem, Member, Settlement, TripBudget, TripDay } from '@/lib/types';
 import { S } from '@/lib/strings';
 import { diffDays, formatDayLabel } from '@/lib/time/zone';
-import { approxFlags, categoryTotals, convertedAmount, hasBudget, paidByMember, trimCents, type ScopeView, type TwoCurrencyTotal } from './budgetCalc';
+import { categoryTotals, convertedAmount, hasBudget, paidByMember, trimCents, type ScopeView, type TwoCurrencyTotal } from './budgetCalc';
 import styles from './Budget.module.css';
 
 const key = (c: Currency) => (c === 'AUD' ? 'aud' : 'krw') as 'aud' | 'krw';
-const money = (minor: number, c: Currency, approx = false) => trimCents(formatMoney(minor, c, { approx }));
+// Amounts only, never a '≈' (owner, 2026-11-01): the ECB line under the summary says
+// that converted figures use the reference rate.
+const money = (minor: number, c: Currency) => trimCents(formatMoney(minor, c));
 /** A total in the chosen currency; with no rate yet each currency is summed on its own ('A$120 + ₩30,000'). */
 function totalText(t: TwoCurrencyTotal, first: Currency, hasRate: boolean): string {
-  if (hasRate) return money(t[key(first)], first, t.approx[key(first)]);
+  if (hasRate) return money(t[key(first)], first);
   const parts = [t.aud ? money(t.aud, 'AUD') : '', t.krw ? money(t.krw, 'KRW') : ''].filter(Boolean);
   return parts.join(' + ') || money(0, first);
 }
-/** Summary figures in whole units ('A$6,000', '≈ ₩5,474,000'), like plan §7.5.1. */
-const whole = (minor: number, c: Currency, approx = false) => money(c === 'AUD' ? Math.round(minor / 100) * 100 : minor, c, approx);
+/** Summary figures in whole units ('A$6,000', '₩5,474,000'), like plan §7.5.1. */
+const whole = (minor: number, c: Currency) => money(c === 'AUD' ? Math.round(minor / 100) * 100 : minor, c);
 
 // ── summary ──────────────────────────────────────────────────────
 export function BudgetSummary({
@@ -37,7 +39,6 @@ export function BudgetSummary({
   first: Currency;
 }) {
   const sum = summarizeBudget({ budgets, expenses, latest, scope });
-  const flags = approxFlags({ budgets, expenses, latest, scope, display: first });
   const any = hasBudget(budgets, scope);
   const second: Currency = first === 'AUD' ? 'KRW' : 'AUD';
 
@@ -56,16 +57,7 @@ export function BudgetSummary({
         const pair = sum[k];
         const empty = needsBudget && !any;
         const over = !empty && (k === 'remaining' || k === 'afterPlanned') && pair.aud < 0;
-        // The '≈' is drawn smaller so the figure itself keeps the room (one line per card).
-        const fmt = (c: Currency, approx: boolean) => {
-          const text = whole(Math.abs(pair[key(c)]), c);
-          return (
-            <>
-              {approx && <span className={styles.approx}>≈</span>}
-              {text}
-            </>
-          );
-        };
+        const fmt = (c: Currency) => whole(Math.abs(pair[key(c)]), c);
         return (
           <div key={k} className={[styles.cell, over ? styles.cellOver : ''].join(' ')}>
             <dt>{label}</dt>
@@ -76,9 +68,9 @@ export function BudgetSummary({
                 <>
                   {/* "Over by" sits above the figure so the amount keeps one line. */}
                   {over && <span className={styles.overBy}>{S.budgetWords.overBy}</span>}
-                  <span className={styles.primary}>{fmt(first, flags[k])}</span>
+                  <span className={styles.primary}>{fmt(first)}</span>
                   {/* No rate yet: one currency would leave the other's rows out, so both show. */}
-                  {sum.missingRate && <span className={styles.secondary}>{fmt(second, false)}</span>}
+                  {sum.missingRate && <span className={styles.secondary}>{fmt(second)}</span>}
                 </>
               )}
             </dd>
@@ -127,7 +119,7 @@ function Amount({ e, latest }: { e: Expense; latest: FxRate | null }) {
   return (
     <span className={styles.amount}>
       <span>{formatMoney(sign * e.amountMinor, e.currency)}</span>
-      {conv && <small>{formatMoney(sign * conv.minor, conv.currency, { approx: conv.approx })}</small>}
+      {conv && <small>{formatMoney(sign * conv.minor, conv.currency)}</small>}
     </span>
   );
 }
@@ -305,7 +297,7 @@ export function Settlements({
   const name = (id: string) => members.find((m) => m.id === id)?.displayName ?? '';
   const paid = paidByMember(expenses, members, latest);
 
-  const amountText = first === 'AUD' || krw == null ? formatMoney(abs, 'AUD') : formatMoney(krw, 'KRW', { approx: true });
+  const amountText = first === 'AUD' || krw == null ? formatMoney(abs, 'AUD') : formatMoney(krw, 'KRW');
 
   return (
     <section className={styles.block} aria-labelledby="budget-settlements">

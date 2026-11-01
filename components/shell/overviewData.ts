@@ -2,7 +2,7 @@
 // Derived numbers for the overview strip and Prelude teaser. Computed from the
 // source rows, never stored (plan §10).
 import { useMemo } from 'react';
-import { approxFlags, hasBudget } from '@/components/budget/budgetCalc';
+import { hasBudget } from '@/components/budget/budgetCalc';
 import { countDue } from '@/components/checklist/due';
 import { useDueContext } from '@/components/checklist/useDueContext';
 import { useAssets, useBudget, useChecklist, useDays, useItinerary, useLibrary, usePrelude, useServerNow, useTrip } from '@/lib/data';
@@ -14,10 +14,10 @@ import { SYDNEY_TZ, formatDayLabel, zonedDate } from '@/lib/time/zone';
 import type { Currency, ItineraryItem, PreludeActivity, TripDay } from '@/lib/types';
 import { countdownText } from './countdownText';
 
-/** Whole units for the strip: 'A$1,111', '₩1,013,750'. */
-function compactMoney(minor: number, c: Currency, approx: boolean): string {
+/** Whole units for the strip: 'A$1,111', '₩1,013,750' (no '≈', like the Budget section). */
+function compactMoney(minor: number, c: Currency): string {
   const rounded = c === 'AUD' ? Math.round(minor / 100) * 100 : minor;
-  return formatMoney(rounded, c, { approx }).replace(/\.00$/, '');
+  return formatMoney(rounded, c).replace(/\.00$/, '');
 }
 
 export interface SummaryCell {
@@ -84,13 +84,12 @@ export function useOverviewSummary(): OverviewSummary {
     });
     const key = first === 'AUD' ? 'aud' : 'krw';
     if (!hasBudget(budget.data.budgets, 'all')) {
-      return { value: compactMoney(sum.spent[key], first, first === 'KRW' && sum.approx), sub: S.overview.noBudget };
+      return { value: compactMoney(sum.spent[key], first), sub: S.overview.noBudget };
     }
     // Three lines like every summary: Budget / what is left / Remaining (or Over budget).
-    const flags = approxFlags({ budgets: budget.data.budgets, expenses: budget.data.expenses, latest: budget.data.latestFx, scope: 'all', display: first });
     const left = sum.remaining[key];
     return {
-      value: compactMoney(Math.abs(left), first, flags.remaining),
+      value: compactMoney(Math.abs(left), first),
       sub: left < 0 ? S.overview.budgetOver : S.overview.budgetRemaining,
     };
   }, [budget, first]);

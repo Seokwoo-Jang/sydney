@@ -48,7 +48,7 @@ export interface CellFlags {
   afterPlanned: boolean;
 }
 
-/** Which summary values are estimates when shown in `display` currency (they get '≈'). */
+/** Which summary values are estimates when shown in `display` currency (kept for the logic; the screen shows amounts only). */
 export function approxFlags(input: {
   budgets: TripBudget[];
   expenses: Expense[];
@@ -70,7 +70,7 @@ export function hasBudget(budgets: TripBudget[], scope: ScopeView): boolean {
   return budgets.some((b) => inScope(scope, b.scope) && b.amountMinor > 0);
 }
 
-/** A total in both currencies; `approx` marks a currency that includes a rate estimate (shown with '≈'). */
+/** A total in both currencies; `approx` marks a currency that includes a rate estimate (not marked on screen). */
 export interface TwoCurrencyTotal {
   aud: number;
   krw: number;

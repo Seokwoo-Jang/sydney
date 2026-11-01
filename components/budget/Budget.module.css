@@ -79,7 +79,7 @@
 
 /*
  * One line always: the size follows the card width so the widest figure
- * (≈₩9,999,999, about 5.3em with the small ≈) fits. Cards are half the
+ * (₩9,999,999, under 5.3em) fits. Cards are half the
  * container wide (2 columns), or a fifth of it from 560px.
  */
 .primary {
@@ -103,12 +103,6 @@
   letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--danger);
-}
-
-.approx {
-  margin-right: 0.15em;
-  font-size: 0.8em;
-  color: var(--muted);
 }
 
 .secondary {
