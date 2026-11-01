@@ -272,6 +272,65 @@
   color: inherit;
 }
 
+/* The title opens the plan's details (place, notes, people, link). */
+.planToggle {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  width: 100%;
+  min-height: 24px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.planToggle:hover > span {
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+}
+
+.planToggle:focus-visible {
+  outline: 2px solid var(--harbour);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+.plan[data-tone='dark'] .planToggle:focus-visible {
+  outline-color: var(--brass-on-dark);
+}
+
+.planChevron {
+  flex: none;
+  margin-top: 3px;
+  opacity: 0.7;
+  transition: transform var(--motion-fast) var(--ease);
+}
+
+.planDetails {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 100%;
+  padding: 4px 0 2px;
+}
+
+.planDetails[hidden] {
+  display: none;
+}
+
+.plan[data-tone='dark'] .planLine,
+.plan[data-tone='dark'] .planNotes {
+  color: var(--on-dark-soft);
+}
+
+.plan[data-tone='dark'] .planLine a {
+  color: var(--porcelain);
+}
+
 .planMeta {
   font-size: var(--text-xs);
   font-weight: 600;

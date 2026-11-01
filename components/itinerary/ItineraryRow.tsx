@@ -79,7 +79,8 @@ export function ItineraryRow({
     <>
       {state === 'now' && <Badge tone="now">{S.time.now}</Badge>}
       {state === 'upNext' && <Badge tone="soft">{S.time.upNext}</Badge>}
-      {!continuation && <Badge tone={STATUS_TONE[shown]}>{S.labels.itineraryStatus[shown]}</Badge>}
+      {/* Also on the next day's continuation (an overnight flight stays Fixed on Day 2). */}
+      <Badge tone={STATUS_TONE[shown]}>{S.labels.itineraryStatus[shown]}</Badge>
     </>
   );
 

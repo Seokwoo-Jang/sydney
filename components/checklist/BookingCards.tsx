@@ -16,7 +16,6 @@ import {
   rentalDays,
   stayGuests,
   stayNights,
-  terminalText,
   zoneAbbr,
   type CarBooking,
   type FlightBooking,
@@ -50,6 +49,11 @@ export function FlightPass({
   const { departAt } = flightTimes(d);
   const departZone = zoneAbbr(d.departTimezone, d.departDate, d.departTime);
   const arriveZone = zoneAbbr(d.arriveTimezone, d.arriveDate, d.arriveTime);
+  // A long, low pass: one line each for flight, route (with terminals) and times; the date
+  // sits on the stub. A booked and paid flight needs no status chips; anything else
+  // (considering, unpaid, cancelled) still shows them.
+  const usual = booking.status === 'booked' && booking.paymentStatus === 'paid';
+  const nextDay = d.arriveDate !== d.departDate;
   return (
     <button
       type="button"
@@ -58,39 +62,37 @@ export function FlightPass({
     >
       <span className={styles.passMain}>
         <span className={styles.passTop}>
-          <span>
+          <span className={styles.passFlight}>
             {d.carrier} · {d.flightNumber}
           </span>
-          <span>{formatDayLabel(d.departDate)}</span>
         </span>
         <span className={styles.route}>
           <b>{d.from}</b>
+          {d.departTerminal ? <small className={styles.terminal}>{d.departTerminal}</small> : null}
           <span className={styles.routeLine} aria-hidden="true">
-            <Icon name="plane" size={16} style={{ transform: 'rotate(45deg)' }} />
+            <Icon name="plane" size={14} style={{ transform: 'rotate(45deg)' }} />
           </span>
           <b>{d.to}</b>
+          {d.arriveTerminal ? <small className={styles.terminal}>{d.arriveTerminal}</small> : null}
         </span>
         <span className={styles.times}>
-          <span>
-            <span className={styles.time}>
-              {formatWallTime(d.departTime)} <abbr title={S.checklist.zones[d.departTimezone] ?? d.departTimezone}>{departZone}</abbr>
-            </span>
-            <span>{terminalText(d.from, d.departTerminal)}</span>
+          <span className={styles.time}>
+            {formatWallTime(d.departTime)} <abbr title={S.checklist.zones[d.departTimezone] ?? d.departTimezone}>{departZone}</abbr>
           </span>
-          <span className={styles.timesEnd}>
-            <span className={styles.time}>
-              {formatWallTime(d.arriveTime)} <abbr title={S.checklist.zones[d.arriveTimezone] ?? d.arriveTimezone}>{arriveZone}</abbr>
-            </span>
-            <span>
-              {d.arriveDate !== d.departDate ? `${formatDayLabel(d.arriveDate)} · ` : ''}
-              {terminalText(d.to, d.arriveTerminal)}
-            </span>
+          <span className={[styles.time, styles.timesEnd].join(' ')}>
+            {formatWallTime(d.arriveTime)} <abbr title={S.checklist.zones[d.arriveTimezone] ?? d.arriveTimezone}>{arriveZone}</abbr>
+            {nextDay ? (
+              <sup className={styles.plusDay} title={formatDayLabel(d.arriveDate)}>
+                +1<span className="sr-only"> {S.itinerary.nextDay}</span>
+              </sup>
+            ) : null}
           </span>
         </span>
-        <StatusBadges booking={booking} onDark />
+        {usual ? null : <StatusBadges booking={booking} onDark />}
       </span>
       <span className={styles.stub}>
-        <span>{isNext ? S.checklist.nextFlight : S.checklist.flight}</span>
+        <span className="sr-only">{isNext ? S.checklist.nextFlight : S.checklist.flight}</span>
+        <span>{formatDayLabel(d.departDate)}</span>
         <b>{now ? departsIn(departAt, now) : ' '}</b>
         <span>{flightDuration(d)}</span>
       </span>

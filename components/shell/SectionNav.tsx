@@ -73,7 +73,9 @@ export function BottomNav({ active, onSelect }: { active: TabKey | null; onSelec
                 onSelect(tab);
               }}
             >
-              <Icon name={TAB_ICON[tab]} size={22} />
+              <span className={styles.tabIcon}>
+                <Icon name={TAB_ICON[tab]} size={22} />
+              </span>
               <span className={styles.tabLabel}>{menuLabel(tab)}</span>
             </a>
           </li>

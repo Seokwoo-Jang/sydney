@@ -1,9 +1,9 @@
 'use client';
 // Adds photos to one day (plan §7.6.1). Chosen photos wait in a list where
-// each can get its note; Upload sends them one by one. The original is kept as
+// each can get its text; Upload sends them one by one. The original is kept as
 // uploaded, plus a 2048 px display copy and a 480 px thumbnail made in the
 // browser. The three files share one private `<trip_id>/<uuid>/` folder and one
-// file_assets row; the note is its caption.
+// file_assets row; the text is its caption. The repository records who added it.
 import { useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui';
 import { newId, useAssets, useFiles } from '@/lib/data';
@@ -13,7 +13,7 @@ import { S } from '@/lib/strings';
 import { AddPhotosSheet, type PendingPhoto } from './AddPhotosSheet';
 import styles from './Journal.module.css';
 
-const ORIGINAL_EXT: Record<string, string> = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp' };
+export const ORIGINAL_EXT: Record<string, string> = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp' };
 
 /** Files already in storage for a listed photo, so a retry only creates the row. */
 interface Stored {
@@ -22,7 +22,18 @@ interface Stored {
   height: number;
 }
 
-export function AddPhotos({ day, photos, notify }: { day: TripDay; photos: FileAsset[]; notify: (message: string) => void }) {
+export function AddPhotos({
+  day,
+  photos,
+  notify,
+  autoFocus,
+}: {
+  day: TripDay;
+  photos: FileAsset[];
+  notify: (message: string) => void;
+  /** Takes focus as the day sheet opens (Sheet keeps a focus already inside it). */
+  autoFocus?: boolean;
+}) {
   const files = useFiles();
   const assets = useAssets();
   const input = useRef<HTMLInputElement>(null);
@@ -151,6 +162,7 @@ export function AddPhotos({ day, photos, notify }: { day: TripDay; photos: FileA
         disabled={!files.available || progress !== null}
         aria-describedby="journal-upload-note"
         data-add-photos=""
+        autoFocus={autoFocus}
         onClick={() => input.current?.click()}
       >
         {S.journal.addPhotos}

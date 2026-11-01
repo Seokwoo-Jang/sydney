@@ -5,6 +5,7 @@ import { useSession, useTrip } from '@/lib/data';
 import { useCountdown } from '@/lib/hooks/useCountdown';
 import { useCurrencyFirst } from '@/lib/hooks/useCurrencyFirst';
 import { InstallMenuItem } from './InstallCard';
+import { NotificationsSheet } from './NotificationsSheet';
 import type { SectionLayout } from '@/lib/hooks/useLayoutMode';
 import { S } from '@/lib/strings';
 import type { Currency } from '@/lib/types';
@@ -50,6 +51,7 @@ export function ProfileMenu({ layout }: { layout: SectionLayout }) {
   const [currencyFirst, setCurrencyFirst] = useCurrencyFirst(trip.status === 'ready' ? trip.data.trip.displayCurrencyFirst : 'AUD');
   const [open, setOpen] = useState(false);
   const [leaving, setLeaving] = useState(false);
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const panelId = useId();
@@ -112,6 +114,20 @@ export function ProfileMenu({ layout }: { layout: SectionLayout }) {
             ]}
           />
         </div>
+        <Button
+          variant="secondary"
+          size="sm"
+          fullWidth
+          aria-haspopup="dialog"
+          onClick={() => {
+            // The sheet returns focus to the avatar (this item hides with the menu).
+            buttonRef.current?.focus();
+            setOpen(false);
+            setNotificationsOpen(true);
+          }}
+        >
+          {S.notifications.title}
+        </Button>
         <InstallMenuItem />
         <Button
           variant="secondary"
@@ -120,12 +136,14 @@ export function ProfileMenu({ layout }: { layout: SectionLayout }) {
           busy={leaving}
           onClick={async () => {
             setLeaving(true);
-            await session.leave();
+            await session.leave(); // also drops this browser's push subscription (plan §8.5)
           }}
         >
           {leaving ? S.profile.leaving : S.profile.leave}
         </Button>
       </div>
+      {/* Portalled into <body>; only opens while the menu is closed. */}
+      <NotificationsSheet open={notificationsOpen} onClose={() => setNotificationsOpen(false)} />
     </div>
   );
 }

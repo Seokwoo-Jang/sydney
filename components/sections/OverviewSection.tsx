@@ -2,7 +2,7 @@
 // Overview = top of the board (PC) or the mobile landing hero. Built from
 // shell pieces so the cover, countdown and summaries stay in one place.
 import { InstallCard } from '@/components/shell/InstallCard';
-import { MobileHero, PreludeCard, PreludeMini, SummaryStrip, TripCover } from '@/components/shell/Overview';
+import { MobileHero, MobileShortcuts, PreludeCard, PreludeMini, SummaryStrip, TripCover } from '@/components/shell/Overview';
 import { S } from '@/lib/strings';
 import type { SectionProps } from './types';
 import styles from './OverviewSection.module.css';
@@ -23,6 +23,7 @@ export default function OverviewSection({ layout }: SectionProps) {
     <section id="section-overview" aria-label={S.sections.overview.menu} className={styles.tabs}>
       <MobileHero />
       <PreludeCard />
+      <MobileShortcuts />
       <InstallCard />
     </section>
   );

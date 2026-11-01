@@ -1,48 +1,49 @@
 'use client';
-// One day of Nine Notes (plan §7.6): photos with their notes + two day notes.
+// One day of Nine Notes (plan §7.6): the day's photo posts, each a photo with
+// its text and the mark of whoever added it. Either of us adds posts, sets the
+// cover, reorders and deletes; a post's text is its author's to edit.
 // Mobile full screen, PC wide panel (Sheet size "full"). Edit on a photo opens
-// PhotoSheet on top (note, day cover, delete).
+// PhotoSheet on top (text, day cover, delete).
 import { useEffect, useRef, useState } from 'react';
-import { Sheet, useToast } from '@/components/ui';
-import type { FileAsset, JournalEntry, Member, TripDay } from '@/lib/types';
+import { Button, Sheet, useToast } from '@/components/ui';
+import { useAssets } from '@/lib/data';
+import type { FileAsset, Member, TripDay } from '@/lib/types';
 import { S } from '@/lib/strings';
 import { formatDayLabel } from '@/lib/time/zone';
 import { defaultDayPhoto } from '@/lib/url';
 import { AddPhotos } from './AddPhotos';
-import { NoteEditor, type NoteDraft } from './NoteEditor';
 import { Photo } from './Photo';
 import { PhotoPages } from './PhotoPages';
 import { PhotoSheet } from './PhotoSheet';
+import { moveWrites, withWrites, type OrderWrite } from './photoOrder';
 import styles from './Journal.module.css';
 
 export function DaySheet({
   open,
   day,
   photos,
-  entries,
   me,
   partner,
   members,
-  drafts,
-  focusMine,
-  onDraft,
+  startAdding = false,
   onClose,
 }: {
   open: boolean;
   day: TripDay | null;
   photos: FileAsset[];
-  entries: JournalEntry[];
   me: Member | null;
   partner: Member | null;
   members: Member[];
-  drafts: Record<string, NoteDraft>;
-  focusMine: boolean;
-  onDraft: (key: string, d: NoteDraft | null) => void;
+  /** Opened from the empty state's Add a photo: focus starts on Add photos. */
+  startAdding?: boolean;
   onClose: () => void;
 }) {
   const toast = useToast();
+  const assets = useAssets();
   const [editId, setEditId] = useState<string | null>(null);
+  const [reordering, setReordering] = useState(false);
   if (!open && editId) setEditId(null); // a closed day never reopens on a photo
+  if ((!open || photos.length < 2) && reordering) setReordering(false);
   const cover = day ? (photos.find((p) => p.id === day.coverAssetId) ?? photos[0] ?? null) : null;
   const editing = photos.find((p) => p.id === editId) ?? null;
 
@@ -50,43 +51,68 @@ export function DaySheet({
   // miss them: results are said again in here, a moment later, once a sheet
   // on top has closed and this one is live again.
   const [said, setSaid] = useState('');
-  const notify = (message: string) => {
-    toast.show(message);
+  const say = (message: string) => {
     setSaid('');
     window.setTimeout(() => setSaid(message), 150);
+  };
+  const notify = (message: string, tone?: 'error') => {
+    toast.show(message, tone ? { tone } : undefined);
+    say(message);
   };
 
   // A deleted photo takes its Edit button with it: focus goes to the next
   // photo's Edit ('' = Add photos) once the photo sheet has closed.
   const photoBox = useRef<HTMLElement>(null);
+  const actions = useRef<HTMLDivElement>(null);
   const refocus = useRef<string | null>(null);
   useEffect(() => {
     const target = refocus.current;
     if (target === null || editing) return;
     refocus.current = null;
-    photoBox.current?.querySelector<HTMLElement>(target ? `[data-edit="${target}"]` : '[data-add-photos]')?.focus();
+    (target ? photoBox.current?.querySelector<HTMLElement>(`[data-edit="${target}"]`) : actions.current?.querySelector<HTMLElement>('[data-add-photos]'))?.focus();
   });
 
-  const editor = (author: Member | null, heading: string, prompt: string, autoFocus: boolean) => {
-    if (!day || !author) return null;
-    const key = `${day.id}:${author.id}`;
-    const entry = entries.find((e) => e.dayId === day.id && e.authorId === author.id) ?? null;
-    return (
-      <NoteEditor
-        key={key}
-        dayId={day.id}
-        author={author}
-        entry={entry}
-        heading={heading}
-        prompt={prompt}
-        draft={drafts[key]}
-        me={me}
-        partner={partner}
-        members={members}
-        autoFocus={autoFocus}
-        onDraft={(d) => onDraft(key, d)}
-      />
-    );
+  // A moved photo's list item changes place, which can drop focus: it goes
+  // back to the same arrow, or the other one once the photo reached an end.
+  const moved = useRef<{ id: string; dir: -1 | 1 } | null>(null);
+  useEffect(() => {
+    const m = moved.current;
+    const box = photoBox.current;
+    if (!m || !box) return;
+    moved.current = null;
+    const same = box.querySelector<HTMLButtonElement>(`[data-move="${m.id}:${m.dir}"]`);
+    (same && !same.disabled ? same : box.querySelector<HTMLButtonElement>(`[data-move="${m.id}:${-m.dir}"]`))?.focus();
+  });
+
+  // One move at a time: each write needs the version the list showed. While
+  // the writes go out the list shows where they lead; if one fails, it shows
+  // whatever order the server now has.
+  const [pending, setPending] = useState<OrderWrite[] | null>(null);
+  const shown = pending ? withWrites(photos, pending) : photos;
+  const moving = useRef(false);
+  const move = async (index: number, dir: -1 | 1) => {
+    const writes = moveWrites(photos, index, dir);
+    if (moving.current || !writes.length) return;
+    moving.current = true;
+    const id = photos[index].id;
+    const versions = new Map(photos.map((p) => [p.id, p.version]));
+    moved.current = { id, dir };
+    setPending(writes);
+    let failed: string | null = null;
+    for (const w of writes) {
+      const r = await assets.update(w.id, { sortOrder: w.sortOrder }, versions.get(w.id)!);
+      if (!r.ok) {
+        failed = r.reason === 'conflict' ? S.sync.conflict : S.sync.failed;
+        break;
+      }
+      versions.set(w.id, r.row.version); // a renumbered pair is written again
+    }
+    moving.current = false;
+    setPending(null);
+    if (failed) {
+      moved.current = { id, dir }; // the photo may jump back: its arrow keeps focus
+      notify(failed, 'error');
+    } else say(S.journal.moved(index + dir + 1, photos.length));
   };
 
   const fallback = day ? defaultDayPhoto(day.dayNumber) : null;
@@ -98,34 +124,48 @@ export function DaySheet({
       size="full"
       title={day ? S.journal.dayTitle(day.dayNumber, day.title) : ''}
       description={day ? formatDayLabel(day.date) : undefined}
+      footer={
+        day ? (
+          <div ref={actions} className={styles.dayActions}>
+            <div className={styles.photoActions}>
+              <AddPhotos day={day} photos={photos} notify={notify} autoFocus={startAdding} />
+            </div>
+            {photos.length > 1 && (
+              <Button variant={reordering ? 'primary' : 'secondary'} size="sm" onClick={() => setReordering((r) => !r)}>
+                {reordering ? S.journal.reorderDone : S.journal.reorder}
+              </Button>
+            )}
+          </div>
+        ) : undefined
+      }
     >
       {day && (
-        <div className={styles.spread}>
-          <section ref={photoBox} className={styles.photos} aria-label={S.journal.photos}>
-            {photos.length ? (
-              <PhotoPages photos={photos} dayNumber={day.dayNumber} coverId={cover?.id ?? null} onEdit={(a) => setEditId(a.id)} />
-            ) : (
-              fallback && (
-                <div className={styles.fallback}>
-                  <span className={styles.fallbackFrame}>
-                    <Photo photo={fallback} alt="" sizes="240px" className={styles.fallbackImg} />
-                  </span>
-                  <p className={styles.sampleNote}>{S.journal.noPhotos}</p>
-                </div>
-              )
-            )}
-            <div className={styles.photoActions}>
-              <AddPhotos day={day} photos={photos} notify={notify} />
-            </div>
-            <p className="sr-only" role="status">
-              {said}
-            </p>
-          </section>
-          <div className={styles.notes}>
-            {editor(me, S.people.myNotes, S.journal.promptMine, focusMine)}
-            {partner && editor(partner, S.people.notesOf(partner.displayName), S.journal.promptPartner, false)}
-          </div>
-        </div>
+        <section ref={photoBox} className={styles.photos} aria-label={S.journal.photos}>
+          {reordering && <p className={styles.hint}>{S.journal.reorderHint}</p>}
+          {photos.length ? (
+            <PhotoPages
+              photos={shown}
+              dayNumber={day.dayNumber}
+              coverId={cover?.id ?? null}
+              members={members}
+              reordering={reordering}
+              onEdit={(a) => setEditId(a.id)}
+              onMove={(i, dir) => void move(i, dir)}
+            />
+          ) : (
+            fallback && (
+              <div className={styles.fallback}>
+                <span className={styles.fallbackFrame}>
+                  <Photo photo={fallback} alt="" sizes="240px" className={styles.fallbackImg} />
+                </span>
+                <p className={styles.sampleNote}>{S.journal.noPhotos}</p>
+              </div>
+            )
+          )}
+          <p className="sr-only" role="status">
+            {said}
+          </p>
+        </section>
       )}
       {day && editing && (
         <PhotoSheet
@@ -134,6 +174,7 @@ export function DaySheet({
           index={photos.indexOf(editing) + 1}
           day={day}
           coverId={cover?.id ?? null}
+          author={members.find((m) => m.id === editing.createdBy) ?? null}
           me={me}
           partner={partner}
           onDeleted={() => {

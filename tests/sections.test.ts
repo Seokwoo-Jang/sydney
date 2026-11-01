@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest';
 import { approxFlags, categoryTotals, rateForDate, scopeForSplit, splitForParticipants, visibleExpenses, splitForScope } from '@/components/budget/budgetCalc';
 import { countDue, dueState, progress, upcomingTasks, type DueContext } from '@/components/checklist/due';
 import { MAX_TILT, isPortrait, photoLayout, type PhotoRow } from '@/components/journal/photoLayout';
+import { moveWrites, withWrites, type OrderWrite, type OrderedPhoto } from '@/components/journal/photoOrder';
 import { findDuplicate, hostOf, isHttpUrl, nextPinSlot, urlKey } from '@/components/library/libraryLogic';
 import type { ChecklistItem, FxRate, Resource, RowMeta, TripBudget } from '@/lib/types';
 import { expense } from './fixtures';
@@ -213,6 +214,86 @@ describe('journal photo layout', () => {
     const taped = placed.filter((p) => p.tape).length / placed.length;
     expect(taped).toBeGreaterThan(0.5);
     expect(taped).toBeLessThan(1);
+  });
+});
+
+describe('journal photo order', () => {
+  const at = (...orders: number[]) => orders.map((sortOrder, i) => ({ id: `p${i + 1}`, sortOrder }));
+  /** Applies the writes and returns ids in the order the list would show them. */
+  const after = (photos: OrderedPhoto[], writes: OrderWrite[]) => {
+    const by = new Map(writes.map((w) => [w.id, w.sortOrder]));
+    return photos
+      .map((p) => ({ id: p.id, sortOrder: by.get(p.id) ?? p.sortOrder }))
+      .sort((a, b) => a.sortOrder - b.sortOrder)
+      .map((p) => p.id);
+  };
+
+  it('swaps the sortOrder of the two neighbours', () => {
+    const photos = at(10, 20, 35);
+    expect(moveWrites(photos, 1, -1)).toEqual([
+      { id: 'p1', sortOrder: 20 },
+      { id: 'p2', sortOrder: 10 },
+    ]);
+    expect(moveWrites(photos, 1, 1)).toEqual([
+      { id: 'p2', sortOrder: 35 },
+      { id: 'p3', sortOrder: 20 },
+    ]);
+    expect(after(photos, moveWrites(photos, 2, -1))).toEqual(['p1', 'p3', 'p2']);
+  });
+
+  it('renumbers 10, 20, 30… first when values repeat', () => {
+    const photos = at(0, 0, 0);
+    // Rising rows from the bottom, then the swap.
+    expect(moveWrites(photos, 2, -1)).toEqual([
+      { id: 'p3', sortOrder: 30 },
+      { id: 'p2', sortOrder: 20 },
+      { id: 'p1', sortOrder: 10 },
+      { id: 'p2', sortOrder: 30 },
+      { id: 'p3', sortOrder: 20 },
+    ]);
+    expect(after(photos, moveWrites(photos, 2, -1))).toEqual(['p1', 'p3', 'p2']);
+    expect(after(photos, moveWrites(photos, 0, 1))).toEqual(['p2', 'p1', 'p3']);
+    // Only rows that change are renumbered.
+    expect(moveWrites(at(10, 20, 20), 0, 1)).toEqual([
+      { id: 'p3', sortOrder: 30 },
+      { id: 'p1', sortOrder: 20 },
+      { id: 'p2', sortOrder: 10 },
+    ]);
+  });
+
+  it('keeps the shown order when a renumber stops part way', () => {
+    const cases: [OrderedPhoto[], number, -1 | 1, string[]][] = [
+      [at(0, 0, 0), 2, -1, ['p1', 'p3', 'p2']],
+      [at(10, 10, 20, 20, 30, 30), 0, 1, ['p2', 'p1', 'p3', 'p4', 'p5', 'p6']],
+      [at(5, 5, 100, 100), 3, -1, ['p1', 'p2', 'p4', 'p3']],
+      [at(40, 40, 40, 90), 1, 1, ['p1', 'p3', 'p2', 'p4']],
+    ];
+    for (const [photos, index, dir, moved] of cases) {
+      const writes = moveWrites(photos, index, dir);
+      const ids = photos.map((p) => p.id);
+      // Every prefix short of the final swap pair shows the old order.
+      for (let k = 0; k <= writes.length - 2; k++) expect(after(photos, writes.slice(0, k))).toEqual(ids);
+      expect(after(photos, writes)).toEqual(moved);
+    }
+  });
+
+  it('shows the final order while only some writes have landed', () => {
+    const photos = at(0, 0, 0, 0);
+    const writes = moveWrites(photos, 3, -1);
+    expect(withWrites(photos, writes).map((p) => p.id)).toEqual(['p1', 'p2', 'p4', 'p3']);
+    // p1 and p4 saved already, the rest still at 0.
+    const partway = photos.map((p) => (p.id === 'p1' || p.id === 'p4' ? { ...p, sortOrder: writes.find((w) => w.id === p.id)!.sortOrder } : p));
+    expect(withWrites(partway, writes).map((p) => p.id)).toEqual(['p1', 'p2', 'p4', 'p3']);
+    // Without writes, ties keep the given order.
+    expect(withWrites(photos, []).map((p) => p.id)).toEqual(['p1', 'p2', 'p3', 'p4']);
+  });
+
+  it('does nothing at the ends or out of range', () => {
+    const photos = at(10, 20);
+    expect(moveWrites(photos, 0, -1)).toEqual([]);
+    expect(moveWrites(photos, 1, 1)).toEqual([]);
+    expect(moveWrites(photos, 5, -1)).toEqual([]);
+    expect(moveWrites([], 0, 1)).toEqual([]);
   });
 });
 

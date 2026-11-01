@@ -228,6 +228,11 @@
   white-space: nowrap;
 }
 
+/* The priority always starts its own line, so every to-do reads the same. */
+.rowMeta > .priority {
+  flex-basis: 100%;
+}
+
 .metaWho {
   display: inline-flex;
   align-items: center;

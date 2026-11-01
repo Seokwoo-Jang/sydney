@@ -136,17 +136,21 @@
   margin-top: var(--s2);
 }
 
-/* ── day spread (sheet) ────────────────────── */
-.spread {
-  display: flex;
-  flex-direction: column;
-  gap: var(--s3);
-}
-
+/* ── day page (sheet): photo posts + footer actions ── */
 .photos {
   display: flex;
   flex-direction: column;
   gap: var(--s1-5);
+}
+
+/* Sheet footer: Add photos (with its hint) on the left, Reorder on the right. */
+.dayActions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--s1);
+  width: 100%;
 }
 
 .photoActions {
@@ -154,66 +158,17 @@
   flex-direction: column;
   align-items: flex-start;
   gap: 4px;
+  min-width: 0;
 }
 
-.notes {
-  display: grid;
-  gap: var(--s3);
-}
-
-.note {
-  display: flex;
-  flex-direction: column;
-  gap: var(--s1);
-  padding-left: var(--s1-5);
-  border-left: 2px solid var(--member-eren);
-}
-
-.note[data-author='amy'] {
-  border-left-color: var(--member-amy);
-}
-
-.noteHead {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--s1);
-}
-
-.noteTitle {
-  font-family: var(--font-serif);
-  font-size: var(--title-xs);
-  font-weight: 500;
-  line-height: 1.15;
-}
-
-.noteText {
-  min-height: 140px;
-  font-size: var(--text-base);
-  line-height: 1.6;
-}
-
-.noteFoot {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--s1);
-}
-
-.noteMeta {
-  font-size: var(--text-xs);
-  color: var(--muted);
-}
-
-/* ── photo pages: printed photos with their notes ── */
-/* Mobile: photo, then note, nudged left / right in turn. From 768px a portrait
-   sits beside its note (sides alternate), a landscape runs wide with the note
-   below, two note-less portraits share a row, and a lone note-less portrait
-   stays a single print (no empty note column). --ratio = width / height, so a
+/* ── photo posts: printed photos with their text ── */
+/* Mobile: photo, then text, nudged left / right in turn. From 768px a portrait
+   sits beside its text (sides alternate), a landscape runs wide with the text
+   below, two text-less portraits share a row, and a lone text-less portrait
+   stays a single print (no empty text column). --ratio = width / height, so a
    tall photo is capped by height without cropping; the cap also follows the
-   viewport so a short window still shows a photo whole. */
+   viewport so a short window still shows a photo whole. The author's mark
+   leads the text, or sits on the frame corner when there is none. */
 .story {
   display: flex;
   flex-direction: column;
@@ -347,13 +302,33 @@
   overflow-wrap: anywhere;
 }
 
-.photoNote::before {
+/* Mark, then a short brass rule, above the text. */
+.noteHead {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: var(--s1);
+}
+
+.noteHead::after {
   content: '';
-  display: block;
   width: 28px;
   height: 1px;
-  margin-bottom: var(--s1);
   background: var(--brass-line);
+}
+
+.mark {
+  display: inline-flex;
+  flex: none;
+}
+
+/* Text-less post: the mark sits on the photo's lower right corner. */
+.cornerMark {
+  position: absolute;
+  right: 14px;
+  bottom: 20px;
+  display: inline-flex;
+  filter: drop-shadow(0 1px 2px color-mix(in srgb, var(--ink) 25%, transparent));
 }
 
 /* Two portraits without notes, staggered. */
@@ -477,7 +452,132 @@
   border-radius: 2px;
 }
 
+/* ── reorder mode: a flat list, no tilt ─────── */
+.reorder {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.reorderItem {
+  display: grid;
+  grid-template-columns: 72px minmax(0, 1fr) var(--touch);
+  align-items: center;
+  gap: var(--s1-5);
+  padding-block: var(--s1-5);
+  border-bottom: 1px solid var(--line);
+}
+
+.reorderItem:first-child {
+  padding-top: 0;
+}
+
+.reorderItem:last-child {
+  border-bottom: 0;
+}
+
+.reorderThumb {
+  display: block;
+  padding: 4px;
+  border-radius: 3px;
+  background: var(--porcelain);
+  box-shadow: 0 1px 3px color-mix(in srgb, var(--ink) 16%, transparent);
+}
+
+.reorderImg {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 3 / 4;
+  object-fit: cover;
+  object-position: 50% 40%;
+  border-radius: 1px;
+  background: var(--sand);
+}
+
+.reorderBody {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.reorderHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s1);
+}
+
+.reorderHead:empty {
+  display: none;
+}
+
+.reorderText {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  overflow: hidden;
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-size: var(--text-md);
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.coverInline {
+  color: var(--brass-deep);
+  font-size: var(--text-2xs);
+  font-weight: 600;
+  letter-spacing: var(--tracking-eyebrow);
+  text-transform: uppercase;
+}
+
+/* Up above down, each a 44px target. */
+.moveButtons {
+  display: flex;
+  flex-direction: column;
+}
+
+.move {
+  display: grid;
+  place-items: center;
+  width: var(--touch);
+  height: var(--touch);
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-button);
+  background: transparent;
+  color: var(--ink);
+  cursor: pointer;
+  transition: background-color var(--motion-fast) var(--ease);
+}
+
+.move:hover:not(:disabled) {
+  background: var(--harbour-wash);
+}
+
+.move:focus-visible {
+  outline: 2px solid var(--harbour);
+  outline-offset: -2px;
+}
+
+.move:disabled {
+  color: var(--line-strong);
+  cursor: default;
+}
+
 /* ── edit photo / add photos sheets ────────── */
+/* Change photo sits under the preview. */
+.changeRow {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
 .sheetPhoto {
   width: min(100%, calc(36dvh * var(--ratio, 0.75)));
   margin: 0 auto;
@@ -489,6 +589,21 @@
 
 .noteField {
   line-height: 1.5;
+}
+
+/* Someone else's post: its text, read only. */
+.readText {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.readBody {
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-size: var(--text-lg);
+  line-height: 1.45;
+  white-space: pre-wrap;
 }
 
 .pending {
@@ -538,7 +653,8 @@
 
 @media (prefers-reduced-motion: reduce) {
   .cardImg,
-  .editPlate {
+  .editPlate,
+  .move {
     transition: none;
   }
 

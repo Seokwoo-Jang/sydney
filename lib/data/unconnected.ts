@@ -54,5 +54,9 @@ export function createUnconnectedRepository(): TripRepository {
     shareLocation: reject,
     stopSharing: reject,
     clearMyLocation: reject,
+    listPushDevices: reject,
+    savePushSubscription: reject,
+    setPushKinds: reject,
+    removePushDevice: reject,
   };
 }

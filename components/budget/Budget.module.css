@@ -51,23 +51,35 @@
   background: var(--paper);
 }
 
+/*
+ * Labels stay on one line (the longest, AFTER PLANNED, is about 9.2em) so every
+ * card in a row has the same height; the size follows the card width like the
+ * figures below. Figures sit at the bottom so they line up across the row.
+ */
 .cell dt {
-  font-size: var(--text-2xs);
-  letter-spacing: 0.1em;
+  font-size: clamp(8px, calc((50cqi - 32px) / 9.4), var(--text-2xs));
+  letter-spacing: 0.06em;
   text-transform: uppercase;
+  white-space: nowrap;
   color: var(--muted);
+}
+
+@container (min-width: 560px) {
+  .cell dt {
+    font-size: clamp(8px, calc((20cqi - 31px) / 9.4), var(--text-2xs));
+  }
 }
 
 .cell dd {
   display: flex;
   flex-direction: column;
-  margin: 0;
+  margin: auto 0 0;
   min-width: 0;
 }
 
 /*
  * One line always: the size follows the card width so the widest figure
- * (≈9,999,999₩, about 5.3em with the small ≈) fits. Cards are half the
+ * (≈₩9,999,999, about 5.3em with the small ≈) fits. Cards are half the
  * container wide (2 columns), or a fifth of it from 560px.
  */
 .primary {

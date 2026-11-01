@@ -1,14 +1,13 @@
 'use client';
 // Journal · Nine Notes (plan §7.6). Root id stays "section-journal".
-import { useCallback, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useDueContext } from '@/components/checklist/useDueContext';
 import { useSectionNav } from '@/components/checklist/useSectionNav';
 import { DaySheet } from '@/components/journal/DaySheet';
-import type { NoteDraft } from '@/components/journal/NoteEditor';
 import { Photo } from '@/components/journal/Photo';
 import { EmptyState, ErrorState, LoadingState, MemberMarks, SectionHeading } from '@/components/ui';
-import { useAssets, useDays, useJournal, useTrip } from '@/lib/data';
-import type { FileAsset, TripDay } from '@/lib/types';
+import { useAssets, useDays, useTrip } from '@/lib/data';
+import type { FileAsset, Member, Participants, TripDay } from '@/lib/types';
 import { S } from '@/lib/strings';
 import { defaultDayPhoto } from '@/lib/url';
 import type { SectionProps } from './types';
@@ -29,21 +28,24 @@ function coverFor(day: TripDay, photos: FileAsset[]) {
   return { isDefault: true, photo: fallback };
 }
 
+/** Who added the day's photos: one mark, both together, or none when unknown. */
+function addedBy(photos: FileAsset[], members: Member[]): Participants | null {
+  const keys = new Set(photos.map((p) => members.find((m) => m.id === p.createdBy)?.profileKey));
+  if (keys.has('eren') && keys.has('amy')) return 'together';
+  return keys.has('eren') ? 'eren' : keys.has('amy') ? 'amy' : null;
+}
+
 export default function JournalSection({ layout }: SectionProps) {
   const days = useDays();
-  const journal = useJournal();
   const assets = useAssets();
   const trip = useTrip();
   const due = useDueContext();
   const nav = useSectionNav('journal', VIEWS, 'days');
-  const [drafts, setDrafts] = useState<Record<string, NoteDraft>>({});
-  const [focusMine, setFocusMine] = useState(false);
 
   const me = trip.status === 'ready' ? trip.data.me : null;
   const partner = trip.status === 'ready' ? trip.data.partner : null;
   const members = trip.status === 'ready' ? trip.data.members : [];
   const dayRows = days.status === 'ready' ? days.data : [];
-  const entries = useMemo(() => (journal.status === 'ready' ? journal.data.filter((e) => e.body.trim()) : []), [journal]);
   const photosByDay = useMemo(() => {
     const map = new Map<string, FileAsset[]>();
     for (const a of assets.status === 'ready' ? assets.data : []) {
@@ -53,23 +55,18 @@ export default function JournalSection({ layout }: SectionProps) {
     return map;
   }, [assets]);
 
-  const onDraft = useCallback((key: string, d: NoteDraft | null) => {
-    setDrafts((all) => {
-      const next = { ...all };
-      if (d) next[key] = d;
-      else delete next[key];
-      return next;
-    });
-  }, []);
-
   const openDay = nav.item ? (dayRows.find((d) => d.id === nav.item) ?? null) : null;
-  const status = [days, journal, assets].find((r) => r.status === 'error') ?? [days, journal, assets].find((r) => r.status === 'loading');
+  // Set by the empty state's Add a photo; a card click or close clears it.
+  const [startAdding, setStartAdding] = useState(false);
+  const status = [days, assets].find((r) => r.status === 'error') ?? [days, assets].find((r) => r.status === 'loading');
+  const daysWithPhotos = dayRows.filter((d) => photosByDay.has(d.id)).length;
 
-  const writeFirst = () => {
+  /** Empty state: today's page while the trip is under way, else Day 1. */
+  const startFirst = () => {
     const today = due?.underway ? dayRows.find((d) => d.date === due.today) : undefined;
     const target = today ?? dayRows[0];
     if (!target) return;
-    setFocusMine(true);
+    setStartAdding(true);
     nav.openItem(target.id);
   };
 
@@ -82,16 +79,15 @@ export default function JournalSection({ layout }: SectionProps) {
       <>
         <ol className={styles.gallery}>
           {covers.map(({ day, photo }) => {
-            const authors = new Set(entries.filter((e) => e.dayId === day.id).map((e) => members.find((m) => m.id === e.authorId)?.profileKey));
-            const who = authors.has('eren') && authors.has('amy') ? 'together' : authors.has('eren') ? 'eren' : authors.has('amy') ? 'amy' : null;
-            const count = entries.filter((e) => e.dayId === day.id).length;
+            const photos = photosByDay.get(day.id) ?? [];
+            const who = addedBy(photos, members);
             return (
               <li key={day.id}>
                 <button
                   type="button"
                   className={styles.card}
                   onClick={() => {
-                    setFocusMine(false);
+                    setStartAdding(false);
                     nav.openItem(day.id);
                   }}
                 >
@@ -108,15 +104,15 @@ export default function JournalSection({ layout }: SectionProps) {
                     </b>
                     <span className="sr-only">{S.time.day(day.dayNumber)}</span>
                     <span className={styles.cardTitle}>{day.title}</span>
-                    <span className="sr-only">{count ? S.journal.written(count) : S.journal.notWritten}</span>
+                    <span className="sr-only">{photos.length ? S.journal.photoCount(photos.length) : S.journal.noPhotos}</span>
                   </span>
                 </button>
               </li>
             );
           })}
         </ol>
-        {!entries.length && (
-          <EmptyState compact icon="journal" title={S.empty.journal} actionLabel={S.empty.journalAction} onAction={writeFirst} className={styles.empty} />
+        {!daysWithPhotos && (
+          <EmptyState compact icon="journal" title={S.empty.journal} actionLabel={S.empty.journalAction} onAction={startFirst} className={styles.empty} />
         )}
       </>
     );
@@ -140,15 +136,12 @@ export default function JournalSection({ layout }: SectionProps) {
         open={!!openDay}
         day={openDay}
         photos={openDay ? (photosByDay.get(openDay.id) ?? []) : []}
-        entries={journal.status === 'ready' ? journal.data : []}
         me={me}
         partner={partner}
         members={members}
-        drafts={drafts}
-        focusMine={focusMine}
-        onDraft={onDraft}
+        startAdding={startAdding}
         onClose={() => {
-          setFocusMine(false);
+          setStartAdding(false);
           nav.closeItem();
         }}
       />

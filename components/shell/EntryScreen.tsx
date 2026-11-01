@@ -2,10 +2,12 @@
 // Name entry (plan §8.1). Eren or Amy, trimmed and case-insensitive. This picks
 // one of two shared profiles; it is not identity verification and never says so.
 // `checking` renders the same brand frame without the form (static HTML).
+// Phones in the browser first see a short guide: how to put the app on the Home
+// Screen (iPhone / Android) and which notifications exist (owner, 2026-11-01).
 import { useEffect, useState, type FormEvent } from 'react';
-import { Button, Field, TextInput } from '@/components/ui';
+import { Button, Field, SegmentedControl, TextInput } from '@/components/ui';
 import { normalizeEntryName, useSession } from '@/lib/data';
-import { isIOS, isStandalone } from '@/lib/pwa';
+import { isIOS, isStandalone, useInstall } from '@/lib/pwa';
 import { S } from '@/lib/strings';
 import { TimeOfDayBackdrop } from './TimeOfDayBackdrop';
 import styles from './EntryScreen.module.css';
@@ -28,10 +30,79 @@ export function EntryScreen({ checking }: { checking: boolean }) {
             {S.entry.checking}
           </p>
         ) : (
-          <EntryForm />
+          <EntryFlow />
         )}
       </main>
     </div>
+  );
+}
+
+type Phone = 'iphone' | 'android';
+
+/** Guide first on a phone's browser (not the installed app, not a computer); then the name. */
+function EntryFlow() {
+  const [step, setStep] = useState<'guide' | 'form' | null>(null);
+  const [phone, setPhone] = useState<Phone>('iphone');
+  useEffect(() => {
+    const android = /Android/i.test(navigator.userAgent);
+    setPhone(android ? 'android' : 'iphone');
+    setStep((isIOS() || android) && !isStandalone() ? 'guide' : 'form');
+  }, []);
+  if (step === 'guide') return <EntryGuide phone={phone} onPhone={setPhone} onContinue={() => setStep('form')} />;
+  return step === 'form' ? <EntryForm /> : null;
+}
+
+function EntryGuide({ phone, onPhone, onContinue }: { phone: Phone; onPhone: (p: Phone) => void; onContinue: () => void }) {
+  const install = useInstall();
+  const G = S.entryGuide;
+  const steps = phone === 'iphone' ? G.iphoneSteps : G.androidSteps;
+  return (
+    <section className={styles.guide} aria-labelledby="entry-guide-heading">
+      <h2 id="entry-guide-heading" className={styles.guideHeading}>
+        {G.heading}
+      </h2>
+
+      <div className={styles.guideBlock}>
+        <h3 className={styles.guideTitle}>{G.homeTitle}</h3>
+        <p className={styles.guideText}>{G.homeIntro}</p>
+        <SegmentedControl
+          label={G.platform}
+          fill
+          value={phone}
+          onChange={(v) => onPhone(v as Phone)}
+          options={[
+            { value: 'iphone', label: G.iphone },
+            { value: 'android', label: G.android },
+          ]}
+        />
+        <ol className={styles.steps}>
+          {steps.map((t) => (
+            <li key={t}>{t}</li>
+          ))}
+        </ol>
+        {phone === 'iphone' ? <p className={styles.guideNote}>{G.iphoneNote}</p> : null}
+        {phone === 'android' && install.mode === 'prompt' ? (
+          <Button variant="secondary" size="sm" onClick={() => void install.install()}>
+            {G.installNow}
+          </Button>
+        ) : null}
+      </div>
+
+      <div className={styles.guideBlock}>
+        <h3 className={styles.guideTitle}>{G.notifyTitle}</h3>
+        <p className={styles.guideText}>{G.notifyIntro}</p>
+        <ul className={styles.kinds}>
+          {G.notifyKinds.map((t) => (
+            <li key={t}>{t}</li>
+          ))}
+        </ul>
+        <p className={styles.guideNote}>{G.notifyPrivacy}</p>
+      </div>
+
+      <Button variant="primary" fullWidth onClick={onContinue}>
+        {G.continue}
+      </Button>
+    </section>
   );
 }
 

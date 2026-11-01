@@ -1,0 +1,126 @@
+/* Notifications sheet (plan §8.5): this device, then the profile's devices. */
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s3);
+  min-width: 0;
+}
+
+.block {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s1-5);
+  min-width: 0;
+}
+
+.heading {
+  font-size: var(--text-2xs);
+  font-weight: 500;
+  letter-spacing: var(--tracking-eyebrow);
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.hint {
+  font-size: var(--text-sm);
+  line-height: var(--leading-body);
+  color: var(--muted);
+}
+
+.hint strong {
+  font-weight: 500;
+  color: var(--ink);
+}
+
+.error {
+  font-size: var(--text-sm);
+  font-weight: 500;
+  color: var(--danger);
+}
+
+.message {
+  font-size: var(--text-sm);
+  font-weight: 500;
+  color: var(--danger);
+}
+
+/* Empty: out of the flex flow (no gap) but still in the accessibility tree,
+   so the live region exists before its text arrives and is announced. */
+.message:empty {
+  position: absolute;
+}
+
+.notice {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s1);
+  padding: var(--s1-5) var(--s2);
+  border-left: 2px solid var(--brass-line);
+  border-radius: var(--radius-field);
+  background: var(--brass-wash);
+}
+
+.noticeTitle {
+  font-size: var(--text-md);
+  font-weight: 500;
+  color: var(--ink);
+}
+
+.actions,
+.inline {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s1);
+}
+
+.kinds {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s1);
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.legend {
+  padding: 0;
+  margin-bottom: 4px;
+  font-size: var(--text-sm);
+  font-weight: 500;
+}
+
+.devices {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.device {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px var(--s1);
+  min-height: var(--touch);
+  padding: 6px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.device:last-child {
+  border-bottom: 0;
+}
+
+.deviceText {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px var(--s1);
+  flex: 1 1 200px;
+  min-width: 0;
+  font-size: var(--text-md);
+  overflow-wrap: anywhere;
+}

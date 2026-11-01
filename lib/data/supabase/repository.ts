@@ -2,7 +2,7 @@
 // supabase/migrations/*_rpc.sql; reads use RLS-protected selects. Rows come back
 // snake_case and are mapped 1:1 by ./mappers.
 import type { RealtimeChannel } from '@supabase/supabase-js';
-import type { FileAsset, LiveLocation, Member, ResourceLink, SaveResult, Trip, TripBudget } from '../../types';
+import type { FileAsset, LiveLocation, Member, PushDevice, PushKind, ResourceLink, SaveResult, Trip, TripBudget } from '../../types';
 import {
   ENTITY_NAMES,
   RepositoryError,
@@ -13,6 +13,7 @@ import {
   type LocationFix,
   type LocationsSnapshot,
   type NewRow,
+  type PushSubscriptionInput,
   type ResolvedMapLink,
   type RowPatch,
   type ShareStatus,
@@ -24,6 +25,7 @@ import {
 import { newId, normalizeEntryName } from '../session';
 import { BUCKET, getSupabase } from './client';
 import {
+  PUSH_DEVICE_COLUMNS,
   TABLE,
   TABLE_ENTITY,
   budgetFrom,
@@ -33,6 +35,7 @@ import {
   linkTo,
   locationFrom,
   memberFrom,
+  pushDeviceFrom,
   rowFrom,
   rowTo,
   tripFrom,
@@ -56,6 +59,10 @@ const MESSAGES: Record<string, string> = {
   invalid_id: 'This change couldn’t be saved.',
   id_conflict: 'This change couldn’t be saved.',
   invalid_location: 'That location couldn’t be saved.',
+  invalid_endpoint: 'This browser’s notification details couldn’t be saved.',
+  invalid_kinds: 'This browser’s notification details couldn’t be saved.',
+  invalid_subscription: 'This browser’s notification details couldn’t be saved.',
+  push_device_gone: 'This device is no longer on the list.',
   '23503': 'A linked entry no longer exists.',
   '23505': 'This entry already exists.',
   '23514': 'Some values aren’t valid.',
@@ -455,6 +462,40 @@ class SupabaseRepository implements TripRepository {
 
   async clearMyLocation(): Promise<void> {
     must(await this.sb.rpc('clear_my_location'));
+  }
+
+  // ── push notifications (plan §8.5): RLS shows a profile only its own devices ──
+  async listPushDevices(): Promise<PushDevice[]> {
+    const rows = must(
+      await this.sb.from('push_subscriptions').select(PUSH_DEVICE_COLUMNS).eq('trip_id', this.tripId()).order('created_at'),
+    ) as unknown as Json[];
+    return rows.map(pushDeviceFrom);
+  }
+
+  async savePushSubscription(input: PushSubscriptionInput): Promise<PushDevice> {
+    const row = must(
+      await this.sb.rpc('save_push_subscription', {
+        p_endpoint: input.endpoint,
+        p_p256dh: input.p256dh,
+        p_auth: input.auth,
+        p_device_label: input.deviceLabel,
+        p_enabled_kinds: input.enabledKinds,
+      }),
+    ) as Json | null;
+    if (!row) throw new RepositoryError('unknown', 'Couldn’t save this device. Try again.');
+    return pushDeviceFrom(row);
+  }
+
+  async setPushKinds(id: string, kinds: PushKind[]): Promise<PushDevice> {
+    const rows = must(
+      await this.sb.from('push_subscriptions').update({ enabled_kinds: kinds }).eq('id', id).select(PUSH_DEVICE_COLUMNS),
+    ) as unknown as Json[];
+    if (!rows.length) throw new RepositoryError('unknown', MESSAGES.push_device_gone);
+    return pushDeviceFrom(rows[0]);
+  }
+
+  async removePushDevice(id: string): Promise<void> {
+    must(await this.sb.from('push_subscriptions').delete().eq('id', id));
   }
 }
 

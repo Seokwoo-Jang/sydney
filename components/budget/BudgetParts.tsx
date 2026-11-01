@@ -13,13 +13,13 @@ import styles from './Budget.module.css';
 
 const key = (c: Currency) => (c === 'AUD' ? 'aud' : 'krw') as 'aud' | 'krw';
 const money = (minor: number, c: Currency, approx = false) => trimCents(formatMoney(minor, c, { approx }));
-/** A total in the chosen currency; with no rate yet each currency is summed on its own ('A$120 + 30,000₩'). */
+/** A total in the chosen currency; with no rate yet each currency is summed on its own ('A$120 + ₩30,000'). */
 function totalText(t: TwoCurrencyTotal, first: Currency, hasRate: boolean): string {
   if (hasRate) return money(t[key(first)], first, t.approx[key(first)]);
   const parts = [t.aud ? money(t.aud, 'AUD') : '', t.krw ? money(t.krw, 'KRW') : ''].filter(Boolean);
   return parts.join(' + ') || money(0, first);
 }
-/** Summary figures in whole units ('A$6,000', '≈ 5,474,000₩'), like plan §7.5.1. */
+/** Summary figures in whole units ('A$6,000', '≈ ₩5,474,000'), like plan §7.5.1. */
 const whole = (minor: number, c: Currency, approx = false) => money(c === 'AUD' ? Math.round(minor / 100) * 100 : minor, c, approx);
 
 // ── summary ──────────────────────────────────────────────────────
@@ -93,7 +93,7 @@ export function FxLine({ latest, today }: { latest: FxRate | null; today: string
   if (!latest) return <p className={styles.fx}>{S.budget.noRate}</p>;
   const date = formatDayLabel(latest.rateDate);
   const stale = today ? diffDays(today, latest.rateDate) > 3 : false;
-  const rate = `${latest.rate.toFixed(2)}₩`;
+  const rate = `₩${latest.rate.toFixed(2)}`;
   return (
     <div className={styles.fxBlock}>
       <p className={[styles.fx, stale ? styles.fxStale : ''].join(' ')}>{S.fx.rateLine(rate, stale ? S.fx.rateFrom(date) : date)}</p>

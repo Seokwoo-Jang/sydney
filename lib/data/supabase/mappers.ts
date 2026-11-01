@@ -13,6 +13,7 @@ import type {
   LiveLocation,
   Member,
   PreludeActivity,
+  PushDevice,
   Resource,
   ResourceLink,
   RowMeta,
@@ -251,6 +252,17 @@ const LOCATION: Cols<LiveLocation> = {
   isSharing: 'is_sharing',
   sharingSessionId: 'sharing_session_id',
 };
+// Keys (p256dh, auth) are written once by the RPC and never read back.
+const PUSH_DEVICE: Cols<PushDevice> = {
+  id: 'id',
+  endpoint: 'endpoint',
+  deviceLabel: 'device_label',
+  enabledKinds: 'enabled_kinds',
+  createdAt: 'created_at',
+  lastSuccessAt: 'last_success_at',
+};
+/** Column list for `select(...)` on push_subscriptions. */
+export const PUSH_DEVICE_COLUMNS = Object.values(PUSH_DEVICE).join(',');
 
 // numeric / bigint can arrive as strings depending on the path; timestamps carry
 // microseconds and '+00:00'. Normalise both so the UI sees what the mock gives.
@@ -271,7 +283,7 @@ const NUMERIC = new Set([
   'focal_y',
   'zoom',
 ]);
-const TIMESTAMP = new Set(['created_at', 'updated_at', 'deleted_at', 'measured_at']);
+const TIMESTAMP = new Set(['created_at', 'updated_at', 'deleted_at', 'measured_at', 'last_success_at']);
 
 /** '2026-11-01 03:04:05.123456+00' / '…T…+00:00' → '2026-11-01T03:04:05.123Z'. */
 export function isoInstant(v: string): string {
@@ -318,6 +330,7 @@ export const budgetFrom = (row: Json): TripBudget => pick<TripBudget>(BUDGET, ro
 export const fxFrom = (row: Json): FxRate => pick<FxRate>(FX, row);
 export const linkFrom = (row: Json): ResourceLink => pick<ResourceLink>(LINK, row);
 export const locationFrom = (row: Json): LiveLocation => pick<LiveLocation>(LOCATION, row);
+export const pushDeviceFrom = (row: Json): PushDevice => pick<PushDevice>(PUSH_DEVICE, row);
 
 /** Trip settings patch → update_trip keys (id / version are never sent). */
 export function tripPatchTo(patch: TripPatch): Json {

@@ -11,9 +11,8 @@ import LibrarySection from '@/components/sections/LibrarySection';
 import OverviewSection from '@/components/sections/OverviewSection';
 import PreludeSection from '@/components/sections/PreludeSection';
 import type { SectionProps } from '@/components/sections/types';
-import { Button, ErrorState, LoadingState } from '@/components/ui';
+import { Button, ErrorState } from '@/components/ui';
 import { useSession, useTrip, type DataError } from '@/lib/data';
-import { useCountdown } from '@/lib/hooks/useCountdown';
 import { sectionLayout, useLayoutMode, type LayoutMode } from '@/lib/hooks/useLayoutMode';
 import { useReducedMotion } from '@/lib/hooks/useReducedMotion';
 import { S } from '@/lib/strings';
@@ -67,21 +66,13 @@ function ShellLayout({ mode }: { mode: LayoutMode }) {
   const { state: url, nav, push, replace } = useUrlState();
   const trip = useTrip();
   const session = useSession();
-  const countdown = useCountdown();
   const reduced = useReducedMotion();
   const preludeDot = usePreludeDotToday();
 
-  // First mobile tab: before → Checklist, during → Itinerary, after → Journal.
-  // Decided once; never switches while the app is open (plan §4.4).
-  const [recommended, setRecommended] = useState<TabKey | null>(null);
-  useEffect(() => {
-    if (recommended || !countdown) return;
-    const kind = countdown.state.kind;
-    setRecommended(kind === 'during' ? 'days' : kind === 'after' ? 'journal' : 'ready');
-  }, [countdown, recommended]);
-
+  // Phones open on the landing page (hero, Prelude, shortcuts to each list) with no tab
+  // chosen; the logo comes back to it (owner, 2026-11-01).
   const landing = url.section === null;
-  const activeTab: TabKey | null = url.section ? tabOf(url.section) : recommended;
+  const activeTab: TabKey | null = url.section ? tabOf(url.section) : null;
   const itineraryView: 'days' | 'prelude' = url.section === 'prelude' ? 'prelude' : 'days';
   const lastItineraryView = useRef<'days' | 'prelude'>('days');
   if (url.section === 'days' || url.section === 'prelude') lastItineraryView.current = url.section;
@@ -252,7 +243,6 @@ function ShellLayout({ mode }: { mode: LayoutMode }) {
                       </div>
                     );
                   })}
-                  {tabs && activeTab === null ? <LoadingState /> : null}
                 </div>
               </div>
             </main>

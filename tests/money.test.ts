@@ -31,8 +31,8 @@ describe('minor units', () => {
   it('formats', () => {
     expect(formatMoney(123456, 'AUD')).toBe('A$1,234.56');
     expect(formatMoney(-5, 'AUD')).toBe('-A$0.05');
-    expect(formatMoney(5474000, 'KRW', { approx: true })).toBe('≈ 5,474,000₩');
-    expect(formatMoney(-3000, 'KRW')).toBe('-3,000₩');
+    expect(formatMoney(5474000, 'KRW', { approx: true })).toBe('≈ ₩5,474,000');
+    expect(formatMoney(-3000, 'KRW')).toBe('-₩3,000');
   });
   it('converts once, rounding to the target unit', () => {
     expect(convertMinor(1001, 'AUD', 'KRW', 912.4)).toBe(9133);

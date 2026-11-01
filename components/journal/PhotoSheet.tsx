@@ -1,14 +1,17 @@
 'use client';
-// Edit one journal photo (plan §7.6.1): its note, whether it is the day's
-// cover, and delete. The note saves with the usual version check; the cover
-// is a field of the day. Mounted per photo, so every open starts fresh.
-import { useState, type CSSProperties } from 'react';
+// Edit one journal post (plan §7.6.1): its text, whether its photo is the
+// day's cover, change the photo itself, and delete. Only the post's author edits
+// the text; cover, change and delete are open to both of us. The text saves with the usual version check;
+// the cover is a field of the day. Mounted per photo, so every open starts fresh.
+import { useRef, useState, type CSSProperties } from 'react';
 import { CheckField, ConfirmDelete, ConfirmDiscard, ConflictBlock } from '@/components/checklist/FormBits';
 import { conflictSource, useSaveFlow } from '@/components/checklist/useSaveFlow';
 import { Button, ConflictNotice, Field, SaveStatus, Sheet, TextArea, useToast } from '@/components/ui';
 import { useAssets, useDays, useFiles } from '@/lib/data';
+import { PHOTO_MIME, fileProblem, makePhotoVariants, variantExt } from '@/lib/files';
 import type { FileAsset, Member, SaveResult, TripDay } from '@/lib/types';
 import { S } from '@/lib/strings';
+import { ORIGINAL_EXT } from './AddPhotos';
 import { Photo } from './Photo';
 import styles from './Journal.module.css';
 import form from '@/components/checklist/Form.module.css';
@@ -26,6 +29,7 @@ export function PhotoSheet({
   index,
   day,
   coverId,
+  author,
   me,
   partner,
   onDeleted,
@@ -37,6 +41,8 @@ export function PhotoSheet({
   day: TripDay;
   /** The photo the day card shows (chosen cover, else the first photo). */
   coverId: string | null;
+  /** Who added the post; null when unknown (then the text stays open to both). */
+  author: Member | null;
   me: Member | null;
   partner: Member | null;
   /** The row is gone: the day sheet says so and moves focus (this sheet closes). */
@@ -49,6 +55,7 @@ export function PhotoSheet({
   const toast = useToast();
   const save = useSaveFlow<FileAsset>();
   const isCover = asset.id === coverId;
+  const canWrite = !author || author.id === me?.id;
   const chosen = day.coverAssetId === asset.id;
   const [draft, setDraft] = useState<Draft>(() => ({
     version: asset.version,
@@ -60,6 +67,9 @@ export function PhotoSheet({
   /** The day's cover changed elsewhere before ours saved (the day row now shows it). */
   const [coverClash, setCoverClash] = useState<TripDay | null>(null);
   const [discarding, setDiscarding] = useState(false);
+  const picker = useRef<HTMLInputElement>(null);
+  const [changing, setChanging] = useState(false);
+  const [photoError, setPhotoError] = useState<string | null>(null);
   const edit = (p: Partial<Draft>) => {
     setDraft((d) => ({ ...d, ...p }));
     save.markDirty();
@@ -98,7 +108,7 @@ export function PhotoSheet({
     setCoverClash(null);
     const result = await save.run(async (): Promise<SaveResult<FileAsset>> => {
       let row = asset;
-      if (draft.captionTouched && caption !== asset.caption) {
+      if (canWrite && draft.captionTouched && caption !== asset.caption) {
         const r = await assets.update(asset.id, { caption }, draft.version);
         if (!r.ok) return r;
         row = r.row;
@@ -116,6 +126,47 @@ export function PhotoSheet({
     });
     if (result.ok) onClose();
     else if (result.reason === 'error') toast.show(S.sync.failed, { tone: 'error' });
+  };
+
+  /**
+   * Swaps the picture and keeps the post (text, author, order, cover): new files in a
+   * fresh folder, then the row points at them; the old files go afterwards.
+   */
+  const changePhoto = async (file: File) => {
+    const problem = fileProblem(file, 'photo');
+    if (problem) {
+      setPhotoError(problem);
+      return;
+    }
+    setPhotoError(null);
+    setChanging(true);
+    try {
+      const v = await makePhotoVariants(file);
+      const ext = variantExt(v.variantType);
+      const paths = await files.upload([
+        { name: `original.${ORIGINAL_EXT[file.type]}`, blob: file, contentType: file.type },
+        { name: `display.${ext}`, blob: v.display, contentType: v.variantType },
+        { name: `thumb.${ext}`, blob: v.thumb, contentType: v.variantType },
+      ]);
+      const r = await assets.update(
+        asset.id,
+        { storagePath: paths[0], displayPath: paths[1], thumbPath: paths[2], width: v.width, height: v.height, mime: file.type, bytes: file.size },
+        draft.version,
+      );
+      if (!r.ok) {
+        // A conflict is a clear "not saved": drop the new files. Other failures may have saved.
+        if (r.reason === 'conflict') await files.remove(paths).catch(() => undefined);
+        toast.show(r.reason === 'conflict' ? S.sync.conflict : S.sync.failed, { tone: 'error' });
+        return;
+      }
+      setDraft((d) => ({ ...d, version: r.row.version }));
+      toast.show(S.journal.photoChanged);
+      await files.remove([asset.storagePath, asset.displayPath, asset.thumbPath].filter((p): p is string => !!p)).catch(() => undefined);
+    } catch {
+      setPhotoError(S.files.failed);
+    } finally {
+      setChanging(false);
+    }
   };
 
   const remove = async () => {
@@ -204,15 +255,55 @@ export function PhotoSheet({
             eager
           />
         </div>
-        <Field label={S.journal.note}>
-          <TextArea
-            rows={4}
-            className={styles.noteField}
-            placeholder={S.journal.notePrompt}
-            value={draft.caption}
-            onChange={(e) => edit({ caption: e.target.value, captionTouched: true })}
+        <div className={styles.changeRow}>
+          <input
+            ref={picker}
+            type="file"
+            accept={PHOTO_MIME.join(',')}
+            hidden
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              e.target.value = '';
+              if (file) void changePhoto(file);
+            }}
           />
-        </Field>
+          <Button
+            variant="secondary"
+            size="sm"
+            iconStart="image"
+            busy={changing}
+            disabled={changing || save.busy || !files.available}
+            onClick={() => picker.current?.click()}
+          >
+            {changing ? S.journal.changingPhoto : S.journal.changePhoto}
+          </Button>
+          {photoError && (
+            <p className={form.hint} role="alert">
+              {photoError}
+            </p>
+          )}
+        </div>
+        {canWrite || !author ? (
+          <Field label={S.journal.text}>
+            <TextArea
+              rows={4}
+              className={styles.noteField}
+              placeholder={S.journal.textPrompt}
+              value={draft.caption}
+              onChange={(e) => edit({ caption: e.target.value, captionTouched: true })}
+            />
+          </Field>
+        ) : (
+          <div className={styles.readText}>
+            {asset.caption && (
+              <dl className={form.readonly}>
+                <dt>{S.journal.text}</dt>
+                <dd className={styles.readBody}>{asset.caption}</dd>
+              </dl>
+            )}
+            <p className={form.hint}>{S.journal.onlyAuthor(author.displayName)}</p>
+          </div>
+        )}
         <CheckField
           label={S.journal.useAsCover}
           hint={S.journal.coverHint}

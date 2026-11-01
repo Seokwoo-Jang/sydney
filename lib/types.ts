@@ -292,6 +292,19 @@ export interface LiveLocation {
   sharingSessionId: string | null;
 }
 
+/** Notification groups a device switches on or off (plan §8.5). */
+export type PushKind = 'schedule' | 'flights_car' | 'partner_updates' | 'countdown';
+
+/** One browser of the signed-in profile that receives notifications. Keys stay out of the UI. */
+export interface PushDevice {
+  id: string;
+  endpoint: string;
+  deviceLabel: string;
+  enabledKinds: PushKind[];
+  createdAt: string;
+  lastSuccessAt: string | null;
+}
+
 /** Result of any write. `conflict` carries the latest server row. */
 export type SaveResult<T> =
   | { ok: true; row: T }

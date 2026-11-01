@@ -1,7 +1,7 @@
 'use client';
 // Amy's Prelude (plan §7.3). Board: a 4-column piano card with the goal and the
 // next two plans. Tabs: the Itinerary tab's second view with every plan.
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { useShellNav } from '@/components/shell/ShellNav';
 import { Button, EmptyState, Icon, IconButton, SaveStatus, TextInput, type SaveState } from '@/components/ui';
 import { usePrelude } from '@/lib/data';
@@ -93,7 +93,6 @@ export function PreludeBody({ layout, data }: { layout: 'board' | 'tabs'; data: 
       days={data.days}
       tripTz={tz}
       tone={tone}
-      compact={layout === 'board'}
       highlighted={highlight === a.id}
       onEdit={() => setSheet({ kind: 'edit', activity: a })}
       onViewItinerary={viewItinerary}
@@ -197,7 +196,6 @@ function PlanCard({
   days,
   tripTz,
   tone,
-  compact,
   highlighted,
   onEdit,
   onViewItinerary,
@@ -208,41 +206,62 @@ function PlanCard({
   days: TripDay[];
   tripTz: string;
   tone: 'dark' | 'light';
-  compact: boolean;
   highlighted: boolean;
   onEdit: () => void;
   onViewItinerary: (item: ItineraryItem) => void;
 }) {
   const meta = [S.labels.preludeKind[activity.kind], S.labels.preludeStatus[activity.status]].join(' · ');
+  // Place, notes, who to meet and the Library link fold under the title (PC and phones alike);
+  // a plan with none of them gets no chevron.
+  const [open, setOpen] = useState(false);
+  const detailsId = useId();
+  const place = item?.place.trim() ?? '';
+  const hasDetails = Boolean(place || activity.notes.trim() || activity.peopleNote.trim() || resource);
   return (
     <li className={styles.plan} data-tone={tone} data-status={activity.status} data-highlight={highlighted || undefined} data-plan-id={activity.id} tabIndex={-1}>
       <div className={styles.planHead}>
-        <h3 className={styles.planTitle}>{activity.title}</h3>
+        <h3 className={styles.planTitle}>
+          {hasDetails ? (
+            <button type="button" className={styles.planToggle} aria-expanded={open} aria-controls={detailsId} onClick={() => setOpen((v) => !v)}>
+              <span>{activity.title}</span>
+              <Icon name="chevron" size={16} rotate={open ? 180 : 0} className={styles.planChevron} />
+            </button>
+          ) : (
+            activity.title
+          )}
+        </h3>
         <IconButton icon="edit" label={S.prelude.editPlan(activity.title)} onClick={onEdit} variant={tone === 'dark' ? 'onDark' : 'ghost'} className={styles.planEdit} />
       </div>
       <p className={styles.planMeta}>{meta}</p>
       <p className={styles.planWhen}>
         <Icon name="itinerary" size={14} />
-        <span>
-          {item ? whenLine(item, days, tripTz) : S.prelude.notOnItinerary}
-          {item?.place && !compact ? <span className={styles.place}>{item.place}</span> : null}
-        </span>
+        <span>{item ? whenLine(item, days, tripTz) : S.prelude.notOnItinerary}</span>
       </p>
-      {!compact && activity.notes && <p className={styles.planNotes}>{activity.notes}</p>}
-      {!compact && activity.peopleNote && (
-        <p className={styles.planLine}>
-          <Icon name="user" size={14} />
-          <span>{activity.peopleNote}</span>
-        </p>
-      )}
-      {!compact && resource && (
-        <p className={styles.planLine}>
-          <Icon name="link" size={14} />
-          <a href={resource.url} target="_blank" rel="noopener noreferrer">
-            {resource.title}
-            <span className="sr-only"> ({S.ui.externalLink})</span>
-          </a>
-        </p>
+      {hasDetails && (
+        <div id={detailsId} className={styles.planDetails} hidden={!open}>
+          {place && (
+            <p className={styles.planLine}>
+              <Icon name="map-pin" size={14} />
+              <span>{place}</span>
+            </p>
+          )}
+          {activity.notes.trim() && <p className={styles.planNotes}>{activity.notes}</p>}
+          {activity.peopleNote.trim() && (
+            <p className={styles.planLine}>
+              <Icon name="user" size={14} />
+              <span>{activity.peopleNote}</span>
+            </p>
+          )}
+          {resource && (
+            <p className={styles.planLine}>
+              <Icon name="link" size={14} />
+              <a href={resource.url} target="_blank" rel="noopener noreferrer">
+                {resource.title}
+                <span className="sr-only"> ({S.ui.externalLink})</span>
+              </a>
+            </p>
+          )}
+        </div>
       )}
       {item && (
         <Button variant="link" size="sm" className={styles.planAction} onClick={() => onViewItinerary(item)} iconEnd="arrow">

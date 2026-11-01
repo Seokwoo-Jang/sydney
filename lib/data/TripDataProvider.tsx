@@ -2,6 +2,7 @@
 // Owns the single repository, session, snapshot, Realtime subscription and
 // clock offset. Board and tab layouts read the same store (plan §4.5).
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { unsubscribeThisDevice } from '../push';
 import type { ResourceLink, SaveResult, Trip, TripBudget } from '../types';
 import { createLocationController, type LocationActions } from './location';
 import {
@@ -151,6 +152,8 @@ function createActions(store: TripStore): { actions: TripActions; startLocationW
       const r = repo();
       loadSeq++;
       try {
+        // This browser stops getting pushes; leave_trip deletes its row (plan §8.5). Never throws.
+        await unsubscribeThisDevice();
         await r?.leave();
       } finally {
         store.set((s) => ({

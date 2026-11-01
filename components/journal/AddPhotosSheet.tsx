@@ -1,7 +1,8 @@
 'use client';
-// Photos chosen for upload (plan §7.6.1): a preview and a note for each, then
-// one Upload. A photo that failed stays listed with an error so it can be retried.
-// Closing with notes typed (or several photos chosen) asks before discarding.
+// Photos chosen for upload (plan §7.6.1): a preview and its text for each, then
+// one Upload; each becomes a post by whoever uploads it. A photo that failed
+// stays listed with an error so it can be retried. Closing with text typed (or
+// several photos chosen) asks before discarding.
 import { useId, useState } from 'react';
 import { ConfirmDiscard } from '@/components/checklist/FormBits';
 import { Button, IconButton, Sheet, TextArea } from '@/components/ui';
@@ -84,13 +85,13 @@ export function AddPhotosSheet({
             <img src={p.url} alt={S.files.previewAlt(i + 1)} className={styles.pendingImg} decoding="async" draggable={false} />
             <div className={styles.pendingBody}>
               <label htmlFor={`${id}-${p.key}`} className={styles.pendingLabel}>
-                {S.journal.note}
+                {S.journal.text}
               </label>
               <TextArea
                 id={`${id}-${p.key}`}
                 rows={3}
                 className={styles.noteField}
-                placeholder={S.journal.notePrompt}
+                placeholder={S.journal.textPrompt}
                 value={p.note}
                 disabled={busy}
                 onChange={(e) => onNote(p.key, e.target.value)}

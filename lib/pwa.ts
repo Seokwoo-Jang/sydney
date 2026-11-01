@@ -56,6 +56,32 @@ export function registerServiceWorker(): void {
     });
 }
 
+/** This page's registration, if any. Never waits (development has none). */
+export async function getRegistration(): Promise<ServiceWorkerRegistration | null> {
+  if (typeof navigator === 'undefined' || !('serviceWorker' in navigator)) return null;
+  try {
+    return (await navigator.serviceWorker.getRegistration()) ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/** The active registration (registers first if needed); null when none is active within `timeoutMs`. */
+export async function serviceWorkerReady(timeoutMs = 10_000): Promise<ServiceWorkerRegistration | null> {
+  if (typeof navigator === 'undefined' || !('serviceWorker' in navigator)) return null;
+  registerServiceWorker();
+  if (process.env.NODE_ENV !== 'production' && !(await getRegistration())) return null;
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<null>((resolve) => {
+    timer = setTimeout(() => resolve(null), timeoutMs);
+  });
+  try {
+    return await Promise.race([navigator.serviceWorker.ready, timeout]);
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 /** True while a new version waits. Never reloads by itself: the user taps Refresh. */
 export function useUpdateReady(): { ready: boolean; apply: () => void } {
   const ready = useSyncExternalStore(

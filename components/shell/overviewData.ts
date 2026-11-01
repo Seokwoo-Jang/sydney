@@ -2,9 +2,10 @@
 // Derived numbers for the overview strip and Prelude teaser. Computed from the
 // source rows, never stored (plan §10).
 import { useMemo } from 'react';
+import { approxFlags, hasBudget } from '@/components/budget/budgetCalc';
 import { countDue } from '@/components/checklist/due';
 import { useDueContext } from '@/components/checklist/useDueContext';
-import { useBudget, useChecklist, useDays, useItinerary, useJournal, useLibrary, usePrelude, useServerNow, useTrip } from '@/lib/data';
+import { useAssets, useBudget, useChecklist, useDays, useItinerary, useLibrary, usePrelude, useServerNow, useTrip } from '@/lib/data';
 import { useCountdown } from '@/lib/hooks/useCountdown';
 import { useCurrencyFirst } from '@/lib/hooks/useCurrencyFirst';
 import { formatMoney, summarizeBudget } from '@/lib/money';
@@ -13,7 +14,7 @@ import { SYDNEY_TZ, formatDayLabel, zonedDate } from '@/lib/time/zone';
 import type { Currency, ItineraryItem, PreludeActivity, TripDay } from '@/lib/types';
 import { countdownText } from './countdownText';
 
-/** Whole units for the strip: 'A$1,111', '1,013,750₩'. */
+/** Whole units for the strip: 'A$1,111', '₩1,013,750'. */
 function compactMoney(minor: number, c: Currency, approx: boolean): string {
   const rounded = c === 'AUD' ? Math.round(minor / 100) * 100 : minor;
   return formatMoney(rounded, c, { approx }).replace(/\.00$/, '');
@@ -36,7 +37,7 @@ export function useOverviewSummary(): OverviewSummary {
   const checklist = useChecklist();
   const budget = useBudget();
   const library = useLibrary();
-  const journal = useJournal();
+  const assets = useAssets();
   const days = useDays();
   const trip = useTrip();
   const countdown = useCountdown();
@@ -82,9 +83,16 @@ export function useOverviewSummary(): OverviewSummary {
       scope: 'all',
     });
     const key = first === 'AUD' ? 'aud' : 'krw';
-    const spent = compactMoney(sum.spent[key], first, first === 'KRW' && sum.approx);
-    if (!budget.data.budgets.length) return { value: spent, sub: S.overview.noBudget };
-    return { value: spent, sub: S.overview.budgetSub(compactMoney(sum.budget[key], first, sum.approx)) };
+    if (!hasBudget(budget.data.budgets, 'all')) {
+      return { value: compactMoney(sum.spent[key], first, first === 'KRW' && sum.approx), sub: S.overview.noBudget };
+    }
+    // Three lines like every summary: Budget / what is left / Remaining (or Over budget).
+    const flags = approxFlags({ budgets: budget.data.budgets, expenses: budget.data.expenses, latest: budget.data.latestFx, scope: 'all', display: first });
+    const left = sum.remaining[key];
+    return {
+      value: compactMoney(Math.abs(left), first, flags.remaining),
+      sub: left < 0 ? S.overview.budgetOver : S.overview.budgetRemaining,
+    };
   }, [budget, first]);
 
   const links = useMemo<SummaryCell | null>(() => {
@@ -94,13 +102,15 @@ export function useOverviewSummary(): OverviewSummary {
   }, [library]);
 
   const journalCell = useMemo<SummaryCell | null>(() => {
-    if (journal.status !== 'ready' || days.status !== 'ready') return null;
-    const written = new Set(journal.data.filter((e) => e.body.trim()).map((e) => e.dayId)).size;
+    if (assets.status !== 'ready' || days.status !== 'ready') return null;
+    // Days with at least one photo post (the Journal is photos with their text).
+    const dayIds = new Set(days.data.map((d) => d.id));
+    const withPhotos = new Set(assets.data.filter((a) => a.kind === 'photo' && a.dayId && dayIds.has(a.dayId)).map((a) => a.dayId)).size;
     return {
-      value: S.overview.journalValue(written, days.data.length),
-      sub: written ? S.overview.journalSome(written) : S.overview.journalEmpty,
+      value: S.overview.journalValue(withPhotos, days.data.length),
+      sub: withPhotos ? S.overview.journalSome(withPhotos) : S.overview.journalEmpty,
     };
-  }, [journal, days]);
+  }, [assets, days]);
 
   return { ready, days: daysCell, wallet, links, journal: journalCell };
 }

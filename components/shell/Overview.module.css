@@ -345,3 +345,62 @@
     display: none;
   }
 }
+
+/* ── shortcuts (phone landing) ─────────────── */
+.shortcuts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--s1);
+}
+
+/* Five cards: the last one takes the full row. */
+.shortcut:last-child {
+  grid-column: 1 / -1;
+}
+
+.shortcut {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 104px;
+  padding: 14px 16px;
+  border-radius: var(--radius-card);
+  background: var(--porcelain);
+  box-shadow: var(--shadow-card);
+  color: var(--ink);
+  text-decoration: none;
+  transition: background-color var(--motion-fast) var(--ease);
+}
+
+.shortcut:active {
+  background: var(--paper);
+}
+
+.shortcut:focus-visible {
+  outline: 2px solid var(--harbour);
+  outline-offset: 2px;
+}
+
+.shortcutHead {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  font-size: var(--text-xs);
+}
+
+.shortcutIcon {
+  flex: none;
+  color: var(--harbour);
+}
+
+.shortcutLabel {
+  flex: none;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.shortcut .stripValue {
+  margin-top: auto;
+  padding-top: var(--s1);
+}

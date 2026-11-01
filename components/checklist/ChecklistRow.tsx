@@ -93,7 +93,7 @@ export function ChecklistRow({
           <span>{assigneeLabel(item.assignee)}</span>
         </span>
         {meta.map((m) => (
-          <span key={m.key} className={m.tone ? styles[m.tone] : undefined}>
+          <span key={m.key} className={[m.tone ? styles[m.tone] : '', m.key === 'pri' ? styles.priority : ''].filter(Boolean).join(' ') || undefined}>
             {m.text}
           </span>
         ))}

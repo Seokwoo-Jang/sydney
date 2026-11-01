@@ -3,7 +3,7 @@
 //   { status: 'loading' | 'ready' | 'error', data, error, retry } + mutations.
 // `data` is non-null only when status === 'ready' (narrow on status).
 // Mutations resolve to SaveResult; show "Saved" only when result.ok (plan §8.2).
-import { useCallback, useMemo, useSyncExternalStore } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import type {
   Booking,
   ChecklistItem,
@@ -14,6 +14,8 @@ import type {
   JournalEntry,
   Member,
   PreludeActivity,
+  PushDevice,
+  PushKind,
   Resource,
   ResourceLink,
   SaveResult,
@@ -25,11 +27,13 @@ import type {
 } from '../types';
 import {
   RepositoryError,
+  toDataError,
   type DataError,
   type EnterResult,
   type EntityName,
   type EntityRowMap,
   type NewRow,
+  type PushSubscriptionInput,
   type ResolvedMapLink,
   type RowPatch,
   type TripPatch,
@@ -359,6 +363,114 @@ export function useLocations(): LocationsApi {
       reload: actions.reloadLocations,
     }),
     [location, actions],
+  );
+}
+
+// ── push notifications (plan §8.5) ───────────────────────────────
+export type PushWrite = { ok: true } | { ok: false; message: string };
+
+export interface PushDevicesApi {
+  /** `unavailable`: no data source keeps devices here (signed out, or not connected). */
+  status: 'unavailable' | 'loading' | 'ready' | 'error';
+  /** The signed-in profile's devices, oldest first. Kept while a refresh runs or fails. */
+  devices: PushDevice[];
+  error: DataError | null;
+  refresh(): Promise<void>;
+  /** Saves this browser for the signed-in profile. Throws RepositoryError. */
+  save(input: PushSubscriptionInput): Promise<PushDevice>;
+  /** Per-device kinds. Only the newest call for a device updates the list. */
+  setKinds(id: string, kinds: PushKind[]): Promise<PushWrite>;
+  remove(id: string): Promise<PushWrite>;
+}
+
+type PushListState = { status: 'loading' | 'ready' | 'error'; devices: PushDevice[]; error: DataError | null };
+const PUSH_LOADING: PushListState = { status: 'loading', devices: [], error: null };
+
+/** Devices are not part of the snapshot: loaded when the hook mounts and after each save. */
+export function usePushDevices(): PushDevicesApi {
+  const { store } = useTripDataContext();
+  const available = useSelect((s) => !!s.repo && s.repo.kind !== 'unconnected' && s.session.status === 'signed_in');
+  const memberId = useSelect((s) => s.session.member?.id ?? null);
+  const [state, setState] = useState<PushListState>(PUSH_LOADING);
+  const loadSeq = useRef(0);
+  const kindSeq = useRef(new Map<string, number>());
+
+  const repo = useCallback(() => {
+    const r = store.get().repo;
+    if (!r) throw new RepositoryError('not_connected', 'Not ready yet.');
+    return r;
+  }, [store]);
+
+  const refresh = useCallback(async () => {
+    const n = ++loadSeq.current;
+    try {
+      const devices = await repo().listPushDevices();
+      if (n === loadSeq.current) setState({ status: 'ready', devices, error: null });
+    } catch (e) {
+      if (n === loadSeq.current) setState((s) => ({ status: 'error', devices: s.devices, error: toDataError(e) }));
+    }
+  }, [repo]);
+
+  useEffect(() => {
+    if (!available) return;
+    setState(PUSH_LOADING); // another profile may have entered on this browser
+    void refresh();
+  }, [available, memberId, refresh]);
+
+  const save = useCallback(
+    async (input: PushSubscriptionInput) => {
+      const row = await repo().savePushSubscription(input);
+      setState((s) => ({
+        ...s,
+        devices: [...s.devices.filter((d) => d.id !== row.id && d.endpoint !== row.endpoint), row],
+      }));
+      void refresh(); // the server may also have dropped this browser's row of the other profile
+      return row;
+    },
+    [repo, refresh],
+  );
+
+  const setKinds = useCallback(
+    async (id: string, kinds: PushKind[]): Promise<PushWrite> => {
+      const n = (kindSeq.current.get(id) ?? 0) + 1;
+      kindSeq.current.set(id, n);
+      try {
+        const row = await repo().setPushKinds(id, kinds);
+        if (kindSeq.current.get(id) === n) setState((s) => ({ ...s, devices: s.devices.map((d) => (d.id === id ? row : d)) }));
+        return { ok: true };
+      } catch (e) {
+        // An earlier request may have saved, or the device may be gone: show what the server has.
+        if (kindSeq.current.get(id) === n) void refresh();
+        return { ok: false, message: toDataError(e).message };
+      }
+    },
+    [repo, refresh],
+  );
+
+  const remove = useCallback(
+    async (id: string): Promise<PushWrite> => {
+      try {
+        await repo().removePushDevice(id);
+        setState((s) => ({ ...s, devices: s.devices.filter((d) => d.id !== id) }));
+        return { ok: true };
+      } catch (e) {
+        return { ok: false, message: toDataError(e).message };
+      }
+    },
+    [repo],
+  );
+
+  return useMemo(
+    () => ({
+      status: available ? state.status : 'unavailable',
+      devices: available ? state.devices : [],
+      error: available ? state.error : null,
+      refresh,
+      save,
+      setKinds,
+      remove,
+    }),
+    [available, state, refresh, save, setKinds, remove],
   );
 }
 

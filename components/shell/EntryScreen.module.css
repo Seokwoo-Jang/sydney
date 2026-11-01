@@ -83,3 +83,64 @@
     font-size: 22px;
   }
 }
+
+/* ── first-visit guide (phones) ────────────── */
+.guide {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s2-5);
+}
+
+.guideHeading {
+  font-family: var(--font-serif);
+  font-size: var(--title-xs);
+  font-weight: 500;
+  line-height: 1.15;
+}
+
+.guideBlock {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--s1);
+}
+
+.guideBlock > button:not([role]) {
+  align-self: flex-start;
+}
+
+.guideTitle {
+  font-size: var(--text-base);
+  font-weight: 600;
+}
+
+.guideText {
+  font-size: var(--text-sm);
+  color: var(--muted);
+}
+
+.guideNote {
+  font-size: var(--text-xs);
+  color: var(--muted);
+}
+
+.steps,
+.kinds {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding-left: 1.3em;
+  font-size: var(--text-sm);
+  line-height: 1.45;
+  color: var(--ink);
+}
+
+.steps li::marker {
+  font-weight: 600;
+  color: var(--harbour);
+}
+
+.kinds li::marker {
+  color: var(--brass);
+}

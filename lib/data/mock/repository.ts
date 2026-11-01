@@ -7,7 +7,18 @@
 //   ?as=eren|amy            enter automatically (screenshots)
 //   ?mockLatency=0          override the ~300ms latency
 // Console: __sydneyMock.simulateRemoteEdit('itinerary', 'it-d2-arcade', { title: '…' })
-import type { FileAsset, LiveLocation, Member, ProfileKey, ResourceLink, SaveResult, Trip, TripBudget } from '../../types';
+import type {
+  FileAsset,
+  LiveLocation,
+  Member,
+  ProfileKey,
+  PushDevice,
+  PushKind,
+  ResourceLink,
+  SaveResult,
+  Trip,
+  TripBudget,
+} from '../../types';
 import { SYDNEY_TZ, zonedToInstant } from '../../time/zone';
 import {
   RepositoryError,
@@ -19,6 +30,7 @@ import {
   type LocationFix,
   type LocationsSnapshot,
   type NewRow,
+  type PushSubscriptionInput,
   type ResolvedMapLink,
   type RowPatch,
   type TripPatch,
@@ -60,6 +72,16 @@ function offsetFor(nowOverride: string | null): number {
 
 const clone = <T,>(v: T): T => structuredClone(v);
 
+/** A stored example device without its owner column (the client never reads it). */
+const deviceOf = (d: PushDevice & { memberId: string }): PushDevice => ({
+  id: d.id,
+  endpoint: d.endpoint,
+  deviceLabel: d.deviceLabel,
+  enabledKinds: [...d.enabledKinds],
+  createdAt: d.createdAt,
+  lastSuccessAt: d.lastSuccessAt,
+});
+
 function readStoredProfile(): ProfileKey | null {
   try {
     return normalizeEntryName(window.sessionStorage.getItem(SESSION_KEY) ?? '');
@@ -97,6 +119,8 @@ class MockRepository implements TripRepository, MockControls {
   private files = new Map<string, string>();
   private sessionId = `mock-session-${newId()}`;
   private locations: LiveLocation[];
+  /** Example devices only (fictional endpoints). */
+  private pushDevices: Array<PushDevice & { memberId: string }>;
 
   constructor(options: MockOptions) {
     this.options = options;
@@ -122,6 +146,20 @@ class MockRepository implements TripRepository, MockControls {
               sharingSessionId: 'mock-other-device',
             },
           ];
+    // Example only: each profile already has one other device on the list.
+    const allKinds: PushKind[] = ['schedule', 'flights_car', 'partner_updates', 'countdown'];
+    this.pushDevices =
+      options.forced === 'empty'
+        ? []
+        : (['eren', 'amy'] as const).map((key) => ({
+            id: `mock-push-${key}`,
+            memberId: MEMBERS[key].id,
+            endpoint: `https://push.example.invalid/${key}-1`,
+            deviceLabel: key === 'eren' ? 'Android phone (Chrome)' : 'iPhone',
+            enabledKinds: allKinds,
+            createdAt: '2030-10-31T01:00:00.000Z',
+            lastSuccessAt: null,
+          }));
   }
 
   private delay(): Promise<void> {
@@ -372,6 +410,48 @@ class MockRepository implements TripRepository, MockControls {
     await this.delay();
     this.locations = this.locations.filter((l) => l.memberId !== this.member?.id);
     this.emit({ type: 'changed', entity: 'liveLocations' });
+  }
+
+  // ── push notifications ──
+  async listPushDevices(): Promise<PushDevice[]> {
+    await this.delay();
+    if (!this.member) throw new RepositoryError('unknown', 'Not entered.');
+    const me = this.member.id;
+    return this.pushDevices
+      .filter((d) => d.memberId === me)
+      .sort((a, b) => a.createdAt.localeCompare(b.createdAt))
+      .map(deviceOf);
+  }
+
+  async savePushSubscription(input: PushSubscriptionInput): Promise<PushDevice> {
+    await this.delay();
+    if (!this.member) throw new RepositoryError('unknown', 'Not entered.');
+    if (!/^https:\/\//.test(input.endpoint)) throw new RepositoryError('unknown', 'Invalid endpoint.');
+    // Same endpoint = same browser, whoever held it before.
+    const row = {
+      id: newId(),
+      memberId: this.member.id,
+      endpoint: input.endpoint,
+      deviceLabel: input.deviceLabel,
+      enabledKinds: [...input.enabledKinds],
+      createdAt: this.nowIso(),
+      lastSuccessAt: null,
+    };
+    this.pushDevices = [...this.pushDevices.filter((d) => d.endpoint !== input.endpoint), row];
+    return deviceOf(row);
+  }
+
+  async setPushKinds(id: string, kinds: PushKind[]): Promise<PushDevice> {
+    await this.delay();
+    const i = this.pushDevices.findIndex((d) => d.id === id && d.memberId === this.member?.id);
+    if (i < 0) throw new RepositoryError('unknown', 'This device is no longer on the list.');
+    this.pushDevices[i] = { ...this.pushDevices[i], enabledKinds: [...kinds] };
+    return deviceOf(this.pushDevices[i]);
+  }
+
+  async removePushDevice(id: string): Promise<void> {
+    await this.delay();
+    this.pushDevices = this.pushDevices.filter((d) => !(d.id === id && d.memberId === this.member?.id));
   }
 
   // ── dev controls ──

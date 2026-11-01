@@ -1,7 +1,7 @@
 'use client';
 // Overview pieces: PC short cover + Prelude mini card + summary strip;
-// mobile hero + Prelude card; compact per-tab cover.
-import { Button } from '@/components/ui';
+// mobile hero + Prelude card + shortcuts; compact per-tab cover.
+import { Button, Icon } from '@/components/ui';
 import { useTrip } from '@/lib/data';
 import { useCountdown } from '@/lib/hooks/useCountdown';
 import { S, formatTripRange } from '@/lib/strings';
@@ -10,7 +10,7 @@ import { PIANO_IMAGE, hrefFor, publicAsset, type SectionKey } from '@/lib/url';
 import { countdownText } from './countdownText';
 import { useNextPlan, useOverviewSummary, type SummaryCell } from './overviewData';
 import { useShellNav } from './ShellNav';
-import { menuLabel, type TabKey } from './sections';
+import { TAB_ICON, menuLabel, type TabKey } from './sections';
 import { TimeOfDayBackdrop } from './TimeOfDayBackdrop';
 import styles from './Overview.module.css';
 
@@ -197,6 +197,33 @@ export function SummaryStrip() {
           <span className={styles.stripLabel}>
             <span>{menuLabel(key)}</span>
             <span className={styles.stripAside}>{aside}</span>
+          </span>
+          <StripValue cell={summary[key]} />
+        </a>
+      ))}
+    </nav>
+  );
+}
+
+/** Phone landing: the same five summaries as cards that open each list. */
+export function MobileShortcuts() {
+  const summary = useOverviewSummary();
+  const { goToSection } = useShellNav();
+  return (
+    <nav className={styles.shortcuts} aria-label={S.overview.stripLabel}>
+      {STRIP.map(({ key }) => (
+        <a
+          key={key}
+          href={hrefFor({ section: key, view: null, item: null })}
+          className={styles.shortcut}
+          onClick={(e) => {
+            e.preventDefault();
+            goToSection(key);
+          }}
+        >
+          <span className={styles.shortcutHead}>
+            <Icon name={TAB_ICON[key]} size={18} className={styles.shortcutIcon} />
+            <span className={styles.shortcutLabel}>{menuLabel(key)}</span>
           </span>
           <StripValue cell={summary[key]} />
         </a>

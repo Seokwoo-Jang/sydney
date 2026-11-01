@@ -13,6 +13,8 @@ import type {
   LiveLocation,
   Member,
   PreludeActivity,
+  PushDevice,
+  PushKind,
   Resource,
   ResourceLink,
   RowMeta,
@@ -113,6 +115,15 @@ export interface ResolvedMapLink {
   name: string | null;
 }
 
+/** This browser's Web Push subscription (plan §8.5). Keys are base64url. */
+export interface PushSubscriptionInput {
+  endpoint: string;
+  p256dh: string;
+  auth: string;
+  deviceLabel: string;
+  enabledKinds: PushKind[];
+}
+
 export interface UploadFile {
   /** File name inside the new folder (sanitised by the repository). */
   name: string;
@@ -204,4 +215,12 @@ export interface TripRepository {
   stopSharing(): Promise<LiveLocation | null>;
   /** Deletes the profile's row. */
   clearMyLocation(): Promise<void>;
+
+  // ── push notifications (plan §8.5). Throw RepositoryError on failure ──
+  /** The signed-in profile's devices, oldest first. */
+  listPushDevices(): Promise<PushDevice[]>;
+  /** Saves this browser for the signed-in profile; replaces any row with the same endpoint. */
+  savePushSubscription(input: PushSubscriptionInput): Promise<PushDevice>;
+  setPushKinds(id: string, kinds: PushKind[]): Promise<PushDevice>;
+  removePushDevice(id: string): Promise<void>;
 }

@@ -144,11 +144,22 @@
   border-radius: var(--radius-button);
 }
 
+/* The current tab: icon on a Sky Wash lozenge, label in Ink and bolder. */
+.tabIcon {
+  display: grid;
+  place-items: center;
+  width: 52px;
+  height: 28px;
+  border-radius: 14px;
+  transition: background-color var(--motion) var(--ease);
+}
+
 .tab[aria-current] {
   color: var(--ink);
 }
 
-.tab[aria-current] svg {
+.tab[aria-current] .tabIcon {
+  background: var(--sky);
   color: var(--harbour);
 }
 
@@ -157,6 +168,16 @@
   font-weight: 500;
   line-height: 1.2;
   white-space: nowrap; /* never truncate or wrap */
+}
+
+.tab[aria-current] .tabLabel {
+  font-weight: 700;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tabIcon {
+    transition: none;
+  }
 }
 
 @media (max-width: 340px) {

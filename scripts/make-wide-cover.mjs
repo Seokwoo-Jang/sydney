@@ -3,7 +3,10 @@
 // (sail tops to the harbour wall with the gulls) only at a fraction of its
 // width. This keeps that part of the photo untouched on the right and extends
 // the sky / shoreline / water to the left from the photo's own left-edge
-// colours, feathered into the photo. The left side sits under the text overlay.
+// colours. Only the seam is softened: the photo's own left band (before the
+// building) blurs more towards its edge and cross-fades into that gradient, so
+// there is no vertical line and nothing is stretched sideways (owner,
+// 2026-11-01). The left side sits under the text overlay.
 //
 //   node scripts/make-wide-cover.mjs [source.jpg]
 import sharp from 'sharp';
@@ -14,7 +17,8 @@ const H = 560; // ~2.5x the 220px cover
 const W = 2920; // wider than any cover box (≈5.2:1), so it is always fitted by height
 const CROP = { top: 0.035, bottom: 0.9 }; // sail tops … gulls on the harbour wall
 const SAMPLE = 0.05; // left-edge band the extension colours come from
-const FEATHER = 0.14; // photo fade-in, as a share of the photo width
+const BAND = 0.18; // left share of the photo used for the fade (stops before the building)
+const BLUR = [0, 2, 5, 9, 14]; // sigma inside that band, inner edge → seam
 
 const meta = await sharp(SRC).metadata();
 const top = Math.round(meta.height * CROP.top);
@@ -56,19 +60,39 @@ const edge = Array.from({ length: H }, (_, y) => {
   return mix(c0, c1, u * u * (3 - 2 * u));
 });
 
+// Blurred copies of the photo's left band; inside it the photo blurs towards the seam
+// and fades into the gradient (smoothstep), right of it the photo is untouched.
+const B = Math.round(pw * BAND);
+const strip = Buffer.alloc(B * H * 3);
+for (let y = 0; y < H; y++) px.copy(strip, y * B * 3, y * pw * 3, (y * pw + B) * 3);
+const levels = await Promise.all(
+  BLUR.map((sigma) => (sigma ? sharp(strip, { raw: { width: B, height: H, channels: 3 } }).blur(sigma).raw().toBuffer() : strip)),
+);
+
 const out = Buffer.alloc(W * H * 3);
-const feather = Math.round(pw * FEATHER);
 for (let y = 0; y < H; y++) {
   for (let x = 0; x < W; x++) {
     const o = (y * W + x) * 3;
-    if (x < E) {
+    const c = x - E; // column in the photo
+    if (c < 0) {
       for (let k = 0; k < 3; k++) out[o + k] = edge[y][k];
       continue;
     }
-    const a = Math.min(1, (x - E) / feather);
-    const t = a * a * (3 - 2 * a); // smoothstep
-    const p = (y * pw + (x - E)) * 3;
-    for (let k = 0; k < 3; k++) out[o + k] = edge[y][k] * (1 - t) + px[p + k] * t;
+    if (c >= B) {
+      const p = (y * pw + c) * 3;
+      for (let k = 0; k < 3; k++) out[o + k] = px[p + k];
+      continue;
+    }
+    const u = c / B; // 0 at the seam … 1 at the inner edge of the band
+    const keep = u * u * (3 - 2 * u); // photo share
+    const l = (1 - u) * (BLUR.length - 1); // more blur towards the seam
+    const i = Math.min(BLUR.length - 2, Math.floor(l));
+    const f = l - i;
+    const r = (y * B + c) * 3;
+    for (let k = 0; k < 3; k++) {
+      const tex = levels[i][r + k] * (1 - f) + levels[i + 1][r + k] * f;
+      out[o + k] = tex * keep + edge[y][k] * (1 - keep);
+    }
   }
 }
 
