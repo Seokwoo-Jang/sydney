@@ -19,8 +19,9 @@ export interface SheetProps {
   title: ReactNode;
   /** Optional line under the title. */
   description?: ReactNode;
-  /** `wide`: large PC panel (journal). `full`: full-screen on mobile, wide panel on PC. */
-  size?: 'default' | 'wide' | 'full';
+  /** `wide`: large PC panel (journal). `full`: full-screen on mobile, wide panel on PC.
+   *  `center`: bottom sheet on mobile, a centred card on PC (How to Use). */
+  size?: 'default' | 'wide' | 'full' | 'center';
   /** Sticky footer (save/cancel) that stays reachable above the keyboard. */
   footer?: ReactNode;
   /** Header slot next to the close button (e.g. SaveStatus). */
@@ -96,7 +97,7 @@ export function Sheet({ open, onClose, title, description, size = 'default', foo
   if (!open || !layer) return null;
 
   return createPortal(
-    <div className={styles.layer}>
+    <div className={[styles.layer, size === 'center' ? styles.layerCenter : ''].join(' ')}>
       <div className={styles.backdrop} aria-hidden="true" onClick={() => closeRef.current()} />
       <div
         ref={panelRef}

@@ -1,0 +1,120 @@
+/* How to Use: one line per section. */
+.list {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.item {
+  display: grid;
+  grid-template-columns: 36px minmax(0, 1fr);
+  gap: var(--s1-5);
+  align-items: center;
+  padding: 12px 0;
+  border-top: 1px solid var(--line);
+}
+
+.item:first-child {
+  border-top: 0;
+  padding-top: 0;
+}
+
+.icon {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: var(--sky);
+  color: var(--harbour);
+}
+
+.item[data-prelude] .icon {
+  background: var(--sand);
+  color: var(--brass-deep);
+}
+
+.text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.name {
+  font-weight: 600;
+  font-size: var(--text-md);
+}
+
+.item[data-prelude] .name {
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-weight: 500;
+  font-size: 17px;
+  color: var(--brass-deep);
+}
+
+.line {
+  font-size: var(--text-sm);
+  color: var(--ink-soft);
+}
+
+.note {
+  margin-top: var(--s2);
+  padding-top: var(--s1-5);
+  border-top: 1px solid var(--line);
+  font-size: var(--text-sm);
+  color: var(--muted);
+}
+
+/* Phone card at the bottom of the main screen. */
+.card {
+  display: grid;
+  grid-template-columns: 36px minmax(0, 1fr) 18px;
+  gap: var(--s1-5);
+  align-items: center;
+  width: 100%;
+  min-height: 64px;
+  padding: var(--s1-5) var(--s2);
+  border: 0;
+  border-radius: var(--radius-card);
+  background: var(--porcelain);
+  box-shadow: var(--shadow-card);
+  color: var(--ink);
+  text-align: left;
+}
+
+.cardIcon {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: var(--sky);
+  color: var(--harbour);
+}
+
+.cardText {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.cardTitle {
+  font-family: var(--font-serif);
+  font-size: var(--title-xs);
+  font-weight: 500;
+  line-height: var(--leading-tight);
+}
+
+.cardSub {
+  font-size: var(--text-sm);
+  color: var(--muted);
+}
+
+.cardArrow {
+  color: var(--muted);
+}

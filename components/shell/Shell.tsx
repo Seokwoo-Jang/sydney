@@ -17,6 +17,7 @@ import { sectionLayout, useLayoutMode, type LayoutMode } from '@/lib/hooks/useLa
 import { useReducedMotion } from '@/lib/hooks/useReducedMotion';
 import { S } from '@/lib/strings';
 import { useUrlState, type BoardSectionKey, type SectionKey } from '@/lib/url';
+import { HowToUseSheet } from './HowToUse';
 import { CompactCover } from './Overview';
 import { usePreludeDotToday } from './overviewData';
 import { BottomNav, ItinerarySubnav, SectionLinks, Toc } from './SectionNav';
@@ -79,6 +80,8 @@ function ShellLayout({ mode }: { mode: LayoutMode }) {
 
   // ── board: scroll-to + scroll-spy ───────────────────────────────
   const [activeBoard, setActiveBoard] = useState<BoardSectionKey>(url.section ?? 'overview');
+  const [guideOpen, setGuideOpen] = useState(false);
+  const openGuide = useCallback(() => setGuideOpen(true), []);
   const spy = useRef<{ pinned: boolean; baseline: BoardSectionKey | null; ready: boolean }>({
     pinned: false,
     baseline: null,
@@ -192,7 +195,7 @@ function ShellLayout({ mode }: { mode: LayoutMode }) {
     },
     [layout, push, scrollToKey],
   );
-  const navApi = useMemo<ShellNavApi>(() => ({ layout, goToSection }), [layout, goToSection]);
+  const navApi = useMemo<ShellNavApi>(() => ({ layout, goToSection, openGuide }), [layout, goToSection, openGuide]);
 
   const onSelectTab = (tab: TabKey) => {
     if (tab === activeTab && !landing) {
@@ -231,9 +234,9 @@ function ShellLayout({ mode }: { mode: LayoutMode }) {
               {tabs && activeTab === 'days' ? (
                 <ItinerarySubnav value={itineraryView} onChange={(v) => goToSection(v)} preludeDot={preludeDot} />
               ) : null}
-              {mode === 'board' ? <SectionLinks active={activeBoard} onNavigate={(k) => goToSection(k === 'overview' ? null : k)} /> : null}
+              {mode === 'board' ? <SectionLinks active={activeBoard} onNavigate={(k) => goToSection(k === 'overview' ? null : k)} onGuide={openGuide} /> : null}
               <div className={styles.board}>
-                {mode === 'wide' ? <Toc active={activeBoard} onNavigate={(k) => goToSection(k === 'overview' ? null : k)} /> : null}
+                {mode === 'wide' ? <Toc active={activeBoard} onNavigate={(k) => goToSection(k === 'overview' ? null : k)} onGuide={openGuide} /> : null}
                 <div className={styles.grid}>
                   {SLOTS.map((key) => {
                     const Section = SECTION_COMPONENTS[key];
@@ -250,6 +253,7 @@ function ShellLayout({ mode }: { mode: LayoutMode }) {
         </div>
         {tabs && !dataError ? <BottomNav active={activeTab} onSelect={onSelectTab} /> : null}
       </div>
+      <HowToUseSheet open={guideOpen} onClose={() => setGuideOpen(false)} />
     </ShellNavContext.Provider>
   );
 }

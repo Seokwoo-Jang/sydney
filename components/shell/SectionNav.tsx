@@ -10,13 +10,15 @@ import styles from './SectionNav.module.css';
 interface BoardNavProps {
   active: BoardSectionKey;
   onNavigate: (key: BoardSectionKey) => void;
+  /** Opens How to Use (a button after the section links, not a section). */
+  onGuide: () => void;
 }
 
 function hrefOf(key: BoardSectionKey) {
   return hrefFor({ section: key === 'overview' ? null : key, view: null, item: null });
 }
 
-function BoardLinks({ active, onNavigate, variant }: BoardNavProps & { variant: 'toc' | 'links' }) {
+function BoardLinks({ active, onNavigate, onGuide, variant }: BoardNavProps & { variant: 'toc' | 'links' }) {
   return (
     <ul role="list" className={variant === 'toc' ? styles.tocList : styles.linksList}>
       {BOARD_ORDER.map((key) => (
@@ -35,6 +37,11 @@ function BoardLinks({ active, onNavigate, variant }: BoardNavProps & { variant: 
           </a>
         </li>
       ))}
+      <li className={styles.guideItem}>
+        <button type="button" className={[styles.link, styles.guide].join(' ')} onClick={onGuide}>
+          {S.guide.title}
+        </button>
+      </li>
     </ul>
   );
 }

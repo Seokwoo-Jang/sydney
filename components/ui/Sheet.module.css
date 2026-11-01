@@ -132,6 +132,21 @@
   .footer {
     padding: var(--s2) var(--s3);
   }
+
+  /* A centred card instead of the side panel. */
+  .layerCenter {
+    justify-content: center;
+    align-items: center;
+    padding: var(--s3);
+  }
+
+  .center {
+    width: min(560px, 100%);
+    height: auto;
+    max-height: min(86dvh, 760px);
+    border-radius: var(--radius-card-lg);
+    animation-name: sheet-up;
+  }
 }
 
 @keyframes fade-in {

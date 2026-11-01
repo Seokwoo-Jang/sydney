@@ -77,6 +77,23 @@ export const S = {
   },
 
   // ── shared: navigation chrome ───────────────────────────────
+  // ── How to Use: one plain line per section ─────────────────
+  guide: {
+    title: 'How to Use',
+    intro: 'What each part of the app is for.',
+    cardSub: 'What each part of the app is for',
+    lines: {
+      overview: 'The countdown, today’s plans and a quick look at everything.',
+      days: 'Our plans day by day. Tap one for details and the map.',
+      ready: 'What to pack, what to do before we go, and our bookings.',
+      wallet: 'What we spend, who paid, and what’s left, in AUD and KRW.',
+      prelude: 'Amy’s ideas for Sydney: people to meet and places to play.',
+      journal: 'Photos from each day, with a comment from each of us.',
+      links: 'Handy links, saved in one place.',
+    },
+    note: 'Anything you add or change shows up for both of us straight away.',
+  },
+
   nav: {
     toc: 'On this page',
     tabs: 'Sections',

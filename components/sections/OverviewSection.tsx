@@ -1,13 +1,16 @@
 'use client';
 // Overview = top of the board (PC) or the mobile landing hero. Built from
 // shell pieces so the cover, countdown and summaries stay in one place.
+import { HowToUseCard } from '@/components/shell/HowToUse';
 import { InstallCard } from '@/components/shell/InstallCard';
+import { useShellNav } from '@/components/shell/ShellNav';
 import { MobileHero, MobileShortcuts, PreludeCard, PreludeMini, SummaryStrip, TripCover } from '@/components/shell/Overview';
 import { S } from '@/lib/strings';
 import type { SectionProps } from './types';
 import styles from './OverviewSection.module.css';
 
 export default function OverviewSection({ layout }: SectionProps) {
+  const { openGuide } = useShellNav();
   if (layout === 'board') {
     return (
       <section id="section-overview" aria-label={S.sections.overview.menu} className={styles.board}>
@@ -25,6 +28,7 @@ export default function OverviewSection({ layout }: SectionProps) {
       <PreludeCard />
       <MobileShortcuts />
       <InstallCard />
+      <HowToUseCard onOpen={openGuide} />
     </section>
   );
 }

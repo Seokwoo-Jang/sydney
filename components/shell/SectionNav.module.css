@@ -61,6 +61,35 @@
   color: var(--brass);
 }
 
+/* How to Use: opens a card, set a little apart from the section links. */
+.guideItem {
+  margin-top: var(--s1-5);
+  padding-top: var(--s1);
+  border-top: 1px solid var(--line);
+}
+
+.guide {
+  width: 100%;
+  border-top: 0;
+  border-right: 0;
+  border-bottom: 0;
+  background: none;
+  font: inherit;
+  font-size: var(--text-sm);
+  text-align: left;
+  cursor: pointer;
+}
+
+.linksList .guideItem {
+  margin: 0 0 0 auto;
+  padding: 0;
+  border-top: 0;
+}
+
+.linksList .guide {
+  width: auto;
+}
+
 /* ── sticky links (1024–1439) ─────────────── */
 .links {
   position: sticky;

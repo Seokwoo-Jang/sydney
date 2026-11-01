@@ -12,6 +12,8 @@ export interface ShellNavApi {
   layout: SectionLayout;
   /** `null` = overview. Clears `view`, `item` and `mark` unless given in `extra`; keeps `day`. */
   goToSection(section: SectionKey | null, extra?: Omit<UrlPatch, 'section'>): void;
+  /** Opens How to Use. */
+  openGuide(): void;
 }
 
 export const ShellNavContext = createContext<ShellNavApi | null>(null);
