@@ -123,13 +123,11 @@ export default function RouteMapCanvas(props: RouteMapCanvasProps) {
   useEffect(() => {
     const node = elRef.current;
     if (!node) return;
-    const map = L.map(node, { center: DEFAULT_CENTER, zoom: 11, zoomSnap: 0.5, scrollWheelZoom: false });
+    const map = L.map(node, { center: DEFAULT_CENTER, zoom: 11, zoomSnap: 0.5, scrollWheelZoom: true });
     map.attributionControl.setPrefix('<a href="https://leafletjs.com" target="_blank" rel="noopener noreferrer">Leaflet</a>');
     // Tiles come straight from OSM; nothing here (or in a service worker) caches them.
     L.tileLayer(TILE_URL, { maxZoom: 19, attribution: TILE_ATTRIBUTION }).addTo(map);
-    // Wheel zoom only after the map is clicked or focused, so the page keeps scrolling.
-    map.on('click focus', () => map.scrollWheelZoom.enable());
-    map.on('blur mouseout', () => map.scrollWheelZoom.disable());
+    // The mouse wheel zooms the map straight away (owner, 2026-11-01).
     map.on('zoomend', reoffset);
     // After any move (zoom, pan, focus, popup autopan): labels near the edge restack against the new view.
     map.on('moveend', relabel);

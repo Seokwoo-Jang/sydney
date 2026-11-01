@@ -71,12 +71,10 @@ export default function LiveMapCanvas({
     const node = elRef.current;
     if (!node) return;
     // The first view is set before the move listeners exist, so it is not taken for a person's pan.
-    const map = L.map(node, { zoomSnap: 0.5, scrollWheelZoom: false, attributionControl: true, center: [-33.8688, 151.2093], zoom: 12 });
+    const map = L.map(node, { zoomSnap: 0.5, scrollWheelZoom: true, attributionControl: true, center: [-33.8688, 151.2093], zoom: 12 });
     map.attributionControl.setPrefix('<a href="https://leafletjs.com" target="_blank" rel="noopener noreferrer">Leaflet</a>');
     // Tiles straight from OSM; never cached by the service worker.
     L.tileLayer(TILE_URL, { maxZoom: 19, attribution: TILE_ATTRIBUTION }).addTo(map);
-    map.on('click focus', () => map.scrollWheelZoom.enable());
-    map.on('blur mouseout', () => map.scrollWheelZoom.disable());
     // A pan or zoom by the person stops the automatic fitting.
     map.on('dragstart zoomstart', () => {
       if (programmatic.current) return;
