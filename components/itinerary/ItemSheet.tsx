@@ -513,6 +513,7 @@ export function ItemSheet({
           </>
         )}
 
+        {/* Who → Status → Category: every choice visible, one tap to pick (owner, 2026-11-01). */}
         <div className={styles.group}>
           <p className={styles.groupLabel} aria-hidden="true">
             {S.fields.participants}
@@ -526,21 +527,32 @@ export function ItemSheet({
           />
         </div>
 
-        <div className={styles.pair}>
-          <Field label={S.fields.category}>
-            <Select
-              value={draft.category}
-              onChange={(e) => set('category', e.target.value as ItineraryCategory)}
-              options={CATEGORIES.map((c) => ({ value: c, label: S.labels.itineraryCategory[c] }))}
-            />
-          </Field>
-          <Field label={S.fields.status}>
-            <Select
-              value={draft.status}
-              onChange={(e) => set('status', e.target.value as ItineraryStatus)}
-              options={(STATUSES.includes(draft.status) ? STATUSES : [...STATUSES, draft.status]).map((s) => ({ value: s, label: S.labels.itineraryStatus[s] }))}
-            />
-          </Field>
+        <div className={styles.group}>
+          <p className={styles.groupLabel} aria-hidden="true">
+            {S.fields.status}
+          </p>
+          <SegmentedControl<ItineraryStatus>
+            label={S.fields.status}
+            fill
+            value={draft.status}
+            onChange={(v) => set('status', v)}
+            options={(STATUSES.includes(draft.status) ? STATUSES : [...STATUSES, draft.status]).map((v) => ({ value: v, label: S.labels.itineraryStatus[v] }))}
+          />
+        </div>
+
+        <div className={styles.group}>
+          <p className={styles.groupLabel} aria-hidden="true">
+            {S.fields.category}
+          </p>
+          <SegmentedControl<ItineraryCategory>
+            label={S.fields.category}
+            fill
+            size="sm"
+            className={styles.categories}
+            value={draft.category}
+            onChange={(v) => set('category', v)}
+            options={CATEGORIES.map((c) => ({ value: c, label: S.labels.itineraryCategory[c] }))}
+          />
         </div>
 
         <Field label={S.fields.location} optional>

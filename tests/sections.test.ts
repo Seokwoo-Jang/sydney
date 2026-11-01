@@ -1,7 +1,7 @@
 // Checklist due dates, Budget view helpers, Library rules, Journal collage.
 // Fictional data only (trip year 2030).
 import { describe, expect, it } from 'vitest';
-import { approxFlags, categoryTotals, rateForDate, scopeForSplit, splitForParticipants, visibleExpenses } from '@/components/budget/budgetCalc';
+import { approxFlags, categoryTotals, rateForDate, scopeForSplit, splitForParticipants, visibleExpenses, splitForScope } from '@/components/budget/budgetCalc';
 import { countDue, dueState, progress, upcomingTasks, type DueContext } from '@/components/checklist/due';
 import { collageLayout, maxOverlapShare } from '@/components/journal/collageLayout';
 import { findDuplicate, hostOf, isHttpUrl, nextPinSlot, urlKey } from '@/components/library/libraryLogic';
@@ -201,5 +201,13 @@ describe('journal collage', () => {
     expect(layout.slots).toHaveLength(6);
     expect(layout.more).toBe(3);
     expect(collageLayout(photos(1)).slots[0].rotate).toBe(-1.5);
+  });
+});
+
+describe('splitForScope', () => {
+  it('follows the budget: Shared halves, Eren / Amy pays all', () => {
+    expect(splitForScope('shared')).toBe('equal');
+    expect(splitForScope('eren')).toBe('eren');
+    expect(splitForScope('amy')).toBe('amy');
   });
 });

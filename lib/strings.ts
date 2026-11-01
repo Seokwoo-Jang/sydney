@@ -752,6 +752,8 @@ export const S = {
     payerRequired: 'Choose who paid.',
     samePerson: 'Choose two different people.',
     noPayer: 'Not paid yet',
+    sharedHalves: 'Split evenly between the two of you.',
+    onePays: 'Counted in full for this person.',
   },
 
   // ── library (owned by the library builder) ──────────────────

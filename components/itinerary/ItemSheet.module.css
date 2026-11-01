@@ -102,3 +102,9 @@
   border: 0;
   min-width: 0;
 }
+
+/* Five categories on one row at 320-375px: narrower padding, segments may shrink. */
+.categories > * {
+  min-width: 0;
+  padding-inline: 2px;
+}

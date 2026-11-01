@@ -108,3 +108,8 @@ export function paidByMember(expenses: Expense[], members: Member[], latest: FxR
 export function trimCents(text: string): string {
   return text.replace(/\.00$/, '');
 }
+
+/** The split follows the budget (owner, 2026-11-01): Shared halves, Eren / Amy pays all. */
+export function splitForScope(scope: BudgetScope): SplitMode {
+  return scope === 'eren' ? 'eren' : scope === 'amy' ? 'amy' : 'equal';
+}
