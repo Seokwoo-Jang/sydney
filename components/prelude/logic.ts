@@ -27,7 +27,9 @@ export function sortActivities(
 export function whenLine(item: ItineraryItem, days: TripDay[], tripTz: string): string {
   const day = days.find((d) => d.date === item.date);
   const time = timeLabel({ item, continuation: false }, tripTz, 'board');
-  return [day ? S.time.day(day.dayNumber) : '', formatDayLabel(item.date), time.lines.join(' '), time.note ?? '']
+  // The list names every zone; this one-line summary only names a zone other than the trip's.
+  const note = item.timezone === tripTz ? '' : (time.note ?? '');
+  return [day ? S.time.day(day.dayNumber) : '', formatDayLabel(item.date), time.lines.join(' '), note]
     .filter(Boolean)
     .join(' · ');
 }

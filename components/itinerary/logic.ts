@@ -93,7 +93,8 @@ export function timeLabel(row: DayRow, tripTz: string, layout: 'board' | 'tabs')
   const start = formatWallTime(item.startTime);
   const range = itemInstantRange(item);
   const notes: string[] = [];
-  if (item.timezone !== tripTz && range) notes.push(zoneAbbr(item.timezone, range.start));
+  // Every timed row names its zone (AEDT in Sydney, KST at home), so the two are never mixed up.
+  if (range) notes.push(zoneAbbr(item.timezone, range.start));
   if (!item.endTime) return { lines: [start], note: notes.join(' · ') || null, full: [start, ...notes].join(' ') };
   const end = formatWallTime(item.endTime);
   const endDate = item.endDate ?? (item.endTime <= item.startTime ? addDays(item.date, 1) : item.date);
