@@ -49,8 +49,8 @@ export function FlightPass({
   const { departAt } = flightTimes(d);
   const departZone = zoneAbbr(d.departTimezone, d.departDate, d.departTime);
   const arriveZone = zoneAbbr(d.arriveTimezone, d.arriveDate, d.arriveTime);
-  // A long, low pass: one line each for flight, route (with terminals) and times; the date
-  // sits on the stub. A booked and paid flight needs no status chips; anything else
+  // Boarding pass: carrier over flight number, route (with terminals), local times; the
+  // date sits on the stub. A booked and paid flight needs no status chips; anything else
   // (considering, unpaid, cancelled) still shows them.
   const usual = booking.status === 'booked' && booking.paymentStatus === 'paid';
   const nextDay = d.arriveDate !== d.departDate;
@@ -62,9 +62,8 @@ export function FlightPass({
     >
       <span className={styles.passMain}>
         <span className={styles.passTop}>
-          <span className={styles.passFlight}>
-            {d.carrier} · {d.flightNumber}
-          </span>
+          <span className={styles.passCarrier}>{d.carrier}</span>
+          <b className={styles.passNumber}>{d.flightNumber}</b>
         </span>
         <span className={styles.route}>
           <b>{d.from}</b>
@@ -76,11 +75,12 @@ export function FlightPass({
           {d.arriveTerminal ? <small className={styles.terminal}>{d.arriveTerminal}</small> : null}
         </span>
         <span className={styles.times}>
-          <span className={styles.time}>
-            {formatWallTime(d.departTime)} <abbr title={S.checklist.zones[d.departTimezone] ?? d.departTimezone}>{departZone}</abbr>
+          {/* Local times at each airport; the zone names stay in the detail sheet. */}
+          <span className={styles.time} title={S.checklist.zones[d.departTimezone] ?? departZone}>
+            {formatWallTime(d.departTime)}
           </span>
-          <span className={[styles.time, styles.timesEnd].join(' ')}>
-            {formatWallTime(d.arriveTime)} <abbr title={S.checklist.zones[d.arriveTimezone] ?? d.arriveTimezone}>{arriveZone}</abbr>
+          <span className={[styles.time, styles.timesEnd].join(' ')} title={S.checklist.zones[d.arriveTimezone] ?? arriveZone}>
+            {formatWallTime(d.arriveTime)}
             {nextDay ? (
               <sup className={styles.plusDay} title={formatDayLabel(d.arriveDate)}>
                 +1<span className="sr-only"> {S.itinerary.nextDay}</span>
@@ -92,7 +92,7 @@ export function FlightPass({
       </span>
       <span className={styles.stub}>
         <span className="sr-only">{isNext ? S.checklist.nextFlight : S.checklist.flight}</span>
-        <span>{formatDayLabel(d.departDate)}</span>
+        <span className={styles.stubDate}>{formatDayLabel(d.departDate)}</span>
         <b>{now ? departsIn(departAt, now) : ' '}</b>
         <span>{flightDuration(d)}</span>
       </span>

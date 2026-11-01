@@ -66,7 +66,7 @@
 .pass {
   position: relative;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 84px;
+  grid-template-columns: minmax(0, 1fr) 96px;
   width: 100%;
   padding: 0;
   border: 0;
@@ -86,24 +86,33 @@
   opacity: 0.7;
 }
 
-/* Long and low: three single lines (flight · date / route / times). */
+/* Carrier over flight number, then route and local times. */
 .passMain {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 8px;
   min-width: 0;
-  padding: 12px 14px 12px 18px;
+  padding: 14px 14px 14px 18px;
 }
 
 .passTop {
   display: flex;
-  justify-content: space-between;
-  gap: var(--s1);
+  flex-direction: column;
+  gap: 2px;
   white-space: nowrap;
   font-size: var(--text-2xs);
   letter-spacing: 0.12em;
   text-transform: uppercase;
   color: color-mix(in srgb, var(--porcelain) 78%, transparent);
+}
+
+.passNumber {
+  font-family: var(--font-serif);
+  font-size: 18px;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  line-height: 1.1;
+  color: var(--porcelain);
 }
 
 .route {
@@ -112,7 +121,7 @@
   gap: var(--s1-5);
 }
 
-.passFlight {
+.passCarrier {
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -120,7 +129,7 @@
 
 .route b {
   font-family: var(--font-serif);
-  font-size: 26px;
+  font-size: 30px;
   font-weight: 500;
   line-height: 1;
 }
@@ -199,14 +208,19 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 2px;
-  padding: 10px 6px;
+  gap: 4px;
+  padding: 12px 6px;
   border-left: 2px dashed color-mix(in srgb, var(--porcelain) 25%, transparent);
   font-size: 10px;
   letter-spacing: 0.1em;
   text-transform: uppercase;
   text-align: center;
   color: color-mix(in srgb, var(--porcelain) 85%, transparent);
+}
+
+/* 'SAT, 26 DEC' on one line. */
+.stubDate {
+  white-space: nowrap;
 }
 
 .stub b {
