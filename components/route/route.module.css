@@ -120,6 +120,13 @@
   line-height: 1.4;
 }
 
+/* A long popup scrolls by finger inside itself (the map otherwise takes every touch). */
+.mapBox .map :global(.leaflet-popup-scrolled) {
+  touch-action: pan-y;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
 .mapBox .map :global(.leaflet-popup-close-button) {
   width: var(--touch) !important;
   height: var(--touch) !important;

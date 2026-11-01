@@ -300,7 +300,8 @@ export default function RouteMapCanvas(props: RouteMapCanvasProps) {
           // so the name beside it is its own and a later one steps aside with its number.
           zIndexOffset: (focused ? 20000 : 10000) - k * 100,
         }).addTo(layer);
-        marker.bindPopup(popupFor(g, route), { maxWidth: 280, minWidth: 200 });
+        // Several plans at one pin (Day 3's 2·4·6) scroll inside the popup, which never grows past the map.
+        marker.bindPopup(popupFor(g, route), { maxWidth: 280, minWidth: 200, maxHeight: Math.max(160, map.getSize().y - 96), keepInView: true });
         const name = g.stops.map((s) => s.item.title).join(', ');
         marker.getElement()?.setAttribute('aria-label', text ? S.route.stopLabel(text, name) : name);
         for (const s of g.stops) markersRef.current.set(s.item.id, marker);
