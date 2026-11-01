@@ -107,7 +107,7 @@ export const S = {
     homeTitle: 'Put it on your Home Screen',
     homeIntro: 'It opens full screen, like an app, and can send notifications.',
     platform: 'Phone',
-    iphone: 'iPhone',
+    iphone: 'iOS',
     android: 'Android',
     iphoneSteps: [
       'Open this page in Safari.',
@@ -115,7 +115,7 @@ export const S = {
       'Scroll down and tap Add to Home Screen, then Add.',
       'Open Side by Side from the new icon and enter your name there.',
     ],
-    iphoneNote: 'Notifications on iPhone work only from the Home Screen icon (iOS 16.4 or later).',
+    iphoneNote: 'On iOS, notifications work only from the Home Screen icon (iOS 16.4 or later).',
     androidSteps: [
       'Open this page in Chrome.',
       'Tap the ⋮ menu at the top right.',
