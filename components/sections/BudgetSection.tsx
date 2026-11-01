@@ -69,7 +69,7 @@ export default function BudgetSection({ layout }: SectionProps) {
       onRelated: (t) =>
         t.kind === 'item'
           ? goToSection('days', { day: t.item.date, item: t.item.id })
-          : goToSection('ready', { view: 'bookings', item: t.booking.id }),
+          : goToSection('ready', { view: 'bookings', mark: t.booking.id }),
     };
     const today = due?.today ?? null;
     body = (

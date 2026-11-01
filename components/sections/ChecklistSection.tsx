@@ -65,7 +65,8 @@ export default function ChecklistSection({ layout }: SectionProps) {
     [checklist, toast],
   );
 
-  // A Library tag: ?section=ready&view=task&mark=<id> → show that row with a ring, no sheet.
+  // A Library tag or Budget's Related booking: ?section=ready&view=task|bookings&mark=<id>
+  // → show that row or booking card with a ring, no sheet.
   const handledSeq = useRef(-1);
   useEffect(() => {
     if (handledSeq.current === urlNav.seq) return;
@@ -73,12 +74,14 @@ export default function ChecklistSection({ layout }: SectionProps) {
       handledSeq.current = urlNav.seq;
       return;
     }
-    if (checklist.status !== 'ready') return; // a cold deep link waits for the list
+    // A cold deep link waits for the lists.
+    if (checklist.status !== 'ready' || bookings.status !== 'ready' || documents.status !== 'ready') return;
     handledSeq.current = urlNav.seq;
-    const item = items.find((i) => i.id === url.mark && !i.deletedAt);
-    if (item) setMark({ id: item.id, seq: urlNav.seq });
+    const id = url.mark;
+    const found = items.some((i) => i.id === id && !i.deletedAt) || bookingRows.some((b) => b.id === id) || docRows.some((d) => d.id === id);
+    if (found) setMark({ id, seq: urlNav.seq });
     replace({ mark: null });
-  }, [urlNav, url.section, url.mark, items, checklist.status, replace]);
+  }, [urlNav, url.section, url.mark, items, bookingRows, docRows, checklist.status, bookings.status, documents.status, replace]);
 
   useEffect(() => {
     if (!mark) return;
@@ -136,6 +139,7 @@ export default function ChecklistSection({ layout }: SectionProps) {
               documents={docRows}
               members={members}
               now={now}
+              highlight={highlight}
               onOpen={openBooking}
               onAdd={(kind) => setAdding({ kind })}
             />

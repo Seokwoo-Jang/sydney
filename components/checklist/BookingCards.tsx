@@ -38,11 +38,13 @@ export function FlightPass({
   booking,
   now,
   isNext,
+  highlighted,
   onOpen,
 }: {
   booking: FlightBooking;
   now: Date | null;
   isNext: boolean;
+  highlighted?: boolean;
   onOpen: (id: string) => void;
 }) {
   const d = booking.detail;
@@ -58,6 +60,8 @@ export function FlightPass({
     <button
       type="button"
       className={[styles.pass, booking.status === 'cancelled' ? styles.passCancelled : ''].join(' ')}
+      data-check-id={booking.id}
+      data-highlight={highlighted || undefined}
       onClick={() => onOpen(booking.id)}
     >
       <span className={styles.passMain}>
@@ -100,10 +104,16 @@ export function FlightPass({
   );
 }
 
-export function CarPass({ booking, onOpen }: { booking: CarBooking; onOpen: (id: string) => void }) {
+export function CarPass({ booking, highlighted, onOpen }: { booking: CarBooking; highlighted?: boolean; onOpen: (id: string) => void }) {
   const d = booking.detail;
   return (
-    <button type="button" className={styles.carPass} onClick={() => onOpen(booking.id)}>
+    <button
+      type="button"
+      className={styles.carPass}
+      data-check-id={booking.id}
+      data-highlight={highlighted || undefined}
+      onClick={() => onOpen(booking.id)}
+    >
       <span className={styles.carTop}>
         <span className={styles.carCompany}>
           <Icon name="car" size={18} />
@@ -130,11 +140,21 @@ export function CarPass({ booking, onOpen }: { booking: CarBooking; onOpen: (id:
   );
 }
 
-export function StayCard({ booking, label, onOpen }: { booking: StayBooking; label?: string; onOpen: (id: string) => void }) {
+export function StayCard({
+  booking,
+  label,
+  highlighted,
+  onOpen,
+}: {
+  booking: StayBooking;
+  label?: string;
+  highlighted?: boolean;
+  onOpen: (id: string) => void;
+}) {
   const d = booking.detail;
   const map = mapHref({ mapUrl: null, place: d.address || d.name, mapLat: d.lat ?? null, mapLng: d.lng ?? null });
   return (
-    <div className={styles.stay}>
+    <div className={styles.stay} data-check-id={booking.id} data-highlight={highlighted || undefined} tabIndex={highlighted ? -1 : undefined}>
       <button type="button" className={styles.stayMain} onClick={() => onOpen(booking.id)}>
         <span className={styles.stayIcon} aria-hidden="true">
           <Icon name="bed" size={20} />
@@ -161,11 +181,27 @@ export function StayCard({ booking, label, onOpen }: { booking: StayBooking; lab
   );
 }
 
-export function DocumentRow({ doc, members, onOpen }: { doc: TripDocument; members: Member[]; onOpen: (id: string) => void }) {
+export function DocumentRow({
+  doc,
+  members,
+  highlighted,
+  onOpen,
+}: {
+  doc: TripDocument;
+  members: Member[];
+  highlighted?: boolean;
+  onOpen: (id: string) => void;
+}) {
   const subject = members.find((m) => m.id === doc.subjectMemberId);
   return (
     <li>
-      <button type="button" className={styles.doc} onClick={() => onOpen(doc.id)}>
+      <button
+        type="button"
+        className={styles.doc}
+        data-check-id={doc.id}
+        data-highlight={highlighted || undefined}
+        onClick={() => onOpen(doc.id)}
+      >
         <span className={styles.docIcon} aria-hidden="true">
           <Icon name="document" size={18} />
         </span>

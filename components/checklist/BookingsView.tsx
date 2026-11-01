@@ -15,6 +15,7 @@ export function BookingsView({
   documents,
   members,
   now,
+  highlight,
   onOpen,
   onAdd,
 }: {
@@ -22,6 +23,8 @@ export function BookingsView({
   documents: TripDocument[];
   members: Member[];
   now: Date | null;
+  /** A booking or document Budget points at: ringed for a moment. */
+  highlight?: string | null;
   onOpen: (id: string) => void;
   onAdd: (kind: NewBookingKind) => void;
 }) {
@@ -52,7 +55,7 @@ export function BookingsView({
         flights.length,
         <div className={styles.stack}>
           {flights.map((f) => (
-            <FlightPass key={f.id} booking={f} now={now} isNext={f.id === nextId} onOpen={onOpen} />
+            <FlightPass key={f.id} booking={f} now={now} isNext={f.id === nextId} highlighted={f.id === highlight} onOpen={onOpen} />
           ))}
         </div>,
       )}
@@ -62,7 +65,7 @@ export function BookingsView({
         stays.length,
         <div className={styles.stack}>
           {stays.map((s) => (
-            <StayCard key={s.id} booking={s} onOpen={onOpen} />
+            <StayCard key={s.id} booking={s} highlighted={s.id === highlight} onOpen={onOpen} />
           ))}
         </div>,
       )}
@@ -72,7 +75,7 @@ export function BookingsView({
         cars.length,
         <div className={styles.stack}>
           {cars.map((c) => (
-            <CarPass key={c.id} booking={c} onOpen={onOpen} />
+            <CarPass key={c.id} booking={c} highlighted={c.id === highlight} onOpen={onOpen} />
           ))}
         </div>,
       )}
@@ -82,7 +85,7 @@ export function BookingsView({
         documents.length,
         <ul className={styles.docs}>
           {documents.map((d) => (
-            <DocumentRow key={d.id} doc={d} members={members} onOpen={onOpen} />
+            <DocumentRow key={d.id} doc={d} members={members} highlighted={d.id === highlight} onOpen={onOpen} />
           ))}
         </ul>,
       )}

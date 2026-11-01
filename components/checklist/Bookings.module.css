@@ -62,6 +62,23 @@
   text-decoration: line-through;
 }
 
+/* Where Budget's Related booking landed: a ring for a moment, just outside the card. */
+.pass[data-highlight],
+.carPass[data-highlight],
+.stay[data-highlight] {
+  outline: 2px solid var(--harbour);
+  outline-offset: 2px;
+}
+
+/* A document row: the ring spans the card around it, like Checklist rows. */
+.doc[data-highlight] {
+  margin-inline: calc(-1 * var(--ring-bleed, 8px));
+  padding-inline: var(--ring-bleed, 8px);
+  border-top-color: transparent;
+  border-radius: var(--radius-button-lg);
+  box-shadow: inset 0 0 0 2px var(--harbour);
+}
+
 /* ── flight pass (Ink) ─────────────────────── */
 .pass {
   position: relative;
