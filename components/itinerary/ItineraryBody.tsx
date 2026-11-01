@@ -376,6 +376,7 @@ export function ItineraryBody({
         layout={layout}
         days={days}
         items={live}
+        bookings={data.bookings}
         filter={filter}
         tripTz={tz}
         selectedDay={selectedDay}

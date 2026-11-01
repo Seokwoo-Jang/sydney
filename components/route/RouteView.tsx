@@ -11,9 +11,9 @@ import { useEntityOps, useMapLinkResolver } from '@/lib/data';
 import { useReducedMotion } from '@/lib/hooks/useReducedMotion';
 import { needsLookup, parseMapUrl } from '@/lib/maps';
 import { S } from '@/lib/strings';
-import type { ItineraryItem, Member, TripDay } from '@/lib/types';
+import type { Booking, ItineraryItem, Member, TripDay } from '@/lib/types';
 import RouteMapCanvas from './RouteMapCanvas';
-import { buildTripRoutes, narrowRoute, numberText, placeRuns, stopTime, type Lane, type RouteStop } from './routeLogic';
+import { buildTripRoutes, narrowRoute, numberText, placeRuns, stopTime, timeBlocks, type Lane, type RouteStop } from './routeLogic';
 import styles from './route.module.css';
 
 export interface RouteViewProps {
@@ -21,6 +21,8 @@ export interface RouteViewProps {
   days: TripDay[];
   /** Live items, all people; the filter is applied here. */
   items: ItineraryItem[];
+  /** Stays tell the nights we sleep apart (the next morning's first Together plan is a Meet up). */
+  bookings: Booking[];
   filter: PeopleFilter;
   tripTz: string;
   selectedDay: string;
@@ -47,6 +49,7 @@ export default function RouteView({
   layout,
   days,
   items,
+  bookings,
   filter,
   tripTz,
   selectedDay,
@@ -84,7 +87,7 @@ export default function RouteView({
   const [linkState, setLinkState] = useState<LinkState>('idle');
 
   // The map always draws everyone (the other person is faded); lists show the filtered view with the same numbers.
-  const everyone = useMemo(() => buildTripRoutes(items, days, 'all', tripTz), [items, days, tripTz]);
+  const everyone = useMemo(() => buildTripRoutes(items, days, 'all', tripTz, bookings), [items, days, tripTz, bookings]);
   const routes = useMemo(() => everyone.map((r) => narrowRoute(r, filter)), [everyone, filter]);
   // All numbers each person's route on their own plans: the map takes those numbers too.
   const mapRoutes = filter === 'all' ? routes : everyone;
@@ -184,7 +187,7 @@ export default function RouteView({
                   </span>
                   <span className={styles.stopMarks}>
                     {s.meetUp && <Badge tone="soft">{S.maps.meetUp}</Badge>}
-                    {s.lane !== 'together' && <MemberMarks who={s.lane} size="sm" />}
+                    <MemberMarks who={s.lane} size="sm" />
                   </span>
                 </button>
               </li>
@@ -251,29 +254,24 @@ export default function RouteView({
             <i className={[styles.swatch, styles.amySwatch].join(' ')} aria-hidden="true" />
             {S.people.participants.amy}
           </li>
-          <li>
-            <i className={[styles.num, styles.meet, styles.meetKey].join(' ')} aria-hidden="true">
-              M
-            </i>
-            {S.route.meetKey}
-          </li>
         </ul>
       </div>
 
       {dayRoute ? (
         dayRoute.stops.length ? (
           filter === 'all' ? (
-            // All: one list per person (Together first), each with its own numbers.
+            // All: in time order, Together → Eren / Amy → Together, each with its own numbers.
             <div className={styles.laneLists}>
-              {(['together', 'eren', 'amy'] as const).map((lane) => {
-                const own = dayRoute.stops.filter((s) => s.lane === lane);
-                return own.length ? (
-                  <section key={lane} aria-label={S.people.participants[lane]}>
-                    <h4 className={styles.laneHeading}>{S.people.participants[lane]}</h4>
-                    {stopList(own, lane)}
-                  </section>
-                ) : null;
-              })}
+              {timeBlocks(dayRoute.stops).flatMap((b, k) =>
+                (b.kind === 'together' ? ([['together', b.stops]] as const) : ([['eren', b.eren], ['amy', b.amy]] as const))
+                  .filter(([, stops]) => stops.length > 0)
+                  .map(([lane, stops]) => (
+                    <section key={`${k}-${lane}`} aria-label={S.people.participants[lane]}>
+                      <h4 className={styles.laneHeading}>{S.people.participants[lane]}</h4>
+                      {stopList(stops, lane)}
+                    </section>
+                  )),
+              )}
             </div>
           ) : (
             stopList(dayRoute.stops, filter)

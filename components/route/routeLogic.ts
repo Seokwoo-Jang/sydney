@@ -2,8 +2,8 @@
 // Lines are order lines between stops, never road geometry.
 import { matchesFilter, type PeopleFilter } from '@/components/itinerary/logic';
 import { formatWallTime, S } from '@/lib/strings';
-import { zonedToInstant } from '@/lib/time/zone';
-import type { ItineraryItem, TripDay } from '@/lib/types';
+import { addDays, zonedToInstant } from '@/lib/time/zone';
+import type { Booking, ItineraryItem, TripDay } from '@/lib/types';
 
 export type Lane = 'together' | 'eren' | 'amy';
 
@@ -17,7 +17,7 @@ export interface RouteStop {
   /**
    * Place number on its own person's route that day (owner, 2026-11-01): it goes up
    * only when the place changes, so plans in a row at one place share the first one's.
-   * Negative = M, where we split up or meet again (see numberText).
+   * Negative = M, where we meet again (see numberText).
    */
   n: number;
   /**
@@ -171,7 +171,28 @@ function spotsOf(ordered: ItineraryItem[]): Map<string, LatLng> {
  * - Together → solo: Eren's and Amy's paths split into E and A lines.
  * - solo → Together: both paths run into that stop, which is marked Meet up.
  */
-export function buildDayRoute(items: ItineraryItem[], date: string, filter: PeopleFilter, tripTz: string): DayRoute {
+/**
+ * We wake up apart on `date` when the night before was spent in separate stays (each
+ * booked for one of us, none for both): the day's first Together plan is then a Meet up.
+ */
+export function apartOvernight(bookings: Booking[], date: string): boolean {
+  const night = addDays(date, -1);
+  const stays = bookings.flatMap((b) =>
+    !b.deletedAt && b.status !== 'cancelled' && b.detail.kind === 'stay' && b.detail.checkInDate <= night && night < b.detail.checkOutDate
+      ? [b.detail]
+      : [],
+  );
+  return stays.some((s) => s.guests !== 'both') && !stays.some((s) => s.guests === 'both');
+}
+
+export function buildDayRoute(
+  items: ItineraryItem[],
+  date: string,
+  filter: PeopleFilter,
+  tripTz: string,
+  /** We start the day apart (separate stays): the first Together plan is a Meet up. */
+  apartAtStart = false,
+): DayRoute {
   void tripTz; // every zone is drawn now; kept for callers
   const ordered = orderForRoute(items.filter((i) => i.date === date && onRouteMap(i)));
   const spots = spotsOf(ordered);
@@ -182,7 +203,7 @@ export function buildDayRoute(items: ItineraryItem[], date: string, filter: Peop
   const meetUps = new Set<string>();
   let lastE: ItineraryItem | null = null;
   let lastA: ItineraryItem | null = null;
-  let apart = false;
+  let apart = apartAtStart;
   for (const it of placed.filter(isTimed)) {
     const lane = laneOf(it);
     if (lane === 'together') {
@@ -213,10 +234,9 @@ export function buildDayRoute(items: ItineraryItem[], date: string, filter: Peop
     onRoutes.get(r.to.id)?.add(r.lane);
   }
 
-  // Where we split up or meet again (a Together plan that also ends someone's own line) is
-  // M on every route (owner, 2026-11-02); the numbers count the other places, so a person's
-  // own stretch reads M → 1 → 2 → 3 → M.
-  const isMeet = (i: ItineraryItem) => laneOf(i) === 'together' && [...(onRoutes.get(i.id) ?? [])].some((l) => l !== 'together');
+  // Where we meet again is M (Meet up) on every route (owner, 2026-11-02) and is not counted;
+  // where we split up is an ordinary number. Eren's day reads 1 (we split) → 2 → 3 → M.
+  const isMeet = (i: ItineraryItem) => meetUps.has(i.id);
   // Each route is numbered on its own, by place: the number goes up only when the place
   // changes from that route's previous stop (measured from the first plan there).
   const at: Record<Lane, { n: number; label: number; first: LatLng | null }> = {
@@ -275,8 +295,14 @@ export function buildDayRoute(items: ItineraryItem[], date: string, filter: Peop
   return { date, stops, segments, flights, notOnMap };
 }
 
-export function buildTripRoutes(items: ItineraryItem[], days: Pick<TripDay, 'date'>[], filter: PeopleFilter, tripTz: string): DayRoute[] {
-  return days.map((d) => buildDayRoute(items, d.date, filter, tripTz));
+export function buildTripRoutes(
+  items: ItineraryItem[],
+  days: Pick<TripDay, 'date'>[],
+  filter: PeopleFilter,
+  tripTz: string,
+  bookings: Booking[] = [],
+): DayRoute[] {
+  return days.map((d) => buildDayRoute(items, d.date, filter, tripTz, apartOvernight(bookings, d.date)));
 }
 
 /**
@@ -284,8 +310,7 @@ export function buildTripRoutes(items: ItineraryItem[], days: Pick<TripDay, 'dat
  * fades the others): that route's stops, lines and numbers, and its unplaced items.
  */
 export function narrowRoute(route: DayRoute, filter: PeopleFilter): DayRoute {
-  // All: everyone, each stop with its own person's number (their own places count; M where we split or meet).
-  if (filter === 'all') return route;
+  if (filter === 'all') return ownNumbered(route);
   return {
     ...route,
     // Eren's / Amy's route includes the Together plans where we split up and meet again.
@@ -294,6 +319,26 @@ export function narrowRoute(route: DayRoute, filter: PeopleFilter): DayRoute {
     flights: route.flights.filter((f) => f.lane === filter),
     notOnMap: route.notOnMap.filter((i) => i.participants === filter),
   };
+}
+
+/**
+ * All: everyone at full strength. Together plans keep the Together numbers (M where we
+ * meet); each person's own plans count from 1 on their own (owner, 2026-11-02).
+ */
+function ownNumbered(route: DayRoute): DayRoute {
+  const at: Record<'eren' | 'amy', { n: number; first: LatLng | null }> = { eren: { n: 0, first: null }, amy: { n: 0, first: null } };
+  const stops = route.stops.map((s) => {
+    if (s.lane === 'together') return s;
+    const run = at[s.lane];
+    if (!run.first || !samePlace(run.first, s)) {
+      run.n += 1;
+      run.first = { lat: s.lat, lng: s.lng };
+    }
+    return { ...s, n: run.n, routes: { [s.lane]: run.n } };
+  });
+  const byId = new Map(stops.map((s) => [s.item.id, s]));
+  const segments = route.segments.map((g) => ({ ...g, from: byId.get(g.from.item.id) ?? g.from, to: byId.get(g.to.item.id) ?? g.to }));
+  return { ...route, stops, segments };
 }
 
 /** A stop's number on the chosen route (All: its own person's), or null when it is not on it. */
@@ -372,7 +417,7 @@ export function groupStops(stops: RouteStop[]): PinGroup[] {
   return groups;
 }
 
-/** A route number as shown: M where we split up or meet again, else the place number. */
+/** A route number as shown: M where we meet again, else the place number. */
 export const numberText = (n: number): string => (n < 0 ? 'M' : String(n));
 
 /** A pin's number: its place's ('1' for plans 1–3 there); a place come back to later shows both ('1·3', 'M·2'). */
@@ -392,6 +437,28 @@ export function placeRuns(stops: RouteStop[]): Array<{ n: number; stops: RouteSt
     else runs.push({ n: s.n, stops: [s] });
   }
   return runs;
+}
+
+/** A stretch of the day in the All list: together, or apart (Eren's and Amy's plans side by side). */
+export type StopBlock = { kind: 'together'; stops: RouteStop[] } | { kind: 'apart'; eren: RouteStop[]; amy: RouteStop[] };
+
+/**
+ * The All list in time order (owner, 2026-11-02): Together → Eren / Amy → Together, a new
+ * stretch each time we split up or meet again.
+ */
+export function timeBlocks(stops: RouteStop[]): StopBlock[] {
+  const blocks: StopBlock[] = [];
+  for (const s of stops) {
+    let last = blocks[blocks.length - 1];
+    if (s.lane === 'together') {
+      if (last?.kind !== 'together') blocks.push((last = { kind: 'together', stops: [] }));
+      last.stops.push(s);
+    } else {
+      if (last?.kind !== 'apart') blocks.push((last = { kind: 'apart', eren: [], amy: [] }));
+      last[s.lane].push(s);
+    }
+  }
+  return blocks;
 }
 
 /** Shared pins take Together's colour when people differ. */

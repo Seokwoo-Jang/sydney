@@ -1,6 +1,7 @@
 // Route map helpers (plan §7.2.7). Fictional data only (trip year 2030).
 import { describe, expect, it } from 'vitest';
 import {
+  apartOvernight,
   boundsOf,
   buildDayRoute,
   buildTripRoutes,
@@ -20,10 +21,11 @@ import {
   placeLabel,
   placeRuns,
   stopLabel,
+  timeBlocks,
 } from '@/components/route/routeLogic';
 import { placeAround, stackLabels } from '@/lib/mapLabels';
 import { SEOUL_TZ, SYDNEY_TZ } from '@/lib/time/zone';
-import type { ItineraryItem } from '@/lib/types';
+import type { Booking, ItineraryItem } from '@/lib/types';
 import { item } from './fixtures';
 
 const D = '2030-12-29';
@@ -127,13 +129,13 @@ describe('buildDayRoute', () => {
       item('e-nocoords', { date: D, participants: 'eren' }),
     ];
     const r = buildDayRoute(xs, D, 'eren', SYDNEY_TZ);
-    // Where we split (t1) and meet (t2) is M on every route; Eren's own places count from 1.
+    // Where we split (t1) is numbered; where we meet (t2) is M on every route.
     expect(r.stops.map((s) => [s.item.id, numberText(s.n)])).toEqual([
-      ['t1', 'M'],
-      ['e1', '1'],
+      ['t1', '1'],
+      ['e1', '2'],
       ['t2', 'M'],
     ]);
-    expect(r.stops.map((s) => numberText(s.routes.eren!))).toEqual(['M', '1', 'M']);
+    expect(r.stops.map((s) => numberText(s.routes.eren!))).toEqual(['1', '2', 'M']);
     expect(segs(r)).toEqual(['t1>e1:eren', 'e1>t2:eren']);
     expect(r.stops[2].meetUp).toBe(true);
     expect(r.notOnMap.map((i) => i.id)).toEqual(['e-nocoords']);
@@ -445,17 +447,17 @@ describe('flights', () => {
 });
 
 describe('people filter on the map', () => {
-  it('narrowRoute: a person’s route starts at M where we split up and ends at M where we meet: M, 1, M', () => {
+  it('narrowRoute: a person’s route starts where we split up (numbered) and ends at M where we meet: 1, 2, M', () => {
     const all = buildDayRoute([at('t1', '09:00'), at('a1', '10:00', { participants: 'amy' }), at('e1', '10:30', { participants: 'eren' }), at('t2', '11:00')], D, 'together', SYDNEY_TZ);
     const eren = narrowRoute(all, 'eren');
     expect(eren.stops.map((x) => [x.item.id, numberText(x.n)])).toEqual([
-      ['t1', 'M'],
-      ['e1', '1'],
+      ['t1', '1'],
+      ['e1', '2'],
       ['t2', 'M'],
     ]);
     expect(segs(eren).every((id) => id.endsWith(':eren'))).toBe(true);
     const together = narrowRoute(all, 'together');
-    expect(together.stops.map((x) => [x.item.id, numberText(x.n)])).toEqual([['t1', 'M'], ['t2', 'M']]);
+    expect(together.stops.map((x) => [x.item.id, numberText(x.n)])).toEqual([['t1', '1'], ['t2', 'M']]);
     expect(segs(together).every((id) => id.endsWith(':together'))).toBe(true);
   });
   it('isFocusLane keeps each lane on its own (Together excludes the solo plans)', () => {
@@ -466,6 +468,19 @@ describe('people filter on the map', () => {
     expect(isFocusLane('together', 'together')).toBe(true);
     expect((['together', 'eren', 'amy'] as const).every((l) => isFocusLane(l, 'all'))).toBe(true);
   });
+  it('after a night in separate stays, the first Together plan of the day is a Meet up (M)', () => {
+    const stay = (id: string, guests: 'eren' | 'amy' | 'both', checkInDate: string, checkOutDate: string) =>
+      ({ id, deletedAt: null, status: 'booked', detail: { kind: 'stay', name: id, checkInDate, checkOutDate, guests } }) as unknown as Booking;
+    const apart = [stay('e', 'eren', '2030-12-27', '2030-12-31'), stay('a', 'amy', '2030-12-27', '2030-12-31')];
+    expect(apartOvernight(apart, D)).toBe(true); // the night of the 28th
+    expect(apartOvernight(apart, '2030-12-27')).toBe(false); // no stay the night before
+    expect(apartOvernight([...apart, stay('b', 'both', '2030-12-28', '2030-12-29')], D)).toBe(false);
+    const r = buildDayRoute([at('meet', '07:30'), at('train', '08:00')], D, 'all', SYDNEY_TZ, true);
+    expect(r.stops.map((x) => [x.item.id, numberText(x.n), x.meetUp])).toEqual([
+      ['meet', 'M', true],
+      ['train', '1', false],
+    ]);
+  });
   it('narrowRoute All: everyone, each person numbered on their own plans only', () => {
     const all = buildDayRoute(
       [at('t1', '09:00'), at('a1', '10:00', { participants: 'amy' }), at('e1', '10:30', { participants: 'eren' }), at('e2', '10:45', { participants: 'eren' }), at('t2', '11:00')],
@@ -475,13 +490,21 @@ describe('people filter on the map', () => {
     );
     const everyone = narrowRoute(all, 'all');
     expect(everyone.stops.map((x) => [x.item.id, x.lane, numberText(x.n)])).toEqual([
-      ['t1', 'together', 'M'],
+      ['t1', 'together', '1'],
       ['a1', 'amy', '1'],
       ['e1', 'eren', '1'],
       ['e2', 'eren', '2'],
       ['t2', 'together', 'M'],
     ]);
     expect(everyone.segments.length).toBe(all.segments.length);
+    // The All list in time order: Together → Eren / Amy → Together.
+    expect(
+      timeBlocks(everyone.stops).map((b) => (b.kind === 'together' ? ['together', ids(b.stops)] : ['apart', ids(b.eren), ids(b.amy)])),
+    ).toEqual([
+      ['together', ['t1']],
+      ['apart', ['e1', 'e2'], ['a1']],
+      ['together', ['t2']],
+    ]);
     // Built for everyone, the solo lines are kept: t1 > a1 > t2 and t1 > e1 > e2 > t2.
     expect(segs(all).sort()).toEqual(['a1>t2:amy', 'e1>e2:eren', 'e2>t2:eren', 't1>a1:amy', 't1>e1:eren']);
   });
