@@ -246,37 +246,22 @@
   display: none;
 }
 
-/* A name stacked away from its pin is tied back to it by a dotted line: down (or up) to
-   the pin's level, then across to the pin (--lead-* set by restackLabels). */
+/* A name placed a little away from its pin is tied back to it by a dotted line, from the
+   name's edge to the pin's rim (--lx / --ly / --len / --ang set by arrangeLabels). */
 .mapBox .labelShifted::before {
   display: block;
   content: '';
   position: absolute;
-  left: -9px;
-  top: var(--lead-top, 50%);
-  width: 0;
-  height: var(--lead-h, 0);
+  left: var(--lx, 0);
+  top: var(--ly, 50%);
+  width: var(--len, 0);
+  height: 0;
   margin: 0;
   border: 0;
-  border-left: 1.5px dotted var(--ink);
-  background: none;
-}
-
-.mapBox .labelShifted::after {
-  content: '';
-  position: absolute;
-  left: -9px;
-  top: 50%;
-  width: 9px;
-  height: 0;
   border-top: 1.5px dotted var(--ink);
-}
-
-/* A name left of its pin: the line comes out of its right side instead. */
-.mapBox .leaflet-tooltip-left.labelShifted::before,
-.mapBox .leaflet-tooltip-left.labelShifted::after {
-  left: auto;
-  right: -9px;
+  background: none;
+  transform-origin: 0 0;
+  transform: rotate(var(--ang, 0rad));
 }
 
 /* ── popups (DOM built in RouteMapCanvas) ──────────── */

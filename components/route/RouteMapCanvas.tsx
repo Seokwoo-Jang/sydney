@@ -7,7 +7,7 @@ import 'leaflet/dist/leaflet.css';
 import * as L from 'leaflet';
 import { useEffect, useLayoutEffect, useRef } from 'react';
 import { addLocateControl } from '@/components/location/locate';
-import { restackLabels } from '@/lib/mapLabels';
+import { arrangeLabels } from '@/lib/mapLabels';
 import { S } from '@/lib/strings';
 import type { PeopleFilter } from '@/components/itinerary/logic';
 import type { ItineraryItem } from '@/lib/types';
@@ -111,8 +111,9 @@ export default function RouteMapCanvas(props: RouteMapCanvasProps) {
     const map = mapRef.current;
     if (!map) return;
     const ordered = [...labelledRef.current].sort((a, b) => Number(a.faded) - Number(b.faded));
-    restackLabels(
-      ordered.map((l) => l.marker.getTooltip()?.getElement()),
+    // Each name finds a free spot around its pin (right, left, above, below, diagonals), inside the map.
+    arrangeLabels(
+      ordered.map((l) => ({ label: l.marker.getTooltip()?.getElement(), pin: l.marker.getElement() })),
       map.getContainer(),
       styles.labelShifted,
     );

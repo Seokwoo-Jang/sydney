@@ -20,7 +20,7 @@ import {
   placeRuns,
   stopLabel,
 } from '@/components/route/routeLogic';
-import { stackLabels } from '@/lib/mapLabels';
+import { placeAround, stackLabels } from '@/lib/mapLabels';
 import { SEOUL_TZ, SYDNEY_TZ } from '@/lib/time/zone';
 import type { ItineraryItem } from '@/lib/types';
 import { item } from './fixtures';
@@ -459,5 +459,26 @@ describe('people filter on the map', () => {
     expect(isFocusLane('amy', 'eren')).toBe(false);
     expect(isFocusLane('amy', 'together')).toBe(false);
     expect(isFocusLane('together', 'together')).toBe(true);
+  });
+});
+
+describe('names around their pins', () => {
+  it('a name goes right of its pin, else left, above, below…, always inside the map and clear of other names', () => {
+    const area = { x: 0, y: 0, w: 300, h: 200 };
+    const pins = [{ x: 280, y: 100 }, { x: 100, y: 100 }];
+    const spots = placeAround(
+      [
+        { w: 80, h: 20, pin: pins[0] }, // near the right edge: no room on its right
+        { w: 60, h: 20, pin: pins[1] },
+        { w: 60, h: 20, pin: pins[1] }, // a second name on the same pin
+      ],
+      pins,
+      area,
+    );
+    expect(spots[0]!.x + 80).toBeLessThanOrEqual(298); // moved left, not cut off
+    expect(spots[0]!.x).toBeLessThan(280);
+    expect(spots[1]).toMatchObject({ x: 118, away: false }); // right of its pin
+    expect(spots[2]!.x).toBeLessThan(100); // the next free side: left
+    expect(spots.every((s) => s && s.y >= 2 && s.y + 20 <= 198)).toBe(true);
   });
 });
