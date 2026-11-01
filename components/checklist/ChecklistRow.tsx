@@ -1,10 +1,11 @@
 'use client';
 // One Packing or To-do row: native checkbox (44px target) marks it done; the
 // title opens the notes below it; chips for assignee / quantity / due date /
-// priority (to-dos: High in red, Middle in ink, Low in grey); an edit button.
+// priority (to-dos: High in red, Middle in ink, Low in grey); an edit button. Its
+// Library link (the ETA guide) opens the page itself, under the notes.
 import { useId, useState } from 'react';
 import { Icon, IconButton, MemberMarks } from '@/components/ui';
-import type { ChecklistItem } from '@/lib/types';
+import type { ChecklistItem, Resource } from '@/lib/types';
 import { S } from '@/lib/strings';
 import { formatDayLabel } from '@/lib/time/zone';
 import { dueState, type DueContext } from './due';
@@ -18,6 +19,7 @@ export function assigneeLabel(a: ChecklistItem['assignee']): string {
 
 export function ChecklistRow({
   item,
+  resource,
   due,
   busy,
   onToggle,
@@ -26,6 +28,7 @@ export function ChecklistRow({
   highlighted,
 }: {
   item: ChecklistItem;
+  resource?: Resource | null;
   due: DueContext | null;
   busy: boolean;
   onToggle: (item: ChecklistItem) => void;
@@ -64,6 +67,7 @@ export function ChecklistRow({
         .join(' ')}
       data-check-id={item.id}
       data-highlight={highlighted || undefined}
+      tabIndex={highlighted ? -1 : undefined}
     >
       <div className={styles.check}>
         <label className={styles.boxHit}>
@@ -109,7 +113,20 @@ export function ChecklistRow({
         onClick={() => onEdit(item)}
       />
       <div id={detailsId} className={styles.rowDetails} hidden={!open}>
-        {item.notes.trim() ? <p className={styles.rowNotes}>{item.notes}</p> : <p className={styles.rowNoNotes}>{S.checklist.noNotes}</p>}
+        {item.notes.trim() ? (
+          <p className={styles.rowNotes}>{item.notes}</p>
+        ) : (
+          !resource && <p className={styles.rowNoNotes}>{S.checklist.noNotes}</p>
+        )}
+        {resource && (
+          <p className={styles.rowLink}>
+            <Icon name="link" size={14} />
+            <a href={resource.url} target="_blank" rel="noopener noreferrer">
+              {resource.title}
+              <span className="sr-only"> ({S.ui.externalLink})</span>
+            </a>
+          </p>
+        )}
       </div>
     </li>
   );

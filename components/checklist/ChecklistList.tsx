@@ -4,7 +4,7 @@
 import { useEffect, useId, useState } from 'react';
 import { Button, Chip, ChipGroup, EmptyState, Icon } from '@/components/ui';
 import { PACKING_CATEGORIES, TASK_CATEGORIES } from '@/lib/data';
-import type { ChecklistItem, ChecklistKind, Member } from '@/lib/types';
+import type { ChecklistItem, ChecklistKind, Member, Resource } from '@/lib/types';
 import { S } from '@/lib/strings';
 import { ChecklistRow } from './ChecklistRow';
 import type { DueContext } from './due';
@@ -17,10 +17,12 @@ type PersonFilter = 'all' | 'eren' | 'amy' | 'finished';
 export function ChecklistList({
   kind,
   items,
+  resources,
   me,
   due,
   pending,
   highlight,
+  highlightSeq,
   defaultOpen,
   onToggle,
   onEdit,
@@ -28,11 +30,15 @@ export function ChecklistList({
 }: {
   kind: ChecklistKind;
   items: ChecklistItem[];
+  /** Library entries by id, for each row's link. */
+  resources: ReadonlyMap<string, Resource>;
   me: Member | null;
   due: DueContext | null;
   pending: ReadonlySet<string>;
   /** A row a Library tag points at: shown (filter, group) and ringed. */
   highlight?: string | null;
+  /** Changes on every tag click, so the same row pointed at again is shown again. */
+  highlightSeq?: number;
   defaultOpen: boolean;
   onToggle: (item: ChecklistItem) => void;
   onEdit: (item: ChecklistItem) => void;
@@ -44,9 +50,8 @@ export function ChecklistList({
   const baseId = useId();
 
   // Make the ringed row visible: a filter that shows it, its group open. Only when a
-  // new row is pointed at; later edits to it keep the user's choices.
+  // tag click; later edits to the row keep the user's choices.
   const target = highlight ? items.find((i) => i.id === highlight && i.kind === kind) : undefined;
-  const targetId = target?.id;
   useEffect(() => {
     if (!target) return;
     const done = target.checked || !target.isApplicable;
@@ -54,7 +59,7 @@ export function ChecklistList({
     setPerson((p) => (done ? 'finished' : p !== 'finished' && mine(p) ? p : 'all'));
     setOpenGroups((o) => ({ ...o, [target.category]: true }));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [targetId]);
+  }, [highlightSeq, target?.id]);
 
   const categories: readonly string[] = kind === 'packing' ? PACKING_CATEGORIES : TASK_CATEGORIES;
   const labels: Record<string, string> = kind === 'packing' ? S.labels.packingCategories : S.labels.taskCategories;
@@ -145,6 +150,7 @@ export function ChecklistList({
                     <ChecklistRow
                       key={item.id}
                       item={item}
+                      resource={item.resourceId ? resources.get(item.resourceId) : null}
                       due={due}
                       busy={pending.has(item.id)}
                       highlighted={item.id === highlight}

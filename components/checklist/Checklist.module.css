@@ -5,6 +5,7 @@
 
 /* Board: the whole section is one aside card, heading inside (design sample). */
 .boardCard {
+  --ring-bleed: var(--s3);
   padding: var(--s3);
 }
 
@@ -113,11 +114,14 @@
   padding-bottom: 6px;
 }
 
-/* Where a Library tag landed: a ring for a moment. */
+/* Where a Library tag landed: a ring for a moment, edge to edge of the card
+   (--ring-bleed; the row grows out and pads back in, nothing moves). */
 .row[data-highlight] {
+  margin-inline: calc(-1 * var(--ring-bleed, 8px));
+  padding-inline: var(--ring-bleed, 8px);
   border-top-color: transparent;
   border-radius: var(--radius-button-lg);
-  box-shadow: 0 0 0 2px var(--harbour);
+  box-shadow: inset 0 0 0 2px var(--harbour);
 }
 
 .row[data-highlight] + .row {
@@ -376,6 +380,20 @@
 
 .rowNoNotes {
   font-size: var(--text-sm);
+  color: var(--muted);
+}
+
+.rowLink {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  margin-top: 4px;
+  font-size: var(--text-sm);
+  overflow-wrap: anywhere;
+}
+
+.rowLink svg {
+  flex: none;
   color: var(--muted);
 }
 

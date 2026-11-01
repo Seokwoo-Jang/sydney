@@ -1,6 +1,6 @@
 'use client';
 // Checklist · Before We Go (plan §4.3, §7.1, §7.4). Root id stays "section-ready".
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { NextUp } from '@/components/checklist/BookingCards';
 import { BookingSheet } from '@/components/checklist/BookingSheet';
 import { BookingsView, type NewBookingKind } from '@/components/checklist/BookingsView';
@@ -39,7 +39,8 @@ export default function ChecklistSection({ layout }: SectionProps) {
   const { state: url, nav: urlNav, replace } = useUrlState();
   const reduced = useReducedMotion();
   const listRef = useRef<HTMLDivElement>(null);
-  const [highlight, setHighlight] = useState<string | null>(null);
+  const [mark, setMark] = useState<{ id: string; seq: number } | null>(null);
+  const highlight = mark?.id ?? null;
 
   const me = trip.status === 'ready' ? trip.data.me : null;
   const partner = trip.status === 'ready' ? trip.data.partner : null;
@@ -48,6 +49,7 @@ export default function ChecklistSection({ layout }: SectionProps) {
   const bookingRows = bookings.status === 'ready' ? bookings.data : [];
   const docRows = documents.status === 'ready' ? documents.data : [];
   const resources = library.status === 'ready' ? library.data.resources : [];
+  const resourceById = useMemo(() => new Map(resources.filter((r) => !r.deletedAt).map((r) => [r.id, r])), [resources]);
 
   const toggle = useCallback(
     async (item: ChecklistItem) => {
@@ -67,30 +69,34 @@ export default function ChecklistSection({ layout }: SectionProps) {
   const handledSeq = useRef(-1);
   useEffect(() => {
     if (handledSeq.current === urlNav.seq) return;
+    if (urlNav.kind === 'replace' || url.section !== 'ready' || !url.mark) {
+      handledSeq.current = urlNav.seq;
+      return;
+    }
+    if (checklist.status !== 'ready') return; // a cold deep link waits for the list
     handledSeq.current = urlNav.seq;
-    if (urlNav.kind === 'replace' || url.section !== 'ready' || !url.mark) return;
     const item = items.find((i) => i.id === url.mark && !i.deletedAt);
-    if (!item) return;
-    setHighlight(item.id);
+    if (item) setMark({ id: item.id, seq: urlNav.seq });
     replace({ mark: null });
-  }, [urlNav, url.section, url.mark, items, replace]);
+  }, [urlNav, url.section, url.mark, items, checklist.status, replace]);
 
   useEffect(() => {
-    if (!highlight) return;
+    if (!mark) return;
     // Two frames: the list switches view and opens the row's group first.
     let raf = requestAnimationFrame(() => {
       raf = requestAnimationFrame(() => {
-        const el = listRef.current?.querySelector<HTMLElement>(`[data-check-id="${highlight}"]`);
+        const el = listRef.current?.querySelector<HTMLElement>(`[data-check-id="${mark.id}"]`);
         el?.scrollIntoView({ block: 'center', behavior: reduced ? 'auto' : 'smooth' });
+        el?.focus({ preventScroll: true });
       });
     });
     // The ring marks where the link landed, then steps back.
-    const fade = window.setTimeout(() => setHighlight(null), 4000);
+    const fade = window.setTimeout(() => setMark(null), 4000);
     return () => {
       cancelAnimationFrame(raf);
       window.clearTimeout(fade);
     };
-  }, [highlight, reduced]);
+  }, [mark, reduced]);
 
   const openItem = (item: ChecklistItem) => nav.openItem(item.id, { view: item.kind });
   const openBooking = (id: string) => nav.openItem(id, { view: 'bookings' });
@@ -111,7 +117,7 @@ export default function ChecklistSection({ layout }: SectionProps) {
       <>
         <div className={board ? styles.summaryBoard : styles.summaryTabs}>
           <ChecklistProgress items={items} />
-          <ComingUp items={items} due={due} pending={pending} onToggle={toggle} onEdit={openItem} />
+          <ComingUp items={items} resources={resourceById} due={due} pending={pending} onToggle={toggle} onEdit={openItem} />
           {board && <NextUp bookings={bookingRows} now={now} today={due?.today ?? null} onOpen={openBooking} />}
         </div>
         <SegmentedControl<View>
@@ -138,10 +144,12 @@ export default function ChecklistSection({ layout }: SectionProps) {
               key={nav.view}
               kind={nav.view}
               items={items}
+              resources={resourceById}
               me={me}
               due={due}
               pending={pending}
               highlight={highlight}
+              highlightSeq={mark?.seq}
               defaultOpen={!board}
               onToggle={toggle}
               onEdit={openItem}

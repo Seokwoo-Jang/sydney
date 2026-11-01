@@ -340,6 +340,17 @@ export function ActivitySheet({
         ) : (
           <Field label={S.prelude.library} optional>
             <Select value={draft.resourceId} onChange={(e) => set('resourceId', e.target.value)} options={resourceOptions} />
+            {(() => {
+              const r = draft.resourceId ? resources.find((x) => x.id === draft.resourceId && !x.deletedAt) : undefined;
+              return (
+                r && (
+                  <a className={styles.hint} href={r.url} target="_blank" rel="noopener noreferrer">
+                    {r.title}
+                    <span className="sr-only"> ({S.ui.externalLink})</span>
+                  </a>
+                )
+              );
+            })()}
           </Field>
         )}
       </form>

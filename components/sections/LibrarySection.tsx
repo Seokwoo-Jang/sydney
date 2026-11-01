@@ -8,8 +8,9 @@ import { RESOURCE_CATEGORIES, ResourceSheet } from '@/components/library/Resourc
 import { useShellNav } from '@/components/shell/ShellNav';
 import { Button, Chip, ChipGroup, EmptyState, ErrorState, Field, LoadingState, SectionHeading, TextInput, useToast } from '@/components/ui';
 import { useChecklist, useDays, useItinerary, useLibrary, usePrelude, useTrip } from '@/lib/data';
-import type { Resource, ResourceCategory } from '@/lib/types';
+import type { PreludeActivity, Resource, ResourceCategory } from '@/lib/types';
 import { S } from '@/lib/strings';
+import type { SectionKey, UrlPatch } from '@/lib/url';
 import type { SectionProps } from './types';
 import styles from '@/components/library/Library.module.css';
 
@@ -42,32 +43,47 @@ export default function LibrarySection({ layout }: SectionProps) {
   const checklistItems = checklist.status === 'ready' ? checklist.data : [];
   const dayNo = useMemo(() => new Map((days.status === 'ready' ? days.data : []).map((d) => [d.id, d.dayNumber])), [days]);
 
-  // Where a link is used (shown here, made on the itinerary plan): its items, and a
-  // Prelude plan that is not on the itinerary yet.
-  const tagsFor = (r: Resource): LinkTag[] => [
-    ...links
-      .filter((l) => l.resourceId === r.id)
-      .flatMap((l) => {
-        const item = l.itineraryItemId ? items.find((i) => i.id === l.itineraryItemId) : undefined;
-        if (item) {
-          const n = dayNo.get(item.dayId);
-          return [
-            {
-              id: l.id,
-              label: `${n ? `${S.time.day(n)} · ` : ''}${item.title}`,
-              onClick: () => goToSection('days', { day: item.date, item: item.id }),
-            },
-          ];
-        }
-        const act = l.preludeActivityId ? activities.find((a) => a.id === l.preludeActivityId) : undefined;
-        if (act) return [{ id: l.id, label: S.library.preludeTag(act.title), onClick: () => goToSection('prelude', { item: act.id }) }];
-        return [];
-      }),
+  // Library is the bottom layer: a link shows every place above it that uses it — its
+  // itinerary items (and each item's Related plan), Prelude plans not on the itinerary
+  // yet, and Checklist items. Links are made on those; here they are shown and followed.
+  // A tag goes there and rings the row; the Library sheet (if open) closes first.
+  const leave = (section: SectionKey, extra: Omit<UrlPatch, 'section'>) => {
+    setAdding(false);
+    nav.closeItem();
+    goToSection(section, extra);
+  };
+  const tagsFor = (r: Resource): LinkTag[] => {
+    const tags: LinkTag[] = [];
+    const plans = new Set<string>();
+    const planTag = (act: PreludeActivity, id: string) => {
+      if (plans.has(act.id)) return;
+      plans.add(act.id);
+      tags.push({ id, label: S.library.preludeTag(act.title), onClick: () => leave('prelude', { item: act.id }) });
+    };
+    for (const l of links.filter((x) => x.resourceId === r.id)) {
+      const item = l.itineraryItemId ? items.find((i) => i.id === l.itineraryItemId && !i.deletedAt) : undefined;
+      if (item) {
+        const n = dayNo.get(item.dayId);
+        tags.push({
+          id: l.id,
+          label: `${n ? `${S.time.day(n)} · ` : ''}${item.title}`,
+          onClick: () => leave('days', { day: item.date, item: item.id }),
+        });
+        const plan = activities.find((x) => !x.deletedAt && x.itineraryItemId === item.id);
+        if (plan) planTag(plan, `${l.id}:plan`);
+        continue;
+      }
+      const act = l.preludeActivityId ? activities.find((x) => x.id === l.preludeActivityId && !x.deletedAt) : undefined;
+      if (act) planTag(act, l.id);
+    }
     // Checklist items keep their link on the item (the ETA guide on "Apply for the ETA").
-    ...checklistItems
-      .filter((c) => !c.deletedAt && c.resourceId === r.id)
-      .map((c) => ({ id: c.id, label: S.library.checklistTag(c.title), onClick: () => goToSection('ready', { view: c.kind, mark: c.id }) })),
-  ];
+    for (const c of checklistItems) {
+      if (!c.deletedAt && c.resourceId === r.id) {
+        tags.push({ id: c.id, label: S.library.checklistTag(c.title), onClick: () => leave('ready', { view: c.kind, mark: c.id }) });
+      }
+    }
+    return tags;
+  };
 
   const togglePin = async (r: Resource) => {
     let pinnedOrder: number | null = null;

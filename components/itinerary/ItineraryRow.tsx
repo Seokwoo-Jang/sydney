@@ -142,6 +142,7 @@ export function ItineraryRow({
       data-cancelled={item.status === 'cancelled' || undefined}
       data-continuation={continuation || undefined}
       data-highlight={highlighted || undefined}
+      tabIndex={highlighted ? -1 : undefined}
     >
       <div className={styles.head}>
         {hasDetail ? (

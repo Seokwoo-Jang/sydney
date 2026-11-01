@@ -711,7 +711,10 @@ export function ItemSheet({
                 if (!r) return null;
                 return (
                   <li key={id} className={styles.link}>
-                    <span className={styles.linkTitle}>{r.title}</span>
+                    <a className={styles.linkTitle} href={r.url} target="_blank" rel="noopener noreferrer">
+                      {r.title}
+                      <span className="sr-only"> ({S.ui.externalLink})</span>
+                    </a>
                     <IconButton
                       icon="close"
                       label={S.itinerary.removeLibraryLink(r.title)}

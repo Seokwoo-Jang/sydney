@@ -203,6 +203,8 @@ export function ItineraryBody({
           root.querySelector('[data-focus="true"]') ??
           root.querySelector('[data-day-panel]');
         target?.scrollIntoView({ block: 'center', behavior: reduced ? 'auto' : 'smooth' });
+        // A row a link landed on (ringed) also takes focus, for keyboard and screen readers.
+        if (target instanceof HTMLElement && target.dataset.highlight != null) target.focus({ preventScroll: true });
       });
     });
     return () => cancelAnimationFrame(raf);

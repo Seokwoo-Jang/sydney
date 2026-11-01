@@ -1,7 +1,7 @@
 'use client';
 // Top of Before We Go: separate Packing / To-do progress (plan §7.4) and the
 // next open to-dos, overdue first (max 4, plan §5.3).
-import type { ChecklistItem } from '@/lib/types';
+import type { ChecklistItem, Resource } from '@/lib/types';
 import { S } from '@/lib/strings';
 import { ChecklistRow } from './ChecklistRow';
 import { progress, upcomingTasks, type DueContext } from './due';
@@ -43,12 +43,14 @@ export function ChecklistProgress({ items }: { items: ChecklistItem[] }) {
 
 export function ComingUp({
   items,
+  resources,
   due,
   pending,
   onToggle,
   onEdit,
 }: {
   items: ChecklistItem[];
+  resources: ReadonlyMap<string, Resource>;
   due: DueContext | null;
   pending: ReadonlySet<string>;
   onToggle: (item: ChecklistItem) => void;
@@ -64,7 +66,16 @@ export function ComingUp({
       {next.length ? (
         <ul className={styles.rows}>
           {next.map((item) => (
-            <ChecklistRow key={item.id} item={item} due={due} busy={pending.has(item.id)} onToggle={onToggle} onEdit={onEdit} compact />
+            <ChecklistRow
+              key={item.id}
+              item={item}
+              resource={item.resourceId ? resources.get(item.resourceId) : null}
+              due={due}
+              busy={pending.has(item.id)}
+              onToggle={onToggle}
+              onEdit={onEdit}
+              compact
+            />
           ))}
         </ul>
       ) : (
