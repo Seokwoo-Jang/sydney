@@ -91,3 +91,27 @@
 .members .amy {
   background: var(--member-amy);
 }
+
+/* Itinerary status (plan §7.2): Idea dashed, Planned blue, Fixed solid Ink, Completed grey. */
+.statusIdea {
+  background: transparent;
+  border: 1px dashed var(--line-strong);
+  color: var(--muted);
+}
+
+.statusPlanned {
+  background: var(--harbour-wash);
+  border: 1px solid var(--harbour-ring);
+  color: var(--harbour);
+}
+
+.statusFixed {
+  background: var(--ink);
+  color: var(--porcelain);
+}
+
+.statusDone {
+  background: var(--paper);
+  border: 1px solid var(--line);
+  color: var(--past);
+}

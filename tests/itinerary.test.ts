@@ -8,6 +8,7 @@ import {
   matchesFilter,
   mixLabel,
   overviewWindow,
+  shownStatus,
   timeLabel,
 } from '@/components/itinerary/logic';
 import { sortActivities, whenLine } from '@/components/prelude/logic';
@@ -183,5 +184,14 @@ describe('Prelude link rules (§7.3)', () => {
     expect(done.map((a) => a.id)).toEqual(['done']);
     const days = [{ date: '2030-12-27', dayNumber: 2 }] as TripDay[];
     expect(whenLine(early, days, SYDNEY_TZ)).toBe('Day 2 · Fri, 27 Dec · 2:30 – 3:00 pm');
+  });
+});
+
+describe('shownStatus', () => {
+  it('reads passed Planned / Fixed items as Completed; Ideas stay ideas', () => {
+    expect(shownStatus('planned', true)).toBe('completed');
+    expect(shownStatus('confirmed', true)).toBe('completed');
+    expect(shownStatus('idea', true)).toBe('idea');
+    expect(shownStatus('confirmed', false)).toBe('confirmed');
   });
 });

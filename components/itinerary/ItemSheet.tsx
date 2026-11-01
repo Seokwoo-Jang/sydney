@@ -76,7 +76,9 @@ interface FormState {
 }
 
 const CATEGORIES: ItineraryCategory[] = ['transport', 'explore', 'dining', 'rest', 'business'];
-const STATUSES: ItineraryStatus[] = ['idea', 'planned', 'confirmed', 'completed', 'cancelled'];
+// Idea → Planned → Fixed. Completed comes from the clock (shownStatus) and a
+// cancelled plan is deleted instead; an older row keeps its value as an option.
+const STATUSES: ItineraryStatus[] = ['idea', 'planned', 'confirmed'];
 const KINDS: TimeKind[] = ['timed', 'all_day', 'unscheduled'];
 
 function draftFrom(target: SheetTarget, tripTz: string, activities: PreludeActivity[]): Draft {
@@ -536,7 +538,7 @@ export function ItemSheet({
             <Select
               value={draft.status}
               onChange={(e) => set('status', e.target.value as ItineraryStatus)}
-              options={STATUSES.map((s) => ({ value: s, label: S.labels.itineraryStatus[s] }))}
+              options={(STATUSES.includes(draft.status) ? STATUSES : [...STATUSES, draft.status]).map((s) => ({ value: s, label: S.labels.itineraryStatus[s] }))}
             />
           </Field>
         </div>

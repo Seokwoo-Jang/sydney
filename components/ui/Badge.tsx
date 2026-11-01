@@ -3,7 +3,17 @@ import type { ProfileKey, Participants } from '@/lib/types';
 import { S } from '@/lib/strings';
 import styles from './Badge.module.css';
 
-export type BadgeTone = 'today' | 'now' | 'soft' | 'brass' | 'neutral' | 'example';
+export type BadgeTone =
+  | 'today'
+  | 'now'
+  | 'soft'
+  | 'brass'
+  | 'neutral'
+  | 'example'
+  | 'statusIdea'
+  | 'statusPlanned'
+  | 'statusFixed'
+  | 'statusDone';
 
 export function Badge({ tone = 'neutral', children, className }: { tone?: BadgeTone; children: ReactNode; className?: string }) {
   return <span className={[styles.badge, styles[tone], className ?? ''].join(' ')}>{children}</span>;

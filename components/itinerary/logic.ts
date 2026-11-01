@@ -113,6 +113,15 @@ export function isPassed(item: ItineraryItem, now: Date, today: string): boolean
   return (r.end ?? r.start).getTime() <= now.getTime();
 }
 
+/**
+ * Status as shown: a Planned or Fixed item whose time has passed reads as
+ * Completed (nobody ticks it off by hand). Ideas stay ideas. Display only:
+ * the stored status is not changed.
+ */
+export function shownStatus(status: ItineraryStatus, passed: boolean): ItineraryStatus {
+  return passed && (status === 'planned' || status === 'confirmed') ? 'completed' : status;
+}
+
 /** First four rows, or a window that keeps Now / Up Next in view (plan §7.2.3). */
 export function overviewWindow<T>(rows: T[], focus: (row: T) => boolean, limit = 4): T[] {
   if (rows.length <= limit) return rows;

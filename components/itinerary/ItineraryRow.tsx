@@ -1,11 +1,11 @@
 'use client';
 // One collapsible timeline row (plan §7.2.4). The summary is a single toggle
 // button; map/plan/edit actions live outside it so they never fight the toggle.
-import { Badge, Button, ButtonLink, ExampleMark, Icon, IconButton, MemberMarks, type IconName } from '@/components/ui';
+import { Badge, Button, ButtonLink, ExampleMark, Icon, IconButton, MemberMarks, type BadgeTone, type IconName } from '@/components/ui';
 import { mapHref } from '@/lib/maps';
 import { S } from '@/lib/strings';
-import type { Booking, PreludeActivity, Resource } from '@/lib/types';
-import { timeLabel, type DayRow } from './logic';
+import type { Booking, ItineraryStatus, PreludeActivity, Resource } from '@/lib/types';
+import { shownStatus, timeLabel, type DayRow } from './logic';
 import styles from './itinerary.module.css';
 
 export type RowState = 'now' | 'upNext' | 'past' | null;
@@ -18,6 +18,15 @@ export interface RowLinks {
 }
 
 const BOOKING_ICON: Record<Booking['kind'], IconName> = { flight: 'plane', stay: 'bed', car: 'car' };
+
+/** Idea dashed · Planned blue · Fixed solid Ink · Completed grey (plan §7.2). */
+const STATUS_TONE: Record<ItineraryStatus, BadgeTone> = {
+  idea: 'statusIdea',
+  planned: 'statusPlanned',
+  confirmed: 'statusFixed',
+  completed: 'statusDone',
+  cancelled: 'statusDone',
+};
 
 function bookingLine(b: Booking): string {
   const d = b.detail;
@@ -61,11 +70,12 @@ export function ItineraryRow({
     ? S.time.continuesFromPreviousDay
     : item.summary.trim() || [S.labels.itineraryCategory[item.category], item.place.trim()].filter(Boolean).join(' · ');
 
+  const shown = shownStatus(item.status, state === 'past');
   const badges = (
     <>
       {state === 'now' && <Badge tone="now">{S.time.now}</Badge>}
       {state === 'upNext' && <Badge tone="soft">{S.time.upNext}</Badge>}
-      {item.status !== 'planned' && !continuation && <Badge tone="neutral">{S.labels.itineraryStatus[item.status]}</Badge>}
+      {!continuation && <Badge tone={STATUS_TONE[shown]}>{S.labels.itineraryStatus[shown]}</Badge>}
     </>
   );
 

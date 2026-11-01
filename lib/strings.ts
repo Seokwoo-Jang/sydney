@@ -270,7 +270,7 @@ export const S = {
     itineraryStatus: {
       idea: 'Idea',
       planned: 'Planned',
-      confirmed: 'Confirmed',
+      confirmed: 'Fixed',
       completed: 'Completed',
       cancelled: 'Cancelled',
     } satisfies Record<ItineraryStatus, string>,
