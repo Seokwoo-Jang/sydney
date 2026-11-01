@@ -474,6 +474,19 @@
   border-top: 1px solid var(--line);
 }
 
+/* All: one list per person, each under its name. */
+.laneLists {
+  display: grid;
+  gap: var(--s2);
+}
+
+.laneHeading {
+  margin: 0 0 var(--s1);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--muted);
+}
+
 /* One place: its number on the left, its plans stacked to the right. */
 .place {
   position: relative;

@@ -459,6 +459,24 @@ describe('people filter on the map', () => {
     expect(isFocusLane('amy', 'eren')).toBe(false);
     expect(isFocusLane('amy', 'together')).toBe(false);
     expect(isFocusLane('together', 'together')).toBe(true);
+    expect((['together', 'eren', 'amy'] as const).every((l) => isFocusLane(l, 'all'))).toBe(true);
+  });
+  it('narrowRoute All: everyone, each person numbered on their own plans only', () => {
+    const all = buildDayRoute(
+      [at('t1', '09:00'), at('a1', '10:00', { participants: 'amy' }), at('e1', '10:30', { participants: 'eren' }), at('e2', '10:45', { participants: 'eren' }), at('t2', '11:00')],
+      D,
+      'all',
+      SYDNEY_TZ,
+    );
+    const everyone = narrowRoute(all, 'all');
+    expect(everyone.stops.map((x) => [x.item.id, x.lane, x.n])).toEqual([
+      ['t1', 'together', 1],
+      ['a1', 'amy', 1],
+      ['e1', 'eren', 1],
+      ['e2', 'eren', 2],
+      ['t2', 'together', 2],
+    ]);
+    expect(everyone.segments.length).toBe(all.segments.length);
   });
 });
 

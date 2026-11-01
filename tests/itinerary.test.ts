@@ -76,7 +76,8 @@ describe('filter', () => {
       at('aNote', '', 'amy', { timeKind: 'unscheduled', startTime: null }),
       at('gone', '12:00', 'together', { status: 'cancelled' }),
     ];
-    const ids = (f: 'together' | 'eren' | 'amy') => laneItems(day, f).map((i) => i.id);
+    const ids = (f: 'all' | 'together' | 'eren' | 'amy') => laneItems(day, f).map((i) => i.id);
+    expect(ids('all')).toEqual(day.map((i) => i.id));
     expect(ids('together')).toEqual(['breakfast', 'split', 'meet', 'late', 'gone']);
     expect(ids('eren')).toEqual(['split', 'eSolo', 'meet']);
     expect(ids('amy')).toEqual(['split', 'aSolo', 'meet', 'aNote']);

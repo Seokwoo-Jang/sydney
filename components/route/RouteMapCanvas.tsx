@@ -18,6 +18,7 @@ import {
   directionsUrl,
   groupLane,
   isFocusLane,
+  routeNumber,
   groupStops,
   incomingSegment,
   lineStyle,
@@ -173,11 +174,11 @@ export default function RouteMapCanvas(props: RouteMapCanvasProps) {
       if (trip) root.append(el('p', styles.popDay, S.time.day(dayNumbers.get(route.date) ?? 0)));
       // What this place is, and Directions (owner, 2026-11-01): no times or plan list here,
       // the stops list under the map opens the plans. The chosen person's number leads.
-      const mine = g.stops.filter((s) => s.routes[people] != null);
+      const mine = g.stops.filter((s) => routeNumber(s, people) != null);
       const shown = mine.length ? mine : g.stops;
       const first = shown[0];
       const head = el('p', styles.popHead);
-      if (mine.length && !trip) head.append(el('span', styles.popNum, pinText(mine.map((s) => s.routes[people]!))));
+      if (mine.length && !trip) head.append(el('span', styles.popNum, pinText(mine.map((s) => routeNumber(s, people)!))));
       head.append(el('span', styles.popTitle, stopLabel(first.item)));
       root.append(head);
       const place = first.item.place.trim();
@@ -262,12 +263,12 @@ export default function RouteMapCanvas(props: RouteMapCanvasProps) {
       // The Trip view labels each day once, on its first stop of the chosen person.
       // On the chosen route: its own plans and, on Eren's / Amy's, the Together plans
       // where we split up and meet again (numbered on that route).
-      const firstFocused = groups.findIndex((g) => g.stops.some((s) => s.routes[people] != null));
+      const firstFocused = groups.findIndex((g) => g.stops.some((s) => routeNumber(s, people) != null));
       groups.forEach((g, k) => {
-        const mine = g.stops.filter((s) => s.routes[people] != null);
+        const mine = g.stops.filter((s) => routeNumber(s, people) != null);
         const focused = mine.length > 0;
         const shown = focused ? mine : g.stops;
-        const lane = focused ? people : groupLane(g);
+        const lane = focused && people !== 'all' ? people : groupLane(g);
         const fade = focused ? 1 : OTHER;
         const done = shown.every((s) => s.item.status === 'completed');
         const meet = mine.some((s) => s.meetUp);
@@ -281,7 +282,7 @@ export default function RouteMapCanvas(props: RouteMapCanvasProps) {
         ]
           .filter(Boolean)
           .join(' ');
-        const text = numbered ? pinText(mine.map((s) => s.routes[people]!)) : '';
+        const text = numbered ? pinText(mine.map((s) => routeNumber(s, people)!)) : '';
         const html = `<span class="${cls}" style="opacity:${fade}">${text ? `<span>${text}</span>` : ''}${numbered && done ? CHECK_SVG : ''}</span>`;
         const size = 44;
         const marker = L.marker([g.lat, g.lng], {

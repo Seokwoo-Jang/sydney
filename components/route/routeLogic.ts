@@ -274,6 +274,7 @@ export function buildTripRoutes(items: ItineraryItem[], days: Pick<TripDay, 'dat
  * fades the others): that route's stops, lines and numbers, and its unplaced items.
  */
 export function narrowRoute(route: DayRoute, filter: PeopleFilter): DayRoute {
+  if (filter === 'all') return ownNumbered(route);
   return {
     ...route,
     // Eren's / Amy's route includes the Together plans where we split up and meet again.
@@ -285,11 +286,38 @@ export function narrowRoute(route: DayRoute, filter: PeopleFilter): DayRoute {
 }
 
 /**
- * The Route chooses one lane exactly (owner, 2026-11-01): Together = the plans we do
- * together, Eren / Amy = that person's own plans. That lane is drawn at full strength
- * and framed; the other lanes stay on the map, faded.
+ * All: everyone at full strength, each person's route numbered on their own plans only
+ * (1, 2, 3 in their colour; the Together plans keep the Together numbers).
  */
-export const isFocusLane = (lane: Lane, filter: PeopleFilter): boolean => lane === filter;
+function ownNumbered(route: DayRoute): DayRoute {
+  const at: Record<Lane, { n: number; first: LatLng | null }> = {
+    together: { n: 0, first: null },
+    eren: { n: 0, first: null },
+    amy: { n: 0, first: null },
+  };
+  const stops = route.stops.map((s) => {
+    const run = at[s.lane];
+    if (!run.first || !samePlace(run.first, s)) {
+      run.n += 1;
+      run.first = { lat: s.lat, lng: s.lng };
+    }
+    return { ...s, n: run.n, routes: { [s.lane]: run.n } };
+  });
+  const byId = new Map(stops.map((s) => [s.item.id, s]));
+  const segments = route.segments.map((g) => ({ ...g, from: byId.get(g.from.item.id) ?? g.from, to: byId.get(g.to.item.id) ?? g.to }));
+  return { ...route, stops, segments };
+}
+
+/** A stop's number on the chosen route (All: its own person's), or null when it is not on it. */
+export const routeNumber = (s: RouteStop, filter: PeopleFilter): number | null =>
+  filter === 'all' ? s.n : (s.routes[filter] ?? null);
+
+/**
+ * The Route shows everyone (All) or one lane exactly (owner, 2026-11-01): Together = the
+ * plans we do together, Eren / Amy = that person's own plans. On one lane it is drawn at
+ * full strength and framed; the other lanes stay on the map, faded.
+ */
+export const isFocusLane = (lane: Lane, filter: PeopleFilter): boolean => filter === 'all' || lane === filter;
 
 // ── drawing ──────────────────────────────────────────────────────
 export interface LineStyle {

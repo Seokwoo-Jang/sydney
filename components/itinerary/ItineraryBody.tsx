@@ -105,7 +105,7 @@ export function ItineraryBody({
     }
   }, [selectedDay]);
 
-  const [filter, setFilter] = useState<PeopleFilter>('together');
+  const [filter, setFilter] = useState<PeopleFilter>('all');
   const [view, setView] = useState<'list' | 'route'>('list');
   const [showAllDay, setShowAllDay] = useState<string | null>(null);
   const [sheet, setSheet] = useState<SheetTarget | null>(null);
@@ -227,7 +227,7 @@ export function ItineraryBody({
     if (!item) return;
     setMode('day');
     setView('list');
-    setFilter((f) => (shownUnder(item, f) ? f : item.participants));
+    setFilter((f) => (shownUnder(item, f) ? f : 'all'));
     setShowAllDay(item.date);
     expanded.open(item.id);
     setHighlight(item.id);
@@ -290,7 +290,7 @@ export function ItineraryBody({
     const add = () => setSheet({ kind: 'add', date });
     if (!all.length) {
       // Plans that day, just none in this lane.
-      const title = live.some((i) => i.date === date) ? S.itinerary.noneInLane(S.people.participants[filter]) : S.empty.day;
+      const title = filter !== 'all' && live.some((i) => i.date === date) ? S.itinerary.noneInLane(S.people.participants[filter]) : S.empty.day;
       return <EmptyState title={title} actionLabel={S.empty.dayAction} onAction={add} compact className={styles.empty} />;
     }
     const focus = new Set(date === today ? [...nowInfo.nowIds, ...nowInfo.upNextIds] : []);
@@ -331,9 +331,9 @@ export function ItineraryBody({
   const day = days.find((d) => d.date === selectedDay) ?? days[0];
   const filterChips = (
     <ChipGroup label={S.itinerary.filterLabel} className={styles.filter}>
-      {(['together', 'eren', 'amy'] as const).map((p) => (
+      {(['all', 'together', 'eren', 'amy'] as const).map((p) => (
         <Chip key={p} selected={filter === p} onClick={() => setFilter(p)}>
-          {S.people.participants[p]}
+          {p === 'all' ? S.itinerary.filterAll : S.people.participants[p]}
         </Chip>
       ))}
     </ChipGroup>
@@ -409,7 +409,7 @@ export function ItineraryBody({
       onClose={() => setSheet(null)}
       onSaved={(row) => {
         setSheet(null);
-        if (!shownUnder(row, filter)) setFilter(row.participants);
+        if (!shownUnder(row, filter)) setFilter('all');
         if (mode !== 'day') return;
         if (row.date !== selectedDay) push({ day: row.date });
         queueScroll(row.date, rowKeyFor(row.date, { item: row, continuation: false }));

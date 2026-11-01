@@ -12,19 +12,21 @@ import type {
   TripDay,
 } from '@/lib/types';
 
-export type PeopleFilter = Participants;
+/** All = everyone's plans; Together / Eren / Amy = one lane (owner, 2026-11-02). */
+export type PeopleFilter = Participants | 'all';
 
-/** Together = everything; Eren/Amy = together + their own. The Route builds everyone's map with it. */
+/** All (and Together) = everything; Eren/Amy = together + their own. The Route builds everyone's map with it. */
 export const matchesFilter = (item: Pick<ItineraryItem, 'participants'>, filter: PeopleFilter): boolean =>
-  filter === 'together' || item.participants === 'together' || item.participants === filter;
+  filter === 'all' || filter === 'together' || item.participants === 'together' || item.participants === filter;
 
 /**
- * The List shows one lane, as the Route does (owner, 2026-11-02): Together = the plans
- * we do together; Eren / Amy = that person's own plans, plus the Together plans where
+ * The List shows everything (All) or one lane, as the Route does (owner, 2026-11-02):
+ * Together = the plans we do together; Eren / Amy = that person's own plans, plus the Together plans where
  * their own line starts (we split up) or ends (we meet again). Walked per day over timed,
  * live, not-cancelled plans, the way the Route walks them.
  */
 export function laneItems(items: ItineraryItem[], filter: PeopleFilter): ItineraryItem[] {
+  if (filter === 'all') return items;
   if (filter === 'together') return items.filter((i) => i.participants === 'together');
   const ends = new Set<string>();
   const byDay = new Map<string, ItineraryItem[]>();

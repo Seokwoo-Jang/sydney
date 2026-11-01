@@ -13,7 +13,7 @@ import { needsLookup, parseMapUrl } from '@/lib/maps';
 import { S } from '@/lib/strings';
 import type { ItineraryItem, Member, TripDay } from '@/lib/types';
 import RouteMapCanvas from './RouteMapCanvas';
-import { buildTripRoutes, narrowRoute, placeRuns, stopTime } from './routeLogic';
+import { buildTripRoutes, narrowRoute, placeRuns, stopTime, type Lane, type RouteStop } from './routeLogic';
 import styles from './route.module.css';
 
 export interface RouteViewProps {
@@ -84,8 +84,10 @@ export default function RouteView({
   const [linkState, setLinkState] = useState<LinkState>('idle');
 
   // The map always draws everyone (the other person is faded); lists show the filtered view with the same numbers.
-  const mapRoutes = useMemo(() => buildTripRoutes(items, days, 'together', tripTz), [items, days, tripTz]);
-  const routes = useMemo(() => mapRoutes.map((r) => narrowRoute(r, filter)), [mapRoutes, filter]);
+  const everyone = useMemo(() => buildTripRoutes(items, days, 'all', tripTz), [items, days, tripTz]);
+  const routes = useMemo(() => everyone.map((r) => narrowRoute(r, filter)), [everyone, filter]);
+  // All numbers each person's route on their own plans: the map takes those numbers too.
+  const mapRoutes = filter === 'all' ? routes : everyone;
   // The clock re-renders the parent every 30 s; redraw the map only when the Now set itself changes.
   const nowKey = nowIds.join('|');
   const stableNowIds = useMemo(() => (nowKey ? nowKey.split('|') : []), [nowKey]);
@@ -155,6 +157,44 @@ export default function RouteView({
     flow.clearConflict();
   };
 
+  // One number per place (the map pin's); that place's plans hang under it on one line.
+  const stopList = (stops: RouteStop[], lane: Lane) => (
+    <ol className={styles.stops} aria-label={S.route.stopsLabel}>
+      {placeRuns(stops).map((run) => (
+        <li
+          key={run.stops[0].item.id}
+          className={[styles.place, styles[`lane_${lane}`], run.stops.length > 1 ? styles.placeMany : ''].join(' ')}
+        >
+          <span className={styles.num} aria-hidden="true">
+            {run.n}
+          </span>
+          <ul className={styles.placeStops}>
+            {run.stops.map((s) => (
+              <li key={s.item.id}>
+                <button
+                  type="button"
+                  className={styles.stop}
+                  onClick={() => focusStop(s.item.id)}
+                  aria-label={S.route.showOnMap(`${run.n}. ${s.item.title}`)}
+                >
+                  <span className={styles.stopTime}>{stopTime(s.item)}</span>
+                  <span className={styles.stopText}>
+                    <span className={styles.stopTitle}>{s.item.title}</span>
+                    {s.item.place.trim() && <span className={styles.stopPlace}>{s.item.place}</span>}
+                  </span>
+                  <span className={styles.stopMarks}>
+                    {s.meetUp && <Badge tone="soft">{S.maps.meetUp}</Badge>}
+                    {s.lane !== 'together' && <MemberMarks who={s.lane} size="sm" />}
+                  </span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        </li>
+      ))}
+    </ol>
+  );
+
   const conflict = flow.conflict ? (
     <ConflictNotice
       source={conflictSource(flow.conflict.latest?.updatedBy, me?.id)}
@@ -216,41 +256,22 @@ export default function RouteView({
 
       {dayRoute ? (
         dayRoute.stops.length ? (
-          // One number per place (the map pin's); that place's plans hang under it on one line.
-          <ol className={styles.stops} aria-label={S.route.stopsLabel}>
-            {placeRuns(dayRoute.stops).map((run) => (
-              <li
-                key={run.stops[0].item.id}
-                className={[styles.place, styles[`lane_${filter}`], run.stops.length > 1 ? styles.placeMany : ''].join(' ')}
-              >
-                <span className={styles.num} aria-hidden="true">
-                  {run.n}
-                </span>
-                <ul className={styles.placeStops}>
-                  {run.stops.map((s) => (
-                    <li key={s.item.id}>
-                      <button
-                        type="button"
-                        className={styles.stop}
-                        onClick={() => focusStop(s.item.id)}
-                        aria-label={S.route.showOnMap(`${run.n}. ${s.item.title}`)}
-                      >
-                        <span className={styles.stopTime}>{stopTime(s.item)}</span>
-                        <span className={styles.stopText}>
-                          <span className={styles.stopTitle}>{s.item.title}</span>
-                          {s.item.place.trim() && <span className={styles.stopPlace}>{s.item.place}</span>}
-                        </span>
-                        <span className={styles.stopMarks}>
-                          {s.meetUp && <Badge tone="soft">{S.maps.meetUp}</Badge>}
-                          {s.lane !== 'together' && <MemberMarks who={s.lane} size="sm" />}
-                        </span>
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              </li>
-            ))}
-          </ol>
+          filter === 'all' ? (
+            // All: one list per person (Together first), each with its own numbers.
+            <div className={styles.laneLists}>
+              {(['together', 'eren', 'amy'] as const).map((lane) => {
+                const own = dayRoute.stops.filter((s) => s.lane === lane);
+                return own.length ? (
+                  <section key={lane} aria-label={S.people.participants[lane]}>
+                    <h4 className={styles.laneHeading}>{S.people.participants[lane]}</h4>
+                    {stopList(own, lane)}
+                  </section>
+                ) : null;
+              })}
+            </div>
+          ) : (
+            stopList(dayRoute.stops, filter)
+          )
         ) : (
           <p className={styles.empty}>{S.route.noStops}</p>
         )
