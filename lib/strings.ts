@@ -650,6 +650,7 @@ export const S = {
     showOnMap: (title: string) => `Show ${title} on the map`,
     openDay: (n: number) => `Show Day ${n}`,
     legendLabel: 'Line colours',
+    meetKey: 'Split up · meet up',
     wholeTrip: 'Whole trip',
     backToDay: (n: number) => `Back to Day ${n}`,
     notOnMapHint: 'These are skipped in the order until they have a Google Maps link.',

@@ -17,6 +17,7 @@ export interface RouteStop {
   /**
    * Place number on its own person's route that day (owner, 2026-11-01): it goes up
    * only when the place changes, so plans in a row at one place share the first one's.
+   * Negative = M, where we split up or meet again (see numberText).
    */
   n: number;
   /**
@@ -91,7 +92,7 @@ export function orderForRoute(items: ItineraryItem[]): ItineraryItem[] {
 }
 
 const laneOf = (i: ItineraryItem): Lane => i.participants;
-const laneVisible = (lane: Lane, filter: PeopleFilter) => lane === 'together' || filter === 'together' || lane === filter;
+const laneVisible = (lane: Lane, filter: PeopleFilter) => lane === 'together' || filter === 'all' || filter === 'together' || lane === filter;
 
 // ── flights ───────────────────────────────────────────────────────
 /** Airports a flight's place can name ('ICN T1 → SYD T1'); a terminal when it is known. */
@@ -212,28 +213,37 @@ export function buildDayRoute(items: ItineraryItem[], date: string, filter: Peop
     onRoutes.get(r.to.id)?.add(r.lane);
   }
 
+  // Where we split up or meet again (a Together plan that also ends someone's own line) is
+  // M on every route (owner, 2026-11-02); the numbers count the other places, so a person's
+  // own stretch reads M → 1 → 2 → 3 → M.
+  const isMeet = (i: ItineraryItem) => laneOf(i) === 'together' && [...(onRoutes.get(i.id) ?? [])].some((l) => l !== 'together');
   // Each route is numbered on its own, by place: the number goes up only when the place
   // changes from that route's previous stop (measured from the first plan there).
-  const at: Record<Lane, { n: number; first: LatLng | null }> = {
-    together: { n: 0, first: null },
-    eren: { n: 0, first: null },
-    amy: { n: 0, first: null },
+  const at: Record<Lane, { n: number; label: number; first: LatLng | null }> = {
+    together: { n: 0, label: 0, first: null },
+    eren: { n: 0, label: 0, first: null },
+    amy: { n: 0, label: 0, first: null },
   };
+  let meets = 0;
   const stops: RouteStop[] = placed
     .filter((i) => matchesFilter(i, filter))
     .map((item) => {
       const p = spots.get(item.id)!;
       const lane = laneOf(item);
       const here = { lat: p.lat, lng: p.lng };
+      const meet = isMeet(item);
+      const mark = meet ? -++meets : 0;
       const routes: Partial<Record<Lane, number>> = {};
       for (const l of ['together', 'eren', 'amy'] as const) {
         if (!onRoutes.get(item.id)?.has(l)) continue;
         const run = at[l];
-        if (!run.first || !samePlace(run.first, here)) {
-          run.n += 1;
+        const same = !!run.first && samePlace(run.first, here);
+        // A plan at the same place shares its number (an M too); an M is always shown as M.
+        if (meet ? !(same && run.label < 0) : !same) {
+          run.label = meet ? mark : ++run.n;
           run.first = here;
         }
-        routes[l] = run.n;
+        routes[l] = run.label;
       }
       return { item, n: routes[lane]!, routes, ...here, lane, timed: isTimed(item), meetUp: meetUps.has(item.id) };
     });
@@ -274,7 +284,8 @@ export function buildTripRoutes(items: ItineraryItem[], days: Pick<TripDay, 'dat
  * fades the others): that route's stops, lines and numbers, and its unplaced items.
  */
 export function narrowRoute(route: DayRoute, filter: PeopleFilter): DayRoute {
-  if (filter === 'all') return ownNumbered(route);
+  // All: everyone, each stop with its own person's number (their own places count; M where we split or meet).
+  if (filter === 'all') return route;
   return {
     ...route,
     // Eren's / Amy's route includes the Together plans where we split up and meet again.
@@ -283,29 +294,6 @@ export function narrowRoute(route: DayRoute, filter: PeopleFilter): DayRoute {
     flights: route.flights.filter((f) => f.lane === filter),
     notOnMap: route.notOnMap.filter((i) => i.participants === filter),
   };
-}
-
-/**
- * All: everyone at full strength, each person's route numbered on their own plans only
- * (1, 2, 3 in their colour; the Together plans keep the Together numbers).
- */
-function ownNumbered(route: DayRoute): DayRoute {
-  const at: Record<Lane, { n: number; first: LatLng | null }> = {
-    together: { n: 0, first: null },
-    eren: { n: 0, first: null },
-    amy: { n: 0, first: null },
-  };
-  const stops = route.stops.map((s) => {
-    const run = at[s.lane];
-    if (!run.first || !samePlace(run.first, s)) {
-      run.n += 1;
-      run.first = { lat: s.lat, lng: s.lng };
-    }
-    return { ...s, n: run.n, routes: { [s.lane]: run.n } };
-  });
-  const byId = new Map(stops.map((s) => [s.item.id, s]));
-  const segments = route.segments.map((g) => ({ ...g, from: byId.get(g.from.item.id) ?? g.from, to: byId.get(g.to.item.id) ?? g.to }));
-  return { ...route, stops, segments };
 }
 
 /** A stop's number on the chosen route (All: its own person's), or null when it is not on it. */
@@ -384,9 +372,12 @@ export function groupStops(stops: RouteStop[]): PinGroup[] {
   return groups;
 }
 
-/** A pin's number: its place's ('1' for plans 1–3 there); a place come back to later shows both ('1·3'). */
+/** A route number as shown: M where we split up or meet again, else the place number. */
+export const numberText = (n: number): string => (n < 0 ? 'M' : String(n));
+
+/** A pin's number: its place's ('1' for plans 1–3 there); a place come back to later shows both ('1·3', 'M·2'). */
 export function pinText(ns: number[]): string {
-  return [...new Set(ns)].sort((a, b) => a - b).join('·');
+  return [...new Set([...ns].sort((a, b) => a - b).map(numberText))].join('·');
 }
 
 /**

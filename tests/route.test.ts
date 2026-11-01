@@ -13,6 +13,7 @@ import {
   lineStyle,
   metresBetween,
   narrowRoute,
+  numberText,
   offsetSegment,
   orderForRoute,
   pinText,
@@ -126,13 +127,13 @@ describe('buildDayRoute', () => {
       item('e-nocoords', { date: D, participants: 'eren' }),
     ];
     const r = buildDayRoute(xs, D, 'eren', SYDNEY_TZ);
-    // Own-route numbers; Eren's route also counts t1 (we split) and t2 (we meet): e1 is his 2.
-    expect(r.stops.map((s) => [s.item.id, s.n])).toEqual([
-      ['t1', 1],
-      ['e1', 2],
-      ['t2', 2],
+    // Where we split (t1) and meet (t2) is M on every route; Eren's own places count from 1.
+    expect(r.stops.map((s) => [s.item.id, numberText(s.n)])).toEqual([
+      ['t1', 'M'],
+      ['e1', '1'],
+      ['t2', 'M'],
     ]);
-    expect(r.stops.map((s) => s.routes.eren)).toEqual([1, 2, 3]);
+    expect(r.stops.map((s) => numberText(s.routes.eren!))).toEqual(['M', '1', 'M']);
     expect(segs(r)).toEqual(['t1>e1:eren', 'e1>t2:eren']);
     expect(r.stops[2].meetUp).toBe(true);
     expect(r.notOnMap.map((i) => i.id)).toEqual(['e-nocoords']);
@@ -226,6 +227,8 @@ describe('pins and labels', () => {
     expect(pinText([1, 1, 1])).toBe('1');
     expect(pinText([3, 1, 1])).toBe('1·3');
     expect(pinText([])).toBe('');
+    expect(pinText([2, -1])).toBe('M·2');
+    expect(pinText([-1, -3])).toBe('M');
   });
 
   it('different links are different places, even a few metres apart; the same link is one', () => {
@@ -411,10 +414,12 @@ describe('flights', () => {
       'together',
       SYDNEY_TZ,
     );
-    expect(placeRuns(narrowRoute(all, 'together').stops).map((p) => [p.n, ids(p.stops)])).toEqual([[1, ['checkin', 'fly']]]);
-    expect(placeRuns(narrowRoute(all, 'eren').stops).map((p) => [p.n, ids(p.stops)])).toEqual([
-      [1, ['elsewhere']],
-      [2, ['move', 'checkin']], // we meet at the check-in: the same spot, the same number
+    // We meet at the check-in: M, and the flight from the same spot shares it.
+    expect(placeRuns(narrowRoute(all, 'together').stops).map((p) => [numberText(p.n), ids(p.stops)])).toEqual([['M', ['checkin', 'fly']]]);
+    expect(placeRuns(narrowRoute(all, 'eren').stops).map((p) => [numberText(p.n), ids(p.stops)])).toEqual([
+      ['1', ['elsewhere']],
+      ['2', ['move']],
+      ['M', ['checkin']], // the same spot as his 2, but where we meet is always M
     ]);
   });
 
@@ -440,17 +445,17 @@ describe('flights', () => {
 });
 
 describe('people filter on the map', () => {
-  it('narrowRoute: a person’s route starts where we split up and ends where we meet, 1, 2, 3', () => {
+  it('narrowRoute: a person’s route starts at M where we split up and ends at M where we meet: M, 1, M', () => {
     const all = buildDayRoute([at('t1', '09:00'), at('a1', '10:00', { participants: 'amy' }), at('e1', '10:30', { participants: 'eren' }), at('t2', '11:00')], D, 'together', SYDNEY_TZ);
     const eren = narrowRoute(all, 'eren');
-    expect(eren.stops.map((x) => [x.item.id, x.n])).toEqual([
-      ['t1', 1],
-      ['e1', 2],
-      ['t2', 3],
+    expect(eren.stops.map((x) => [x.item.id, numberText(x.n)])).toEqual([
+      ['t1', 'M'],
+      ['e1', '1'],
+      ['t2', 'M'],
     ]);
     expect(segs(eren).every((id) => id.endsWith(':eren'))).toBe(true);
     const together = narrowRoute(all, 'together');
-    expect(together.stops.map((x) => [x.item.id, x.n])).toEqual([['t1', 1], ['t2', 2]]);
+    expect(together.stops.map((x) => [x.item.id, numberText(x.n)])).toEqual([['t1', 'M'], ['t2', 'M']]);
     expect(segs(together).every((id) => id.endsWith(':together'))).toBe(true);
   });
   it('isFocusLane keeps each lane on its own (Together excludes the solo plans)', () => {
@@ -469,14 +474,16 @@ describe('people filter on the map', () => {
       SYDNEY_TZ,
     );
     const everyone = narrowRoute(all, 'all');
-    expect(everyone.stops.map((x) => [x.item.id, x.lane, x.n])).toEqual([
-      ['t1', 'together', 1],
-      ['a1', 'amy', 1],
-      ['e1', 'eren', 1],
-      ['e2', 'eren', 2],
-      ['t2', 'together', 2],
+    expect(everyone.stops.map((x) => [x.item.id, x.lane, numberText(x.n)])).toEqual([
+      ['t1', 'together', 'M'],
+      ['a1', 'amy', '1'],
+      ['e1', 'eren', '1'],
+      ['e2', 'eren', '2'],
+      ['t2', 'together', 'M'],
     ]);
     expect(everyone.segments.length).toBe(all.segments.length);
+    // Built for everyone, the solo lines are kept: t1 > a1 > t2 and t1 > e1 > e2 > t2.
+    expect(segs(all).sort()).toEqual(['a1>t2:amy', 'e1>e2:eren', 'e2>t2:eren', 't1>a1:amy', 't1>e1:eren']);
   });
 });
 

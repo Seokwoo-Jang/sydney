@@ -13,7 +13,7 @@ import { needsLookup, parseMapUrl } from '@/lib/maps';
 import { S } from '@/lib/strings';
 import type { ItineraryItem, Member, TripDay } from '@/lib/types';
 import RouteMapCanvas from './RouteMapCanvas';
-import { buildTripRoutes, narrowRoute, placeRuns, stopTime, type Lane, type RouteStop } from './routeLogic';
+import { buildTripRoutes, narrowRoute, numberText, placeRuns, stopTime, type Lane, type RouteStop } from './routeLogic';
 import styles from './route.module.css';
 
 export interface RouteViewProps {
@@ -165,8 +165,8 @@ export default function RouteView({
           key={run.stops[0].item.id}
           className={[styles.place, styles[`lane_${lane}`], run.stops.length > 1 ? styles.placeMany : ''].join(' ')}
         >
-          <span className={styles.num} aria-hidden="true">
-            {run.n}
+          <span className={[styles.num, run.n < 0 ? styles.meet : ''].join(' ')} aria-hidden="true">
+            {numberText(run.n)}
           </span>
           <ul className={styles.placeStops}>
             {run.stops.map((s) => (
@@ -175,7 +175,7 @@ export default function RouteView({
                   type="button"
                   className={styles.stop}
                   onClick={() => focusStop(s.item.id)}
-                  aria-label={S.route.showOnMap(`${run.n}. ${s.item.title}`)}
+                  aria-label={S.route.showOnMap(`${numberText(run.n)}. ${s.item.title}`)}
                 >
                   <span className={styles.stopTime}>{stopTime(s.item)}</span>
                   <span className={styles.stopText}>
@@ -250,6 +250,12 @@ export default function RouteView({
           <li>
             <i className={[styles.swatch, styles.amySwatch].join(' ')} aria-hidden="true" />
             {S.people.participants.amy}
+          </li>
+          <li>
+            <i className={[styles.num, styles.meet, styles.meetKey].join(' ')} aria-hidden="true">
+              M
+            </i>
+            {S.route.meetKey}
           </li>
         </ul>
       </div>

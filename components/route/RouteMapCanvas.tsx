@@ -274,8 +274,10 @@ export default function RouteMapCanvas(props: RouteMapCanvasProps) {
         const meet = mine.some((s) => s.meetUp);
         const isNow = g.stops.some((s) => now.has(s.item.id));
         const numbered = !trip && focused;
+        const meetPin = numbered && mine.every((s) => routeNumber(s, people)! < 0);
         const cls = [
           numbered ? styles.pin : styles.dot,
+          meetPin ? styles.meet : '',
           styles[`lane_${lane}`],
           done ? styles.done : '',
           isNow ? styles.now : '',
