@@ -4,18 +4,18 @@ import {
   boundsOf,
   buildDayRoute,
   buildTripRoutes,
-  createRateGate,
   directionsUrl,
+  flightAirports,
   groupLane,
   groupStops,
   incomingSegment,
   isFocusLane,
   lineStyle,
+  metresBetween,
+  metresPerPixel,
   narrowRoute,
-  nominatimUrl,
   offsetSegment,
   orderForRoute,
-  parseNominatim,
   pinText,
   placeLabel,
 } from '@/components/route/routeLogic';
@@ -64,22 +64,23 @@ describe('buildDayRoute', () => {
     expect(segs(r)).toEqual(['a>b:together']);
   });
 
-  it('drops cancelled, deleted, other days and home-zone legs', () => {
+  it('drops cancelled, deleted and other days; keeps home-zone legs in real time order', () => {
     const r = buildDayRoute(
       [
         at('ok', '09:00'),
         at('cx', '10:00', { status: 'cancelled' }),
         at('del', '11:00', { deletedAt: '2030-12-01T00:00:00Z' }),
         at('other', '12:00', { date: '2030-12-30' }),
-        at('home', '13:00', { timezone: SEOUL_TZ }),
+        at('home', '08:00', { timezone: SEOUL_TZ }),
         item('home-nocoords', { date: D, timezone: SEOUL_TZ }),
       ],
       D,
       'together',
       SYDNEY_TZ,
     );
-    expect(ids(r.stops)).toEqual(['ok']);
-    expect(r.notOnMap).toEqual([]);
+    // 09:00 in Sydney is 07:00 in Seoul, so it comes before 08:00 Seoul time.
+    expect(ids(r.stops)).toEqual(['ok', 'home']);
+    expect(r.notOnMap.map((i) => i.id)).toEqual(['home-nocoords']);
   });
 
   it('splits into E and A lines and marks the next Together stop as Meet up', () => {
@@ -200,12 +201,34 @@ describe('directionsUrl', () => {
 });
 
 describe('pins and labels', () => {
-  it('pinText', () => {
+  it('pinText shows the first number of a shared pin', () => {
     expect(pinText([3])).toBe('3');
-    expect(pinText([3, 4])).toBe('3·4');
-    expect(pinText([3, 4, 5])).toBe('3–5');
-    expect(pinText([2, 5, 6])).toBe('2+');
+    expect(pinText([1, 2, 3])).toBe('1');
+    expect(pinText([2, 5, 6])).toBe('2');
     expect(pinText([])).toBe('');
+  });
+
+  it('groupStops: links a few metres apart share one pin, a street away do not', () => {
+    const r = buildDayRoute(
+      [
+        at('a', '09:00', { mapLat: -33.86, mapLng: 151.2 }),
+        at('b', '10:00', { mapLat: -33.8602, mapLng: 151.2003 }), // ~35 m
+        at('c', '11:00', { mapLat: -33.865, mapLng: 151.2 }), // ~550 m
+      ],
+      D,
+      'together',
+      SYDNEY_TZ,
+    );
+    expect(groupStops(r.stops).map((g) => ids(g.stops))).toEqual([['a', 'b'], ['c']]);
+    expect(metresBetween({ lat: -33.86, lng: 151.2 }, { lat: -33.8602, lng: 151.2003 })).toBeLessThan(80);
+  });
+
+  it('groupStops with a zoom joins pins that would overlap on screen, and parts them zoomed in', () => {
+    const r = buildDayRoute([at('a', '09:00', { mapLat: -33.86, mapLng: 151.2 }), at('b', '10:00', { mapLat: -33.863, mapLng: 151.2 })], D, 'together', SYDNEY_TZ); // ~330 m
+    expect(groupStops(r.stops)).toHaveLength(2);
+    expect(groupStops(r.stops, 12)).toHaveLength(1); // ~32 m a pixel: 30 px ≈ 950 m
+    expect(groupStops(r.stops, 17)).toHaveLength(2); // ~1 m a pixel
+    expect(metresPerPixel(0, 0)).toBeCloseTo(156543.03, 1);
   });
 
   it('groupLane: shared pin of different people is Together', () => {
@@ -273,37 +296,32 @@ describe('pins and labels', () => {
   });
 });
 
-describe('place search', () => {
-  it('nominatimUrl encodes the query', () => {
-    expect(nominatimUrl(' Harbour Lawn & Lookout ')).toBe(
-      'https://nominatim.openstreetmap.org/search?format=jsonv2&limit=5&countrycodes=au&q=Harbour%20Lawn%20%26%20Lookout',
+describe('flights', () => {
+  it('flightAirports reads airport codes and terminals from the place', () => {
+    const f = flightAirports({ place: 'ICN T1 → SYD T1' });
+    expect([f?.from.code, f?.to.code]).toEqual(['ICN T1', 'SYD T1']);
+    expect(f!.from.lat).toBeGreaterThan(30); // Korea
+    expect(f!.to.lat).toBeLessThan(-30); // Sydney
+    expect(flightAirports({ place: 'SYD -> ICN' })?.to.code).toBe('ICN');
+    expect(flightAirports({ place: 'SYD T9 → ICN' })?.from.code).toBe('SYD T9'); // unknown terminal: the airport's spot
+    expect(flightAirports({ place: 'XXX → SYD' })).toBeNull();
+    expect(flightAirports({ place: 'Harbour walk' })).toBeNull();
+  });
+
+  it('a flight without its own spot is a stop at the departure airport with a leg to arrival', () => {
+    const r = buildDayRoute(
+      [
+        at('dinner', '19:30', { timezone: SEOUL_TZ, mapLat: 37.45, mapLng: 126.45 }),
+        item('fly', { date: D, startTime: '21:50', timezone: SEOUL_TZ, category: 'transport', place: 'ICN T1 → SYD T1' }),
+      ],
+      D,
+      'together',
+      SYDNEY_TZ,
     );
-  });
-
-  it('parseNominatim keeps well-formed results only', () => {
-    const json = [
-      { place_id: 1, lat: '12.34', lon: '45.67', name: 'Example Lookout', display_name: 'Example Lookout, Hilltown, NSW' },
-      { place_id: 2, lat: 'x', lon: '150', display_name: 'Broken' },
-      { place_id: 3, lat: '-33.86', lon: '151.21', name: '', display_name: 'Harbour Lawn, Sydney' },
-      null,
-      'nope',
-    ];
-    expect(parseNominatim(json)).toEqual([
-      { id: '1', name: 'Example Lookout', address: 'Example Lookout, Hilltown, NSW', lat: 12.34, lng: 45.67 },
-      { id: '3', name: 'Harbour Lawn', address: 'Harbour Lawn, Sydney', lat: -33.86, lng: 151.21 },
-    ]);
-    expect(parseNominatim({ error: 'x' })).toEqual([]);
-  });
-
-  it('rate gate spaces requests at least 1 s apart', () => {
-    let t = 10_000;
-    const gate = createRateGate(1000, () => t);
-    expect(gate.reserve()).toBe(0);
-    expect(gate.reserve()).toBe(1000); // queued right behind the first
-    t += 300;
-    expect(gate.reserve()).toBe(1700);
-    t += 5000;
-    expect(gate.reserve()).toBe(0);
+    expect(ids(r.stops)).toEqual(['dinner', 'fly']);
+    expect(r.notOnMap).toEqual([]);
+    expect(r.flights.map((f) => [f.item.id, f.from.code, f.to.code, f.lane])).toEqual([['fly', 'ICN T1', 'SYD T1', 'together']]);
+    expect(narrowRoute(r, 'eren').flights).toEqual([]);
   });
 });
 

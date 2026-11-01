@@ -3,17 +3,17 @@
 // (next/dynamic, no SSR) the first time "Route" is chosen, with Leaflet inside.
 // The List view stays the primary accessible representation; here the stops
 // list under the map repeats the pin order as buttons.
-import { useEffect, useId, useMemo, useRef, useState } from 'react';
+import { useId, useMemo, useRef, useState } from 'react';
 import { conflictSource, useSaveFlow } from '@/components/checklist/useSaveFlow';
 import type { PeopleFilter } from '@/components/itinerary/logic';
 import { Badge, Button, Chip, ChipGroup, ConflictNotice, Field, MemberMarks, SaveStatus, TextInput } from '@/components/ui';
-import { useEntityOps } from '@/lib/data';
+import { useEntityOps, useMapLinkResolver } from '@/lib/data';
 import { useReducedMotion } from '@/lib/hooks/useReducedMotion';
+import { needsLookup, parseMapUrl } from '@/lib/maps';
 import { S } from '@/lib/strings';
-import type { ItineraryItem, MapSource, Member, TripDay } from '@/lib/types';
-import { searchPlaces } from './nominatim';
+import type { ItineraryItem, Member, TripDay } from '@/lib/types';
 import RouteMapCanvas from './RouteMapCanvas';
-import { buildTripRoutes, narrowRoute, placeLabel, stopTime, type LatLng, type PlaceCandidate } from './routeLogic';
+import { buildTripRoutes, narrowRoute, stopTime } from './routeLogic';
 import styles from './route.module.css';
 
 export interface RouteViewProps {
@@ -34,14 +34,14 @@ export interface RouteViewProps {
   onOpenItem: (item: ItineraryItem) => void;
 }
 
-/** Find on map for one unplaced item. */
+/** Add Google Maps link for one unplaced item. */
 interface Edit {
   id: string;
   /** Version the edit started from; a newer row means a conflict. */
   baseVersion: number;
 }
 
-type SearchState = 'idle' | 'searching' | 'done' | 'error';
+type LinkState = 'idle' | 'locating' | 'invalid' | 'noLocation';
 
 const round6 = (n: number) => Math.round(n * 1e6) / 1e6;
 
@@ -65,15 +65,14 @@ export default function RouteView({
   const flow = useSaveFlow<ItineraryItem>();
   const headingId = useId();
   const boxRef = useRef<HTMLDivElement>(null);
-  const searchAbort = useRef<AbortController | null>(null);
+  const resolveLink = useMapLinkResolver();
+  /** Bumped whenever the open form changes, so a late lookup never saves into another item. */
+  const editSeq = useRef(0);
 
   const [focus, setFocus] = useState<{ id: string; seq: number } | null>(null);
   const [edit, setEdit] = useState<Edit | null>(null);
-  const [query, setQuery] = useState('');
-  const [searchState, setSearchState] = useState<SearchState>('idle');
-  const [candidates, setCandidates] = useState<PlaceCandidate[]>([]);
-
-  useEffect(() => () => searchAbort.current?.abort(), []);
+  const [link, setLink] = useState('');
+  const [linkState, setLinkState] = useState<LinkState>('idle');
 
   // The map always draws everyone (the other person is faded); lists show the filtered view with the same numbers.
   const mapRoutes = useMemo(() => buildTripRoutes(items, days, 'together', tripTz), [items, days, tripTz]);
@@ -99,42 +98,40 @@ export default function RouteView({
   };
 
   const stopEdit = () => {
-    searchAbort.current?.abort();
+    editSeq.current++;
     setEdit(null);
-    setCandidates([]);
-    setSearchState('idle');
+    setLink('');
+    setLinkState('idle');
   };
 
-  const runSearch = async (q: string) => {
-    if (!q.trim()) return;
-    searchAbort.current?.abort();
-    const ctrl = new AbortController();
-    searchAbort.current = ctrl;
-    setSearchState('searching');
-    setCandidates([]);
-    try {
-      const found = await searchPlaces(q, ctrl.signal);
-      if (ctrl.signal.aborted) return;
-      setCandidates(found);
-      setSearchState('done');
-    } catch {
-      if (!ctrl.signal.aborted) setSearchState('error');
-    }
-  };
-
-  const startFind = (item: ItineraryItem) => {
+  const startAdd = (item: ItineraryItem) => {
     if (edit?.id === item.id) return stopEdit();
+    editSeq.current++;
     flow.reset();
     setEdit({ id: item.id, baseVersion: item.version });
-    const q = placeLabel(item.place, item.title);
-    setQuery(q);
-    void runSearch(q); // one request per press
+    setLink('');
+    setLinkState('idle');
   };
 
-  const saveSpot = async (ll: LatLng, source: MapSource) => {
-    if (!edit || !editItem) return;
+  /** Spot from the link itself, else the server reads it from a share link (as in the item sheet). */
+  const saveLink = async () => {
+    if (!edit || !editItem || linkState === 'locating' || flow.busy) return;
+    const parsed = parseMapUrl(link);
+    if (!parsed.ok) return setLinkState('invalid');
+    const seq = editSeq.current;
+    let spot = parsed.lat !== null && parsed.lng !== null ? { lat: parsed.lat, lng: parsed.lng, name: parsed.name } : null;
+    if (!spot && needsLookup(parsed)) {
+      setLinkState('locating');
+      const r = await resolveLink(parsed.url);
+      if (seq !== editSeq.current) return; // closed or moved on meanwhile
+      spot = r ? { lat: r.lat, lng: r.lng, name: r.name ?? parsed.name } : null;
+    }
+    if (!spot) return setLinkState('noLocation');
+    setLinkState('idle');
+    const { lat, lng, name } = spot;
+    const place = editItem.place.trim() || name || editItem.place;
     const res = await flow.run(() =>
-      ops.update(editItem.id, { mapLat: round6(ll.lat), mapLng: round6(ll.lng), mapSource: source }, edit.baseVersion),
+      ops.update(editItem.id, { mapUrl: parsed.url, mapLat: round6(lat), mapLng: round6(lng), mapSource: 'link', place }, edit.baseVersion),
     );
     if (res.ok) {
       stopEdit();
@@ -180,6 +177,7 @@ export default function RouteView({
             people={filter}
             dayNumbers={dayNumbers}
             scope={mapScope}
+            tripTz={tripTz}
             focus={focus}
             nowIds={stableNowIds}
             me={meLane}
@@ -261,7 +259,7 @@ export default function RouteView({
           <p className={styles.hint}>{S.route.notOnMapHint}</p>
           <ul className={styles.missingList}>
             {notOnMap.map((i) => {
-              const finding = edit?.id === i.id;
+              const adding = edit?.id === i.id;
               const meta = [scope === 'trip' ? S.time.day(dayNumbers.get(i.date) ?? 0) : null, stopTime(i), i.place.trim() || null]
                 .filter(Boolean)
                 .join(' · ');
@@ -272,54 +270,47 @@ export default function RouteView({
                     <span className={styles.stopPlace}>{meta}</span>
                   </div>
                   <div className={styles.missingActions}>
-                    <Button variant="secondary" size="sm" aria-expanded={finding} onClick={() => startFind(i)}>
-                      {S.maps.findOnMap}
+                    <Button variant="secondary" size="sm" aria-expanded={adding} onClick={() => startAdd(i)}>
+                      {S.maps.addMapLink}
                     </Button>
                   </div>
-                  {finding && (
+                  {adding && (
                     <form
                       className={styles.find}
+                      noValidate
                       onSubmit={(e) => {
                         e.preventDefault();
-                        void runSearch(query);
+                        void saveLink();
                       }}
                     >
                       <div className={styles.findRow}>
-                        <Field label={S.route.searchLabel} className={styles.findField}>
-                          <TextInput value={query} onChange={(e) => setQuery(e.target.value)} autoComplete="off" enterKeyHint="search" />
+                        <Field label={S.maps.link} className={styles.findField}>
+                          <TextInput
+                            type="url"
+                            inputMode="url"
+                            value={link}
+                            autoComplete="off"
+                            spellCheck={false}
+                            enterKeyHint="done"
+                            onChange={(e) => {
+                              setLink(e.target.value);
+                              if (linkState !== 'locating') setLinkState('idle');
+                            }}
+                          />
                         </Field>
-                        <Button type="submit" variant="secondary" size="sm" busy={searchState === 'searching'}>
-                          {S.route.search}
+                        <Button type="submit" variant="secondary" size="sm" disabled={!link.trim()} busy={linkState === 'locating' || flow.busy}>
+                          {S.route.saveLink}
                         </Button>
                       </div>
                       <p className={styles.findStatus} role="status" aria-live="polite">
-                        {searchState === 'searching'
-                          ? S.route.searching
-                          : searchState === 'error'
-                            ? S.route.searchFailed
-                            : searchState === 'done' && !candidates.length
-                              ? S.route.noResults
+                        {linkState === 'locating'
+                          ? S.maps.locating
+                          : linkState === 'invalid'
+                            ? S.maps.notAMapLink
+                            : linkState === 'noLocation'
+                              ? S.maps.noLocation
                               : ''}
                       </p>
-                      {candidates.length > 0 && (
-                        <ul className={styles.candidates} aria-label={S.route.candidatesLabel(query)}>
-                          {candidates.map((c) => (
-                            <li key={c.id}>
-                              <button
-                                type="button"
-                                className={styles.candidate}
-                                disabled={flow.busy}
-                                aria-label={S.route.useThis(c.address)}
-                                onClick={() => saveSpot(c, 'search')}
-                              >
-                                <span className={styles.stopTitle}>{c.name}</span>
-                                <span className={styles.stopPlace}>{c.address}</span>
-                              </button>
-                            </li>
-                          ))}
-                        </ul>
-                      )}
-                      <p className={styles.credit}>{S.route.searchCredit}</p>
                     </form>
                   )}
                 </li>

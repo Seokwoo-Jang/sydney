@@ -5,7 +5,7 @@
 // User text reaches Leaflet as DOM nodes (textContent), never as HTML strings.
 import 'leaflet/dist/leaflet.css';
 import * as L from 'leaflet';
-import { useEffect, useLayoutEffect, useRef } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { addLocateControl } from '@/components/location/locate';
 import { restackLabels } from '@/lib/mapLabels';
 import { S } from '@/lib/strings';
@@ -39,6 +39,8 @@ export interface RouteMapCanvasProps {
   dayNumbers: Map<string, number>;
   /** 'trip' or the selected date. */
   scope: string;
+  /** The trip's own zone: the Trip view frames it, leaving the flights home out of the frame. */
+  tripTz: string;
   focus: { id: string; seq: number } | null;
   nowIds: string[];
   me: Lane | null;
@@ -46,6 +48,10 @@ export interface RouteMapCanvasProps {
   onSelectDay: (date: string) => void;
   ariaLabel: string;
 }
+
+/** Which stops share each pin at a zoom ('a+b|c'): a change means the pins must be redrawn. */
+const groupSignature = (routes: DayRoute[], zoom: number) =>
+  routes.map((r) => groupStops(r.stops, zoom).map((g) => g.stops.map((s) => s.item.id).join('+')).join('|')).join('/');
 
 const TILE_URL = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
 const TILE_ATTRIBUTION =
@@ -74,7 +80,7 @@ interface LaneLine {
 }
 
 export default function RouteMapCanvas(props: RouteMapCanvasProps) {
-  const { routes, people, dayNumbers, scope, focus, nowIds, me, ariaLabel } = props;
+  const { routes, people, dayNumbers, scope, tripTz, focus, nowIds, me, ariaLabel } = props;
   const elRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
   const layerRef = useRef<L.LayerGroup | null>(null);
@@ -84,6 +90,9 @@ export default function RouteMapCanvas(props: RouteMapCanvasProps) {
   const fittedRef = useRef<string | null>(null);
   const pendingFitRef = useRef<Bounds | null>(null);
   const focusDoneRef = useRef(-1);
+  // Day view: which stops share a pin at the drawn zoom; a zoom that changes it redraws.
+  const groupSigRef = useRef('');
+  const [regroup, setRegroup] = useState(0);
   // Leaflet handlers read the latest callbacks without re-binding.
   const cbRef = useRef(props);
   useLayoutEffect(() => {
@@ -123,7 +132,13 @@ export default function RouteMapCanvas(props: RouteMapCanvasProps) {
     // Wheel zoom only after the map is clicked or focused, so the page keeps scrolling.
     map.on('click focus', () => map.scrollWheelZoom.enable());
     map.on('blur mouseout', () => map.scrollWheelZoom.disable());
-    map.on('zoomend', reoffset);
+    map.on('zoomend', () => {
+      reoffset();
+      const p = cbRef.current;
+      if (p.scope !== 'trip' && groupSignature(p.routes.filter((r) => r.date === p.scope), map.getZoom()) !== groupSigRef.current) {
+        setRegroup((n) => n + 1);
+      }
+    });
     // After any move (zoom, pan, focus, popup autopan): labels near the edge restack against the new view.
     map.on('moveend', relabel);
     layerRef.current = L.layerGroup().addTo(map);
@@ -162,6 +177,8 @@ export default function RouteMapCanvas(props: RouteMapCanvasProps) {
     const trip = scope === 'trip';
     const isActive = (r: DayRoute) => trip || r.date === scope;
     const now = new Set(trip ? [] : nowIds);
+    // Day view groups by what overlaps at this zoom; the Trip view keeps each place's dot.
+    const zoom = trip ? null : map.getZoom();
 
     const popupFor = (g: PinGroup, route: DayRoute): HTMLElement => {
       const root = el('div', styles.popup);
@@ -226,8 +243,33 @@ export default function RouteMapCanvas(props: RouteMapCanvasProps) {
         lanesRef.current.push({ line, a, b, px: LANE_OFFSET_PX[seg.lane] });
       }
 
+      // Flights: a line from the departure airport (where the item's pin is) to the arrival
+      // airport, which gets a small end mark named by its code ('SYD T1').
+      for (const f of route.flights) {
+        const focused = isFocusLane(f.lane, people);
+        const st = lineStyle(f.lane);
+        const a = L.latLng(f.from.lat, f.from.lng);
+        const b = L.latLng(f.to.lat, f.to.lng);
+        L.polyline([a, b], { color: st.color, weight: st.weight, opacity: st.opacity * (focused ? 1 : OTHER), lineCap: 'round', interactive: false }).addTo(layer);
+        const end = L.marker(b, {
+          icon: L.divIcon({ className: styles.hit, html: `<span class="${styles.dot} ${styles[`lane_${f.lane}`]}" style="opacity:${focused ? 1 : OTHER}"></span>`, iconSize: [44, 44], iconAnchor: [22, 22] }),
+          interactive: false,
+          keyboard: false,
+          zIndexOffset: focused ? 900 : 400,
+        }).addTo(layer);
+        end.bindTooltip(el('span', undefined, f.to.code), {
+          permanent: true,
+          direction: 'right',
+          offset: [6, 0],
+          className: styles.label,
+          opacity: focused ? 0.9 : 0.55,
+          interactive: false,
+        });
+        labelledRef.current.push({ marker: end, faded: !focused });
+      }
+
       // Trip view labels each day once, on its first stop of the chosen person.
-      const groups = groupStops(route.stops);
+      const groups = groupStops(route.stops, zoom);
       const firstFocused = groups.findIndex((g) => isFocusLane(groupLane(g), people));
       groups.forEach((g, k) => {
         const lane = groupLane(g);
@@ -287,14 +329,21 @@ export default function RouteMapCanvas(props: RouteMapCanvasProps) {
 
     // Only the chosen day (or every day on Trip); other days are not drawn.
     for (const r of routes) if (isActive(r)) drawRoute(r);
+    groupSigRef.current = zoom === null ? '' : groupSignature(routes.filter(isActive), zoom);
 
     // Fit when the day or the lane changes (not on every data refresh): zoom in on the chosen
-    // lane's stops; without any, on the whole day.
+    // lane's stops; without any, on the whole day. The Trip view frames Sydney only: the
+    // legs at home on Day 1 and Day 9 are drawn but would zoom the whole trip out to Korea.
     const fitKey = `${scope}|${people}`;
-    const dayStops = routes.filter(isActive).flatMap((r) => r.stops);
+    const dayStops = routes
+      .filter(isActive)
+      .flatMap((r) => r.stops)
+      .filter((s) => !trip || s.item.timezone === tripTz);
+    // A day's flight frames its arrival airport too.
+    const arrivals = trip ? [] : routes.filter(isActive).flatMap((r) => r.flights.map((f) => ({ lane: f.lane, lat: f.to.lat, lng: f.to.lng })));
     if (fittedRef.current !== fitKey) {
-      const chosen = dayStops.filter((s) => isFocusLane(s.lane, people));
-      const all = chosen.length ? chosen : dayStops.length ? dayStops : routes.flatMap((r) => r.stops);
+      const chosen = [...dayStops, ...arrivals].filter((s) => isFocusLane(s.lane, people));
+      const all = chosen.length ? chosen : dayStops.length ? [...dayStops, ...arrivals] : routes.flatMap((r) => r.stops);
       const b = boundsOf(all);
       if (b) {
         // A map that has no size yet (just shown) cannot fit; the resize observer fits it then.
@@ -311,7 +360,8 @@ export default function RouteMapCanvas(props: RouteMapCanvasProps) {
     reoffset();
     const raf = requestAnimationFrame(relabel);
     return () => cancelAnimationFrame(raf);
-  }, [routes, people, scope, nowIds, me, dayNumbers]);
+    // `regroup` only asks for a redraw; the zoom itself is read from the map.
+  }, [routes, people, scope, tripTz, nowIds, me, dayNumbers, regroup]);
 
   // ── focus a stop (from the list or after saving a spot) ───────
   useEffect(() => {

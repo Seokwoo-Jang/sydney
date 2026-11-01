@@ -383,14 +383,14 @@ export const S = {
     locatedFromLink: 'Location read from the link.',
     keptLocation: 'Map location kept.',
     lookupOnSave: 'The map location is looked up when you save.',
-    noLocation: 'This link doesn’t include a map location. Paste a place’s share link, or use Find on map on the Route.',
+    noLocation: 'This link doesn’t include a map location. Paste the place’s Share link from Google Maps.',
     openLabel: (place: string) => `Open ${place} in Google Maps`,
     route: 'Route',
     list: 'List',
     trip: 'Trip',
     meetUp: 'Meet up',
     directions: 'Directions',
-    findOnMap: 'Find on map',
+    addMapLink: 'Add Google Maps link',
     notOnMap: 'Not on map',
     addToMap: 'Add to map',
     showWhereWeAre: 'Show where we are',
@@ -612,7 +612,7 @@ export const S = {
   },
 
   // ── route map (owned by the route builder, plan §7.2.7) ─────
-  // Route / List / Trip / Meet up / Directions / Find on map / Pin on map /
+  // Route / List / Trip / Meet up / Directions / Add Google Maps link /
   // Not on map / Add to map / the lines note live in the shared `maps` group.
   route: {
     viewLabel: 'Itinerary display',
@@ -626,15 +626,8 @@ export const S = {
     openDay: (n: number) => `Show Day ${n}`,
     legendLabel: 'Line styles',
     ideaLine: 'Idea (faint)',
-    notOnMapHint: 'These are skipped in the order until they have a spot.',
-    searchLabel: 'Place to search',
-    search: 'Search',
-    searching: 'Searching…',
-    noResults: 'No matches. Try another name, or pin it on the map.',
-    searchFailed: 'Couldn’t search right now. Try again.',
-    searchCredit: 'Search by OpenStreetMap Nominatim',
-    candidatesLabel: (place: string) => `Matches for ${place}`,
-    useThis: (name: string) => `Use ${name}`,
+    notOnMapHint: 'These are skipped in the order until they have a Google Maps link.',
+    saveLink: 'Save link',
     stopLabel: (n: string, title: string) => `Stop ${n}: ${title}`,
   },
 

@@ -1,7 +1,7 @@
 // Resolves a Google Maps link to coordinates (plan §7.2.5, §7.2.7).
 // Short share links (maps.app.goo.gl) and search links carry no coordinates the
 // browser can read, so this follows the redirects server-side and, when the final
-// address still has none, reads the place centre Google puts in the page.
+// address still has none, reads the place's own point from the page data.
 //
 // Only entered trip members may call it (my_member() under the caller's JWT), and
 // only Google Maps addresses are ever fetched: every redirect hop is re-checked,
@@ -59,13 +59,15 @@ function coordsFromUrl(u: URL): { lat: number; lng: number; precision: 'pin' | '
   return null;
 }
 
-/** Place centre from the page: the preview image centre, else the initial map view. */
+/**
+ * The place's own point from the page data: its first `[null,null,lat,lng]`.
+ * The preview image centre and the initial map view are NOT used: for a share link
+ * they show the requester's default area (a server in Sydney got the middle of the
+ * Yellow Sea for a place at Incheon), and no pin beats a wrong one.
+ */
 function coordsFromHtml(html: string): { lat: number; lng: number; precision: 'pin' | 'view' } | null {
-  const centre = /staticmap\?[^"'<>]*?center=(-?\d+(?:\.\d+)?)(?:%2C|,)(-?\d+(?:\.\d+)?)/i.exec(html);
-  if (centre && valid(+centre[1], +centre[2])) return { lat: +centre[1], lng: +centre[2], precision: 'pin' };
-  // window.APP_INITIALIZATION_STATE=[[[scale, lng, lat] ...
-  const view = /APP_INITIALIZATION_STATE=\[\[\[(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?)\]/.exec(html);
-  if (view && valid(+view[3], +view[2])) return { lat: +view[3], lng: +view[2], precision: 'view' };
+  const place = /\[null,null,(-?\d{1,2}\.\d{3,}),(-?\d{1,3}\.\d{3,})\]/.exec(html);
+  if (place && valid(+place[1], +place[2])) return { lat: +place[1], lng: +place[2], precision: 'pin' };
   return null;
 }
 

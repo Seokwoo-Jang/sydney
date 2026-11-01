@@ -306,7 +306,7 @@ export function ItemSheet({
     const isTimed = d.timeKind === 'timed';
     const parsed = d.mapUrl.trim() ? parseMapUrl(d.mapUrl) : null;
     const link = parsed?.ok ? parsed : null;
-    // Without a link, a spot set on the Route (Pin on map / Find on map) stays.
+    // Without a link, a spot set earlier by pin or place search stays.
     const keptSpot = !link && (f.row?.mapSource === 'pin' || f.row?.mapSource === 'search') && f.row.mapLat != null ? f.row : null;
     // The form is locked while saving (fieldset below), so `d` cannot go stale during the lookup.
     setForm((s) => ({ ...s, save: 'saving', tried: true, confirm: null }));

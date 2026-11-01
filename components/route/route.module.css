@@ -428,8 +428,7 @@
 /* ── stops list ─────────────────────────────────────── */
 .stops,
 .days,
-.missingList,
-.candidates {
+.missingList {
   margin: 0;
   padding: 0;
   list-style: none;
@@ -479,8 +478,7 @@
 }
 
 .stop:focus-visible,
-.dayRow:focus-visible,
-.candidate:focus-visible {
+.dayRow:focus-visible {
   outline: 2px solid var(--harbour);
   outline-offset: -2px;
   border-radius: var(--radius-button);
@@ -672,33 +670,6 @@
 
 .findStatus:empty {
   display: none;
-}
-
-.candidates li + li {
-  border-top: 1px solid var(--line);
-}
-
-.candidate {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  width: 100%;
-  min-height: var(--touch);
-  padding: 8px 6px;
-  border: 0;
-  background: transparent;
-  font: inherit;
-  text-align: left;
-  cursor: pointer;
-}
-
-.candidate:hover {
-  background: var(--harbour-wash);
-}
-
-.credit {
-  font-size: var(--text-2xs);
-  color: var(--muted);
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -9,7 +9,7 @@
 html {
   -webkit-text-size-adjust: 100%;
   text-size-adjust: 100%;
-  scroll-padding-top: var(--scroll-offset);
+  scroll-padding-top: var(--scroll-offset); /* jumps land just below the sticky links */
   background: var(--paper);
 }
 
@@ -109,11 +109,6 @@ a {
 
 [hidden] {
   display: none !important;
-}
-
-/* Section roots land below sticky links when scrolled to. */
-[id^='section-'] {
-  scroll-margin-top: var(--scroll-offset);
 }
 
 /* Utilities shared by every component. */

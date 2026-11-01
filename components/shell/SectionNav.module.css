@@ -69,9 +69,7 @@
   height: var(--section-links-h);
   margin: 0 calc(-1 * var(--gutter));
   padding: 0 var(--gutter);
-  background: rgba(247, 244, 238, 0.94);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
+  background: var(--paper);
   border-bottom: 1px solid var(--line);
 }
 

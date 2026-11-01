@@ -55,7 +55,7 @@ function extractCoords(u: URL): [number, number] | null {
 /**
  * True when a valid link has no coordinates in its address but the server can
  * find them: short share links and place pages. Search links name no single
- * place, so they are never looked up (Find on map covers them).
+ * place, so they are never looked up.
  */
 export function needsLookup(link: Extract<MapLinkResult, { ok: true }>): boolean {
   if (link.lat !== null) return false;
