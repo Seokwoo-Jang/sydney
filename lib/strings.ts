@@ -692,6 +692,7 @@ export const S = {
     rateNote: 'Estimates use the ECB reference rate. Card charges may differ.',
     addExpense: 'Add an expense',
     editBudgets: 'Edit budgets',
+    showFirst: 'Show first',
     budgetsTitle: 'Budgets',
     budgetsHint: 'Each budget is optional. Leave it empty for no budget.',
     budgetFor: (scope: string) => `${scope} budget`,

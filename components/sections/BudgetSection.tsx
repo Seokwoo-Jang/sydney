@@ -12,7 +12,7 @@ import { useShellNav } from '@/components/shell/ShellNav';
 import { Button, Card, EmptyState, ErrorState, LoadingState, SectionHeading, SegmentedControl } from '@/components/ui';
 import { useBookings, useBudget, useDays, useItinerary, useTrip } from '@/lib/data';
 import { useCurrencyFirst } from '@/lib/hooks/useCurrencyFirst';
-import type { Settlement } from '@/lib/types';
+import type { Currency, Settlement } from '@/lib/types';
 import { S } from '@/lib/strings';
 import type { SectionProps } from './types';
 import styles from '@/components/budget/Budget.module.css';
@@ -30,7 +30,7 @@ export default function BudgetSection({ layout }: SectionProps) {
   const due = useDueContext();
   const { goToSection } = useShellNav();
   const nav = useSectionNav<StatusView>('wallet', VIEWS, 'all');
-  const [first] = useCurrencyFirst(trip.status === 'ready' ? trip.data.trip.displayCurrencyFirst : 'AUD');
+  const [first, setFirst] = useCurrencyFirst(trip.status === 'ready' ? trip.data.trip.displayCurrencyFirst : 'AUD');
   const [scope, setScope] = useState<ScopeView>('all');
   const [showAll, setShowAll] = useState(false);
   const [adding, setAdding] = useState(false);
@@ -77,9 +77,22 @@ export default function BudgetSection({ layout }: SectionProps) {
         <BudgetSummary budgets={data.budgets} expenses={data.expenses} latest={data.latestFx} scope={scope} first={first} />
         <div className={styles.fxRow}>
           <FxLine latest={data.latestFx} today={today} />
-          <Button variant="link" size="sm" iconStart="edit" onClick={() => setBudgetsOpen(true)}>
-            {S.budget.editBudgets}
-          </Button>
+          <div className={styles.fxActions}>
+            {/* Same per-device preference as the profile menu: which currency is the large figure. */}
+            <SegmentedControl<Currency>
+              label={S.budget.showFirst}
+              size="sm"
+              value={first}
+              onChange={setFirst}
+              options={[
+                { value: 'AUD', label: 'AUD' },
+                { value: 'KRW', label: 'KRW' },
+              ]}
+            />
+            <Button variant="link" size="sm" iconStart="edit" onClick={() => setBudgetsOpen(true)}>
+              {S.budget.editBudgets}
+            </Button>
+          </div>
         </div>
         <div className={styles.toolbar}>
           <SegmentedControl<StatusView>
