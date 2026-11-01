@@ -55,8 +55,12 @@ const TILE_ATTRIBUTION =
 const DEFAULT_CENTER: [number, number] = [-33.8688, 151.2093]; // Sydney CBD
 // Labels sit to the right of pins: keep extra room on that side.
 const FIT: L.FitBoundsOptions = { paddingTopLeft: [36, 36], paddingBottomRight: [120, 36], maxZoom: 15, animate: false };
-/** The other person's lines, pins and names when one person is chosen: faded, still readable. */
-const OTHER = 0.5;
+/** The other people's pins when one person is chosen: faded, still findable. */
+const OTHER = 0.4;
+/** The other people's lines when one person is chosen: clearly in the background (owner, 2026-11-01). */
+const OTHER_LINE = 0.15;
+/** Their names: still legible, plainly not the chosen route. */
+const OTHER_LABEL = 0.4;
 
 const CHECK_SVG =
   '<svg viewBox="0 0 16 16" width="10" height="10" aria-hidden="true"><path d="M3.5 8.5l3 3 6-7" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
@@ -203,12 +207,12 @@ export default function RouteMapCanvas(props: RouteMapCanvasProps) {
     const drawLine = (a: L.LatLng, b: L.LatLng, lane: Lane, focused: boolean, interactive: boolean): L.Polyline => {
       const st = lineStyle(lane);
       if (lane === 'together') {
-        L.polyline([a, b], { color: '#FFFDF9', weight: st.weight + 4, opacity: 0.7 * st.opacity, interactive: false }).addTo(layer);
+        L.polyline([a, b], { color: '#FFFDF9', weight: st.weight + 4, opacity: 0.7 * st.opacity * (focused ? 1 : OTHER_LINE), interactive: false }).addTo(layer);
       }
       return L.polyline([a, b], {
         color: st.color,
         weight: st.weight,
-        opacity: st.opacity * (focused ? 1 : OTHER),
+        opacity: st.opacity * (focused ? 1 : OTHER_LINE),
         dashArray: st.dashArray ?? undefined,
         lineCap: 'round',
         interactive,
@@ -254,7 +258,7 @@ export default function RouteMapCanvas(props: RouteMapCanvasProps) {
           direction: 'auto', // right of the pin, left of it past the middle: never cut off at the edge
           offset: [6, 0],
           className: styles.label,
-          opacity: focused ? 0.9 : 0.55,
+          opacity: focused ? 0.9 : OTHER_LABEL,
           interactive: false,
         });
         labelledRef.current.push({ marker: end, faded: !focused });
@@ -310,7 +314,7 @@ export default function RouteMapCanvas(props: RouteMapCanvasProps) {
             offset: [numbered ? 10 : 2, 0],
             className: trip ? styles.dayLabel : styles.label,
             // Leaflet sets the tooltip opacity inline, so the fade goes through its option.
-            opacity: focused ? 0.9 : 0.55,
+            opacity: focused ? 0.9 : OTHER_LABEL,
             interactive: false,
           });
           labelledRef.current.push({ marker, faded: !focused });
