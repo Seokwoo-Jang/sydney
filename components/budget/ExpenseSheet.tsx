@@ -229,9 +229,12 @@ export function ExpenseSheet({
             <TextInput type="date" value={draft.date} onChange={(e) => edit({ date: e.target.value })} />
           </Field>
           <Field label={S.fields.status}>
-            <Select
+            <SegmentedControl
+              label={S.fields.status}
+              fill
+              columns={3}
               value={draft.status}
-              onChange={(e) => edit({ status: e.target.value as ExpenseStatus })}
+              onChange={(v) => edit({ status: v as ExpenseStatus })}
               options={(['planned', 'paid', 'cancelled'] as const).map((s) => ({ value: s, label: S.labels.expenseStatus[s] }))}
             />
           </Field>
@@ -278,9 +281,12 @@ export function ExpenseSheet({
           />
         </Field>
         <Field label={S.fields.category}>
-          <Select
+          <SegmentedControl
+              label={S.fields.category}
+              fill
+              columns={4}
             value={draft.category}
-            onChange={(e) => edit({ category: e.target.value as ExpenseCategory })}
+            onChange={(v) => edit({ category: v as ExpenseCategory })}
             options={CATEGORIES.map((c) => ({ value: c, label: S.labels.expenseCategory[c] }))}
           />
         </Field>

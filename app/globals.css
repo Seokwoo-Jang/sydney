@@ -145,8 +145,8 @@ a {
   font-variant-numeric: tabular-nums lining-nums;
 }
 
-/* An open modal sheet stops the page behind it from scrolling. */
-html:has(dialog[open]) {
+/* An open sheet (components/ui/Sheet) stops the page behind it from scrolling. */
+html.sheet-open {
   overflow: hidden;
 }
 

@@ -1,7 +1,30 @@
+/* Overlay host appended to <body> for each open sheet. */
+.host {
+  position: relative;
+  z-index: var(--z-sheet);
+}
+
+.layer {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-sheet);
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+}
+
+.backdrop {
+  position: absolute;
+  inset: 0;
+  background: var(--scrim);
+  animation: fade-in var(--motion) var(--ease);
+}
+
 /* Mobile/tablet: bottom sheet. */
 .dialog {
-  position: fixed;
-  inset: auto 0 0 0;
+  position: relative;
+  display: flex;
+  flex-direction: column;
   width: 100%;
   max-width: 100%;
   max-height: 92dvh;
@@ -13,16 +36,8 @@
   color: var(--ink);
   box-shadow: var(--shadow-float);
   overflow: hidden;
-}
-
-.dialog[open] {
-  display: flex;
-  flex-direction: column;
+  outline: none;
   animation: sheet-up var(--motion-slow) var(--ease);
-}
-
-.dialog::backdrop {
-  background: var(--scrim);
 }
 
 .full {
@@ -85,15 +100,16 @@
 
 /* PC: right panel. */
 @media (min-width: 1024px) {
+  .layer {
+    flex-direction: row;
+    justify-content: flex-end;
+  }
+
   .dialog {
-    inset: 0 0 0 auto;
     width: min(480px, 100vw);
     height: 100dvh;
     max-height: 100dvh;
     border-radius: var(--radius-card-lg) 0 0 var(--radius-card-lg);
-  }
-
-  .dialog[open] {
     animation-name: panel-in;
   }
 
@@ -116,6 +132,12 @@
   }
 }
 
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+}
+
 @keyframes sheet-up {
   from {
     transform: translateY(24px);
@@ -127,5 +149,12 @@
   from {
     transform: translateX(24px);
     opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dialog,
+  .backdrop {
+    animation: none;
   }
 }

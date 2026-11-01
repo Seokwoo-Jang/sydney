@@ -378,3 +378,16 @@
     transition: none;
   }
 }
+
+/* "Finished" filter: grey, so it reads as the done pile rather than a person. */
+.finishedChip {
+  color: var(--past);
+  border-style: dashed;
+}
+
+.finishedChip[aria-pressed='true'] {
+  background: var(--past);
+  border-color: var(--past);
+  border-style: solid;
+  color: var(--porcelain);
+}

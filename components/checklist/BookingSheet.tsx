@@ -3,7 +3,7 @@
 // Status and payment are separate fields; expenses link only on request.
 import { useState, type ReactNode } from 'react';
 import { ExpenseSheet } from '@/components/budget/ExpenseSheet';
-import { Button, Field, SaveStatus, Select, Sheet, TextArea, TextInput, useToast } from '@/components/ui';
+import { Button, Field, SaveStatus, Sheet, TextArea, TextInput, useToast, SegmentedControl } from '@/components/ui';
 import { newId, useBudget, useEntityOps } from '@/lib/data';
 import { formatMoney } from '@/lib/money';
 import { mapHref } from '@/lib/maps';
@@ -391,7 +391,10 @@ export function BookingSheet({
                     <TextInput type="time" value={draft.departTime} onChange={(e) => edit({ departTime: e.target.value })} />
                   </Field>
                   <Field label={S.checklist.fields.departZone}>
-                    <Select value={draft.departTimezone} onChange={(e) => edit({ departTimezone: e.target.value })} options={zoneOptions} />
+                    <SegmentedControl
+              label={S.checklist.fields.departZone}
+              fill
+              columns={2} value={draft.departTimezone} onChange={(v) => edit({ departTimezone: v })} options={zoneOptions} />
                   </Field>
                   <Field label={S.checklist.fields.departTerminal} optional>
                     <TextInput value={draft.departTerminal} onChange={(e) => edit({ departTerminal: e.target.value })} />
@@ -403,7 +406,10 @@ export function BookingSheet({
                     <TextInput type="time" value={draft.arriveTime} onChange={(e) => edit({ arriveTime: e.target.value })} />
                   </Field>
                   <Field label={S.checklist.fields.arriveZone}>
-                    <Select value={draft.arriveTimezone} onChange={(e) => edit({ arriveTimezone: e.target.value })} options={zoneOptions} />
+                    <SegmentedControl
+              label={S.checklist.fields.arriveZone}
+              fill
+              columns={2} value={draft.arriveTimezone} onChange={(v) => edit({ arriveTimezone: v })} options={zoneOptions} />
                   </Field>
                   <Field label={S.checklist.fields.arriveTerminal} optional>
                     <TextInput value={draft.arriveTerminal} onChange={(e) => edit({ arriveTerminal: e.target.value })} />
@@ -440,9 +446,12 @@ export function BookingSheet({
                   </Field>
                 </div>
                 <Field label={S.checklist.guests}>
-                  <Select
+                  <SegmentedControl
+              label={S.checklist.guests}
+              fill
+              columns={3}
                     value={draft.guests}
-                    onChange={(e) => edit({ guests: e.target.value as StayDetail['guests'] })}
+                    onChange={(v) => edit({ guests: v as StayDetail['guests'] })}
                     options={[
                       { value: 'both', label: S.people.participants.together },
                       { value: 'eren', label: S.people.participants.eren },
@@ -486,16 +495,22 @@ export function BookingSheet({
             </Field>
             <div className={form.grid2}>
               <Field label={S.checklist.bookingStatus}>
-                <Select
+                <SegmentedControl
+              label={S.checklist.bookingStatus}
+              fill
+              columns={3}
                   value={draft.status}
-                  onChange={(e) => edit({ status: e.target.value as BookingStatus })}
+                  onChange={(v) => edit({ status: v as BookingStatus })}
                   options={(['considering', 'booked', 'cancelled'] as const).map((v) => ({ value: v, label: S.labels.bookingStatus[v] }))}
                 />
               </Field>
               <Field label={S.checklist.paymentStatus}>
-                <Select
+                <SegmentedControl
+              label={S.checklist.paymentStatus}
+              fill
+              columns={2}
                   value={draft.paymentStatus}
-                  onChange={(e) => edit({ paymentStatus: e.target.value as PaymentStatus })}
+                  onChange={(v) => edit({ paymentStatus: v as PaymentStatus })}
                   options={(['unpaid', 'paid'] as const).map((v) => ({ value: v, label: S.labels.paymentStatus[v] }))}
                 />
               </Field>

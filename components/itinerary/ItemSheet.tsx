@@ -393,7 +393,6 @@ export function ItemSheet({
     });
 
   // ── options ───────────────────────────────────────────────────
-  const dayOptions = days.map((d) => ({ value: d.date, label: S.itinerary.dayOption(d.dayNumber, formatDayLabel(d.date)) }));
   const dayNumberOf = (itemId: string | null) => {
     const it = itemId ? items.find((i) => i.id === itemId) : undefined;
     return it ? days.find((d) => d.date === it.date)?.dayNumber : undefined;
@@ -482,14 +481,34 @@ export function ItemSheet({
           <TextInput value={draft.title} onChange={(e) => set('title', e.target.value)} autoComplete="off" required />
         </Field>
 
+        <Field label={S.itinerary.day}>
+          <SegmentedControl
+            label={S.itinerary.day}
+            fill
+            columns={3}
+            size="sm"
+            value={draft.date}
+            onChange={(v) => set('date', v)}
+            options={days.map((d) => ({
+              value: d.date,
+              label: (
+                <span className={styles.dayChoice}>
+                  <span>{S.time.day(d.dayNumber)}</span>
+                  <span className={styles.dayChoiceDate}>{formatDayLabel(d.date)}</span>
+                </span>
+              ),
+            }))}
+          />
+        </Field>
+
         <div className={`${styles.pair} ${styles.stackNarrow}`}>
-          <Field label={S.itinerary.day}>
-            <Select value={draft.date} onChange={(e) => set('date', e.target.value)} options={dayOptions} />
-          </Field>
           <Field label={S.itinerary.timeKind}>
-            <Select
+            <SegmentedControl
+              label={S.itinerary.timeKind}
+              fill
+              columns={3}
               value={draft.timeKind}
-              onChange={(e) => set('timeKind', e.target.value as TimeKind)}
+              onChange={(v) => set('timeKind', v as TimeKind)}
               options={KINDS.map((k) => ({ value: k, label: S.labels.timeKind[k] }))}
             />
           </Field>
@@ -507,7 +526,10 @@ export function ItemSheet({
             </div>
             {zoneOptions.length > 1 && (
               <Field label={S.itinerary.timezone}>
-                <Select value={draft.timezone} onChange={(e) => set('timezone', e.target.value)} options={zoneOptions} />
+                <SegmentedControl
+              label={S.itinerary.timezone}
+              fill
+              columns={2} value={draft.timezone} onChange={(v) => set('timezone', v)} options={zoneOptions} />
               </Field>
             )}
           </>

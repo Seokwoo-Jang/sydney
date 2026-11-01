@@ -4,10 +4,10 @@
   gap: var(--s2-5);
 }
 
-/* The cover takes the width; the Prelude shortcut stays a small card beside it. */
+/* As in the design sample: the cover takes the width, the Prelude card is 340px. */
 .coverRow {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) clamp(260px, 24%, 320px);
+  grid-template-columns: minmax(0, 1fr) 340px;
   gap: var(--s2-5);
 }
 

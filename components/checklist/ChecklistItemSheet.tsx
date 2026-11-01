@@ -1,7 +1,7 @@
 'use client';
 // Add / edit one Packing item or To-do (plan §7.4 A–B).
 import { useMemo, useState } from 'react';
-import { Button, Field, SaveStatus, SegmentedControl, Select, Sheet, TextArea, TextInput } from '@/components/ui';
+import { Button, Field, SaveStatus, SegmentedControl, Sheet, TextArea, TextInput } from '@/components/ui';
 import { newId, PACKING_CATEGORIES, TASK_CATEGORIES, useChecklist } from '@/lib/data';
 import type { Booking, ChecklistItem, ChecklistKind, Member, Resource } from '@/lib/types';
 import { S } from '@/lib/strings';
@@ -190,14 +190,20 @@ export function ChecklistItemSheet({
         </Field>
         <div className={form.grid2}>
           <Field label={S.fields.category}>
-            <Select
+            <SegmentedControl
+              label={S.fields.category}
+              fill
+              columns={2}
               value={draft.category}
-              onChange={(e) => edit({ category: e.target.value })}
+              onChange={(v) => edit({ category: v })}
               options={categories.map((c) => ({ value: c, label: labels[c] }))}
             />
           </Field>
           <Field label={S.fields.assignee}>
-            <Select value={draft.assignee} onChange={(e) => edit({ assignee: e.target.value as Assignee })} options={assigneeOptions} />
+            <SegmentedControl
+              label={S.fields.assignee}
+              fill
+              columns={3} value={draft.assignee} onChange={(v) => edit({ assignee: v as Assignee })} options={assigneeOptions} />
           </Field>
         </div>
         {k === 'packing' ? (

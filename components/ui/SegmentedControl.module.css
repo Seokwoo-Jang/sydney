@@ -96,3 +96,17 @@
   border-color: var(--ink);
   color: var(--porcelain);
 }
+
+/* Grid of choices (columns prop): every option visible, rows of equal cells. */
+.grid {
+  display: grid;
+  width: 100%;
+}
+
+.grid .segment {
+  min-width: 0;
+  padding-inline: 4px;
+  white-space: normal;
+  text-align: center;
+  line-height: 1.2;
+}

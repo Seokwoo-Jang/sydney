@@ -147,7 +147,7 @@
   isolation: isolate;
   display: flex;
   overflow: hidden;
-  height: 208px;
+  height: 220px;
   border-radius: var(--radius-card);
   background: #1d130d;
   color: var(--porcelain);

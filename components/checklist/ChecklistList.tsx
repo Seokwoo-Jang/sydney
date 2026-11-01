@@ -10,7 +10,8 @@ import { ChecklistRow } from './ChecklistRow';
 import type { DueContext } from './due';
 import styles from './Checklist.module.css';
 
-type PersonFilter = 'all' | 'eren' | 'amy' | 'both';
+/** Everyone / one person = what is still to do; Finished = done or not needed (owner, 2026-11-01). */
+type PersonFilter = 'all' | 'eren' | 'amy' | 'finished';
 
 export function ChecklistList({
   kind,
@@ -34,7 +35,6 @@ export function ChecklistList({
   onAdd: (category: string | null) => void;
 }) {
   const [person, setPerson] = useState<PersonFilter>('all');
-  const [hideFinished, setHideFinished] = useState(false);
   // Collapsed state is per session; groups not yet touched follow the layout default.
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
   const baseId = useId();
@@ -42,10 +42,11 @@ export function ChecklistList({
   const categories: readonly string[] = kind === 'packing' ? PACKING_CATEGORIES : TASK_CATEGORIES;
   const labels: Record<string, string> = kind === 'packing' ? S.labels.packingCategories : S.labels.taskCategories;
   const ofKind = items.filter((i) => i.kind === kind);
-  const visible = ofKind.filter(
-    (i) =>
-      (person === 'all' || (person === 'both' ? i.assignee === 'both' || i.assignee === null : i.assignee === person)) &&
-      (!hideFinished || (!i.checked && i.isApplicable)),
+  const finished = (i: ChecklistItem) => i.checked || !i.isApplicable;
+  const visible = ofKind.filter((i) =>
+    person === 'finished'
+      ? finished(i)
+      : !finished(i) && (person === 'all' || i.assignee === person || i.assignee === 'both' || i.assignee === null),
   );
 
   if (!ofKind.length) {
@@ -69,7 +70,7 @@ export function ChecklistList({
     { value: 'all', label: S.checklist.everyone },
     { value: meKey, label: S.people.participants[meKey] },
     { value: meKey === 'eren' ? 'amy' : 'eren', label: S.people.participants[meKey === 'eren' ? 'amy' : 'eren'] },
-    { value: 'both', label: S.people.shared },
+    { value: 'finished', label: S.checklist.finished },
   ];
 
   return (
@@ -77,13 +78,15 @@ export function ChecklistList({
       <div className={styles.toolbar}>
         <ChipGroup label={S.checklist.assigneeFilter} className={styles.filters}>
           {people.map((p) => (
-            <Chip key={p.value} selected={person === p.value} onClick={() => setPerson(p.value)}>
+            <Chip
+              key={p.value}
+              selected={person === p.value}
+              className={p.value === 'finished' ? styles.finishedChip : undefined}
+              onClick={() => setPerson(p.value)}
+            >
               {p.label}
             </Chip>
           ))}
-          <Chip selected={hideFinished} onClick={() => setHideFinished((v) => !v)}>
-            {S.checklist.hideFinished}
-          </Chip>
         </ChipGroup>
         <Button variant="secondary" size="sm" iconStart="plus" onClick={() => onAdd(null)}>
           {kind === 'packing' ? S.checklist.addPacking : S.checklist.addTask}
@@ -94,7 +97,7 @@ export function ChecklistList({
         const all = ofKind.filter((i) => i.category === cat);
         const rows = visible.filter((i) => i.category === cat).sort((a, b) => Number(!a.isApplicable) - Number(!b.isApplicable));
         if (!all.length && extra.includes(cat)) return null;
-        if (!rows.length && (person !== 'all' || hideFinished)) return null;
+        if (!rows.length && person !== 'all') return null;
         const live = all.filter((i) => i.isApplicable);
         const done = live.filter((i) => i.checked).length;
         const open = openGroups[cat] ?? defaultOpen;
@@ -132,7 +135,7 @@ export function ChecklistList({
                 </ul>
               ) : (
                 <div className={styles.groupEmpty}>
-                  <p className={styles.muted}>{S.checklist.emptyGroup}</p>
+                  <p className={styles.muted}>{all.some((i) => i.isApplicable) ? S.checklist.allDoneGroup : S.checklist.emptyGroup}</p>
                   <Button variant="link" size="sm" iconStart="plus" onClick={() => onAdd(cat)}>
                     {kind === 'packing' ? S.checklist.addPacking : S.checklist.addTask}
                   </Button>

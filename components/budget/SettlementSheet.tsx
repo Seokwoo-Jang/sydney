@@ -5,7 +5,7 @@ import { ConfirmDelete, ConflictBlock } from '@/components/checklist/FormBits';
 import { useDraft } from '@/components/checklist/useDraft';
 import { useDueContext } from '@/components/checklist/useDueContext';
 import { useSaveFlow } from '@/components/checklist/useSaveFlow';
-import { Button, Field, SaveStatus, SegmentedControl, Select, Sheet, TextInput } from '@/components/ui';
+import { Button, Field, SaveStatus, SegmentedControl, Sheet, TextInput } from '@/components/ui';
 import { newId, useBudget, useTrip } from '@/lib/data';
 import { formatMoney, toMinor } from '@/lib/money';
 import type { Currency, Settlement } from '@/lib/types';
@@ -151,9 +151,12 @@ export function SettlementSheet({
         )}
         <div className={form.grid2}>
           <Field label={S.budget.from} error={err('people')}>
-            <Select
+            <SegmentedControl
+              label={S.budget.from}
+              fill
+              columns={2}
               value={draft.fromMember}
-              onChange={(e) => edit({ fromMember: e.target.value })}
+              onChange={(v) => edit({ fromMember: v })}
               options={members.map((m) => ({ value: m.id, label: m.displayName }))}
             />
           </Field>

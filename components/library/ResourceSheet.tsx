@@ -5,7 +5,7 @@ import { useState } from 'react';
 import { CheckField, ConfirmDelete, ConflictBlock } from '@/components/checklist/FormBits';
 import { useDraft } from '@/components/checklist/useDraft';
 import { useSaveFlow } from '@/components/checklist/useSaveFlow';
-import { Button, Field, IconButton, SaveStatus, Select, Sheet, TextArea, TextInput } from '@/components/ui';
+import { Button, Field, IconButton, SaveStatus, Select, Sheet, TextArea, TextInput, SegmentedControl } from '@/components/ui';
 import { newId, useLibrary } from '@/lib/data';
 import type { ItineraryItem, Member, Resource, ResourceCategory } from '@/lib/types';
 import { S } from '@/lib/strings';
@@ -167,9 +167,12 @@ export function ResourceSheet({
           <TextInput value={draft.title} onChange={(e) => edit({ title: e.target.value })} />
         </Field>
         <Field label={S.fields.category}>
-          <Select
+          <SegmentedControl
+              label={S.fields.category}
+              fill
+              columns={3}
             value={draft.category}
-            onChange={(e) => edit({ category: e.target.value as ResourceCategory })}
+            onChange={(v) => edit({ category: v as ResourceCategory })}
             options={RESOURCE_CATEGORIES.map((c) => ({ value: c, label: S.labels.resourceCategory[c] }))}
           />
         </Field>

@@ -20,6 +20,8 @@ export interface SegmentedControlProps<V extends string> {
   /** `fill` stretches segments to equal widths (mobile). */
   fill?: boolean;
   size?: 'md' | 'sm';
+  /** Lay the choices out as a grid with this many columns (e.g. 8 categories → 4 × 2). */
+  columns?: number;
   className?: string;
 }
 
@@ -31,6 +33,7 @@ export function SegmentedControl<V extends string>({
   label,
   fill,
   size = 'md',
+  columns,
   className,
 }: SegmentedControlProps<V>) {
   const refs = useRef<Array<HTMLButtonElement | null>>([]);
@@ -46,7 +49,8 @@ export function SegmentedControl<V extends string>({
     <div
       role="radiogroup"
       aria-label={label}
-      className={[styles.group, fill ? styles.fill : '', styles[size], className ?? ''].join(' ')}
+      className={[styles.group, fill ? styles.fill : '', columns ? styles.grid : '', styles[size], className ?? ''].join(' ')}
+      style={columns ? { gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` } : undefined}
     >
       {options.map((o, i) => {
         const on = o.value === value;

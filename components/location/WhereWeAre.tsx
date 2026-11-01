@@ -6,7 +6,7 @@ import { useMemo, useState } from 'react';
 import { Badge, Button, ButtonLink, Card, MemberMarks, useToast } from '@/components/ui';
 import { useLocations, useServerNow, type LocationDeviceError } from '@/lib/data';
 import { formatDistance, freshness, haversineM, mapsDirectionsUrl, mapsPointUrl, seenLine } from '@/lib/location';
-import type { Member } from '@/lib/types';
+import type { Member, ProfileKey } from '@/lib/types';
 import { S } from '@/lib/strings';
 import type { LivePerson } from './LiveMapCanvas';
 import styles from './WhereWeAre.module.css';
@@ -45,6 +45,9 @@ export function WhereWeAre({ me, members, tz }: { me: Member | null; members: Me
   const toast = useToast();
   const [open, setOpen] = useState(false);
   const [confirming, setConfirming] = useState(false);
+  // After turning sharing on, the map moves to me.
+  const [mapFocus, setMapFocus] = useState<{ key: ProfileKey; seq: number } | null>(null);
+  const focusMe = () => me && setMapFocus((f) => ({ key: me.profileKey, seq: (f?.seq ?? 0) + 1 }));
 
   const mine = me ? loc.list.find((l) => l.memberId === me.id) : undefined;
   const sharingHere = !!mine?.isSharing && !!loc.mySessionId && mine.sharingSessionId === loc.mySessionId;
@@ -76,12 +79,12 @@ export function WhereWeAre({ me, members, tz }: { me: Member | null; members: Me
 
   const share = async () => {
     if (!readWarned()) return setConfirming(true);
-    await loc.share();
+    if (await loc.share()) focusMe();
   };
   const confirmShare = async () => {
     writeWarned();
     setConfirming(false);
-    await loc.share();
+    if (await loc.share()) focusMe();
   };
   const stop = async () => {
     if (await loc.stop()) toast.show(S.location.stopped);
@@ -114,7 +117,7 @@ export function WhereWeAre({ me, members, tz }: { me: Member | null; members: Me
         <div id="where-we-are-body" className={styles.body}>
           <p className={styles.hint}>{S.location.intro}</p>
 
-          {mapPeople.length > 0 && <LiveMapCanvas people={mapPeople} ariaLabel={S.location.title} />}
+          {mapPeople.length > 0 && <LiveMapCanvas people={mapPeople} ariaLabel={S.location.title} focus={mapFocus} />}
 
           {confirming ? (
             <div className={styles.warning} role="alertdialog" aria-labelledby="loc-warn-title">

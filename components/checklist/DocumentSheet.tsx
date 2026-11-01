@@ -2,7 +2,7 @@
 // Travel documents (plan §7.4 C): name, who it is for, status, check-by date,
 // reference link and one private file. No identity numbers are stored.
 import { useState } from 'react';
-import { Button, Field, SaveStatus, SegmentedControl, Select, Sheet, TextInput } from '@/components/ui';
+import { Button, Field, SaveStatus, SegmentedControl, Sheet, TextInput } from '@/components/ui';
 import { newId, useEntityOps } from '@/lib/data';
 import type { Member, TripDocument } from '@/lib/types';
 import { S } from '@/lib/strings';
@@ -128,9 +128,12 @@ export function DocumentSheet({
         </Field>
         <div className={form.grid2}>
           <Field label={S.checklist.subject}>
-            <Select
+            <SegmentedControl
+              label={S.checklist.subject}
+              fill
+              columns={3}
               value={draft.subjectMemberId}
-              onChange={(e) => edit({ subjectMemberId: e.target.value })}
+              onChange={(v) => edit({ subjectMemberId: v })}
               options={[{ value: '', label: S.checklist.nobody }, ...members.map((m) => ({ value: m.id, label: m.displayName }))]}
             />
           </Field>

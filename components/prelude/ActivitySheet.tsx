@@ -277,9 +277,12 @@ export function ActivitySheet({
         </Field>
 
         <Field label={S.prelude.kind}>
-          <Select
+          <SegmentedControl
+              label={S.prelude.kind}
+              fill
+              columns={3}
             value={draft.kind}
-            onChange={(e) => set('kind', e.target.value as PreludeKind)}
+            onChange={(v) => set('kind', v as PreludeKind)}
             options={KINDS.map((k) => ({ value: k, label: S.labels.preludeKind[k] }))}
           />
         </Field>

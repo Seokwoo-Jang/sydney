@@ -27,7 +27,16 @@ const INITIAL: Record<ProfileKey, string> = { eren: 'E', amy: 'A' };
 const COLOR: Record<ProfileKey, string> = { eren: '#286A82', amy: '#A98248' };
 const FIT: L.FitBoundsOptions = { padding: [48, 48], maxZoom: 16, animate: false };
 
-export default function LiveMapCanvas({ people, ariaLabel }: { people: LivePerson[]; ariaLabel: string }) {
+export default function LiveMapCanvas({
+  people,
+  ariaLabel,
+  focus,
+}: {
+  people: LivePerson[];
+  ariaLabel: string;
+  /** Centre on this person once (e.g. right after "Share my location"); `seq` repeats it. */
+  focus?: { key: ProfileKey; seq: number } | null;
+}) {
   const elRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
   const layerRef = useRef<L.LayerGroup | null>(null);
@@ -111,6 +120,22 @@ export default function LiveMapCanvas({ people, ariaLabel }: { people: LivePerso
     if (autoRef.current) fit();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [people]);
+
+  // ── centre on one person (after sharing) ──
+  const focusDone = useRef(-1);
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !focus || focusDone.current === focus.seq) return;
+    const p = people.find((x) => x.key === focus.key);
+    if (!p) return; // the new position has not arrived yet; runs again when it does
+    focusDone.current = focus.seq;
+    programmatic.current = true;
+    map.setView([p.lat, p.lng], 16, { animate: false });
+    programmatic.current = false;
+    // Stay on this person; "Fit both" brings the other one back into view.
+    autoRef.current = false;
+    setAuto(false);
+  }, [focus, people]);
 
   return (
     <div className={styles.wrap}>
