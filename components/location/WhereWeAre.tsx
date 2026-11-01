@@ -1,13 +1,18 @@
 'use client';
 // Where We Are (plan §7.8): opt-in live location, latest position only.
-// The map arrives with the route map; until then each person links to Google Maps.
-import { useState } from 'react';
+// Opening the card shows both people on a map (loaded on demand) above the list.
+import dynamic from 'next/dynamic';
+import { useMemo, useState } from 'react';
 import { Badge, Button, ButtonLink, Card, MemberMarks, useToast } from '@/components/ui';
 import { useLocations, useServerNow, type LocationDeviceError } from '@/lib/data';
 import { formatDistance, freshness, haversineM, mapsDirectionsUrl, mapsPointUrl, seenLine } from '@/lib/location';
 import type { Member } from '@/lib/types';
 import { S } from '@/lib/strings';
+import type { LivePerson } from './LiveMapCanvas';
 import styles from './WhereWeAre.module.css';
+
+// Leaflet needs the browser: load the map only when the card opens.
+const LiveMapCanvas = dynamic(() => import('./LiveMapCanvas'), { ssr: false, loading: () => <div className={styles.mapPlaceholder} /> });
 
 const WARNED_KEY = 'sydney.location.warned';
 
@@ -50,6 +55,25 @@ export function WhereWeAre({ me, members, tz }: { me: Member | null; members: Me
   const both = people.filter((p) => p.row);
   const apart = both.length === 2 ? formatDistance(haversineM(both[0].row!, both[1].row!)) : null;
 
+  // Markers re-render only when a position, its freshness or its "seen" text changes.
+  const nowMinute = now ? Math.floor(now.getTime() / 60_000) : 0;
+  const mapPeople = useMemo<LivePerson[]>(
+    () =>
+      now
+        ? both.map(({ member, row }) => ({
+            key: member.profileKey,
+            name: member.displayName,
+            lat: row!.lat,
+            lng: row!.lng,
+            accuracyM: row!.accuracyM,
+            state: freshness(row!, now.getTime()),
+            seen: seenLine(row!, now, tz),
+          }))
+        : [],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [loc.list, nowMinute, tz, members],
+  );
+
   const share = async () => {
     if (!readWarned()) return setConfirming(true);
     await loc.share();
@@ -89,6 +113,8 @@ export function WhereWeAre({ me, members, tz }: { me: Member | null; members: Me
       {open && (
         <div id="where-we-are-body" className={styles.body}>
           <p className={styles.hint}>{S.location.intro}</p>
+
+          {mapPeople.length > 0 && <LiveMapCanvas people={mapPeople} ariaLabel={S.location.title} />}
 
           {confirming ? (
             <div className={styles.warning} role="alertdialog" aria-labelledby="loc-warn-title">

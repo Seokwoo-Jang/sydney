@@ -1,8 +1,9 @@
 /* Service worker (plan §11.3, §8.5). Generated into public/sw.js by
  * scripts/build-sw.mjs, which stamps __VERSION__ so every deploy is a new worker.
  *
- * Caches only the app shell: the page HTML (network first) and hashed static
- * files, fonts, images and icons (cache first). Trip data, Supabase responses,
+ * Caches only the app shell: the page HTML (network first), hashed static files
+ * and fonts (cache first), and public images / icons (shown from cache, refreshed
+ * in the background, so a replaced image appears on the next visit). Trip data, Supabase responses,
  * signed file links, locations and map tiles are never cached: every request
  * outside this site's scope passes straight through.
  */
@@ -11,7 +12,8 @@ const SCOPE = self.registration.scope; // e.g. https://host/sydney/
 const SCOPE_PATH = new URL(SCOPE).pathname;
 const SHELL = `sbs-shell-${VERSION}`;
 const STATIC = 'sbs-static-v1';
-const STATIC_PREFIXES = ['_next/static/', 'fonts/', 'images/', 'icons/'];
+const IMMUTABLE_PREFIXES = ['_next/static/', 'fonts/'];
+const REFRESHED_PREFIXES = ['images/', 'icons/'];
 
 const OFFLINE_HTML = `<!doctype html><html lang="en-AU"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
@@ -60,6 +62,22 @@ async function pageFirst(request) {
   }
 }
 
+async function staleWhileRevalidate(event, request) {
+  const cache = await caches.open(STATIC);
+  const hit = await cache.match(request);
+  const refresh = fetch(request)
+    .then((res) => {
+      if (res.ok && res.type === 'basic') cache.put(request, res.clone()).catch(() => undefined);
+      return res;
+    })
+    .catch(() => hit);
+  if (hit) {
+    event.waitUntil(refresh.then(() => undefined));
+    return hit;
+  }
+  return refresh;
+}
+
 async function cacheFirst(request) {
   const cache = await caches.open(STATIC);
   const hit = await cache.match(request);
@@ -80,7 +98,8 @@ self.addEventListener('fetch', (event) => {
     return;
   }
   const rest = url.pathname.slice(SCOPE_PATH.length);
-  if (STATIC_PREFIXES.some((p) => rest.startsWith(p))) event.respondWith(cacheFirst(request));
+  if (IMMUTABLE_PREFIXES.some((p) => rest.startsWith(p))) event.respondWith(cacheFirst(request));
+  else if (REFRESHED_PREFIXES.some((p) => rest.startsWith(p))) event.respondWith(staleWhileRevalidate(event, request));
 });
 
 // ── push (plan §8.5) ────────────────────────────────────────────
@@ -99,9 +118,11 @@ self.addEventListener('push', (event) => {
     (async () => {
       const windows = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
       const focused = windows.find((w) => w.focused && w.visibilityState === 'visible');
-      // iOS requires a visible notification for every push; elsewhere an open app shows its own notice.
-      const ios = /iPhone|iPad|iPod/.test(self.navigator.userAgent);
-      if (focused && !ios) {
+      // Safari (iPhone, iPad, Mac) requires a visible notification for every push;
+      // Chromium-based browsers let an open app show its own notice instead.
+      const ua = self.navigator.userAgent;
+      const safari = /Safari\//.test(ua) && !/Chrome|Chromium|CriOS|Edg|OPR|Android/.test(ua);
+      if (focused && !safari) {
         focused.postMessage({ type: 'push', title, body: data.body || '', url });
         return;
       }

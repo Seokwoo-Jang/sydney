@@ -234,7 +234,10 @@ export default function RouteMapCanvas(props: RouteMapCanvasProps) {
         lanesRef.current.push({ line, a, b, px: LANE_OFFSET_PX[seg.lane] });
       }
 
-      groupStops(route.stops).forEach((g, k) => {
+      // Trip view labels each day once, on its first stop of the chosen person.
+      const groups = groupStops(route.stops);
+      const firstFocused = groups.findIndex((g) => isFocusLane(groupLane(g), people));
+      groups.forEach((g, k) => {
         const lane = groupLane(g);
         const focused = isFocusLane(lane, people);
         const fade = focused ? 1 : OTHER;
@@ -268,7 +271,7 @@ export default function RouteMapCanvas(props: RouteMapCanvasProps) {
         marker.getElement()?.setAttribute('aria-label', S.route.stopLabel(pinText(g.stops.map((s) => s.n)), name));
         for (const s of g.stops) markersRef.current.set(s.item.id, marker);
         // The other person's stops keep their pins but no name labels, so the chosen route reads first.
-        const label = !focused ? '' : numbered ? placeLabel(g.stops[0].item.place, g.stops[0].item.title) : k === 0 ? S.time.day(dayNumbers.get(route.date) ?? 0) : '';
+        const label = !focused ? '' : numbered ? placeLabel(g.stops[0].item.place, g.stops[0].item.title) : k === firstFocused ? S.time.day(dayNumbers.get(route.date) ?? 0) : '';
         if (label) {
           marker.bindTooltip(el('span', undefined, label), {
             permanent: true,

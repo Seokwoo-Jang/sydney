@@ -54,7 +54,7 @@ export function DayGrid({
                     <span className="sr-only">{S.itinerary.preludeDay}</span>
                   </span>
                 )}
-                {meta}
+                <span className={styles.dayMetaText}>{meta}</span>
               </span>
             </button>
           </li>

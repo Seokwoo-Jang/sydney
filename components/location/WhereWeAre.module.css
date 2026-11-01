@@ -119,3 +119,17 @@
   flex-wrap: wrap;
   gap: 0 var(--s1-5);
 }
+
+/* Same box as the map while Leaflet loads, so nothing jumps. */
+.mapPlaceholder {
+  width: 100%;
+  height: 240px;
+  border-radius: var(--radius-card-sm);
+  background: var(--sky);
+}
+
+@media (min-width: 1024px) {
+  .mapPlaceholder {
+    height: 280px;
+  }
+}

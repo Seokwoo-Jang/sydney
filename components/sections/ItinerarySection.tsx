@@ -71,7 +71,9 @@ export default function ItinerarySection({ layout }: SectionProps) {
         actions={views}
       />
       {data && trip.status === 'ready' && (
-        <WhereWeAre me={trip.data.me} members={trip.data.members} tz={trip.data.trip.timezone} />
+        <div className={styles.whereWrap}>
+          <WhereWeAre me={trip.data.me} members={trip.data.members} tz={trip.data.trip.timezone} />
+        </div>
       )}
       {data ? (
         data.days.length ? (

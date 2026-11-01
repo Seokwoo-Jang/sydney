@@ -17,9 +17,11 @@
   gap: 18px;
 }
 
+/* Nine cards of one size: every row as tall as the tallest, text clamped below. */
 .dayGrid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-auto-rows: 1fr;
   gap: var(--s1-5);
   margin: 0;
   padding: 0;
@@ -33,7 +35,7 @@
   gap: 6px;
   width: 100%;
   height: 100%;
-  min-height: 104px;
+  min-height: 132px;
   padding: 14px var(--s2);
   border: 1px solid var(--line);
   border-radius: var(--radius-card-sm);
@@ -81,6 +83,12 @@
 }
 
 .dayTheme {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  /* Always two lines tall, so the meta line sits at the same height on every card. */
+  min-height: 2.4em;
   font-family: var(--font-serif);
   font-style: italic;
   font-size: 17px;
@@ -88,11 +96,15 @@
 }
 
 .dayMeta {
-  display: inline-flex;
-  flex-wrap: wrap;
+  display: flex;
   align-items: center;
   gap: 4px var(--s1);
+  width: 100%;
+  min-width: 0;
   margin-top: auto;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
   font-size: var(--text-xs);
   color: var(--muted);
 }
@@ -653,4 +665,15 @@ button.toggle:hover .title {
     margin-inline: calc(-1 * var(--s3));
     padding-inline: calc(var(--s3) - 3px) var(--s3);
   }
+}
+
+/* Where we are sits above the day cards with the same gap as between cards. */
+.whereWrap {
+  margin-bottom: var(--s1-5);
+}
+
+.dayMetaText {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }

@@ -1,0 +1,98 @@
+/* Where We Are map (plan §7.8). About 240px tall, same tiles as the Route map. */
+.wrap {
+  position: relative;
+  width: 100%;
+}
+
+.map {
+  height: 240px;
+  border-radius: var(--radius-card-sm);
+  overflow: hidden;
+  background: var(--sky);
+  z-index: 0;
+}
+
+@media (min-width: 1024px) {
+  .map {
+    height: 280px;
+  }
+}
+
+/* 44px hit area around a 30px E / A marker (same look as the Route markers). */
+.hit {
+  display: grid !important;
+  place-items: center;
+  background: none;
+  border: 0;
+}
+
+.marker {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border: 2px solid var(--porcelain);
+  border-radius: 50%;
+  font-family: var(--font-sans);
+  font-size: 13px;
+  font-weight: 700;
+  color: #fff;
+  box-shadow: 0 2px 6px rgba(23, 47, 59, 0.3);
+}
+
+.eren {
+  background: var(--harbour);
+}
+
+.amy {
+  background: var(--brass-deep);
+  box-shadow:
+    0 0 0 2px var(--brass),
+    0 2px 6px rgba(23, 47, 59, 0.3);
+}
+
+/* Not sharing or quiet for 5+ minutes: still placed, clearly older. */
+.faded {
+  opacity: 0.55;
+  filter: grayscale(0.35);
+}
+
+.label {
+  padding: 2px 6px;
+  border: 0;
+  border-radius: 6px;
+  background: rgba(255, 253, 249, 0.92);
+  box-shadow: 0 1px 3px rgba(23, 47, 59, 0.2);
+  font-family: var(--font-sans);
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--ink);
+  white-space: nowrap;
+}
+
+.label::before {
+  display: none;
+}
+
+.fitButton {
+  position: absolute;
+  right: 10px;
+  bottom: 24px;
+  z-index: 500;
+  min-height: 36px;
+  padding: 0 12px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-button);
+  background: var(--porcelain);
+  box-shadow: var(--shadow-card);
+  font: inherit;
+  font-size: var(--text-sm);
+  font-weight: 500;
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.fitButton:focus-visible {
+  outline: 2px solid var(--harbour);
+  outline-offset: 2px;
+}

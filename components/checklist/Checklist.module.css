@@ -126,9 +126,9 @@
   flex: none;
   display: grid;
   place-items: center;
-  width: 40px;
+  width: 44px;
   height: var(--touch);
-  margin-left: -10px;
+  margin-left: -12px;
   cursor: pointer;
 }
 
@@ -219,7 +219,7 @@
   flex-wrap: wrap;
   align-items: center;
   gap: 2px var(--s1);
-  padding-left: 30px;
+  padding-left: 32px;
   font-size: var(--text-xs);
   color: var(--muted);
 }
@@ -343,7 +343,7 @@
 /* Notes under a row, opened from its title. */
 .rowDetails {
   grid-area: details;
-  padding: 2px 0 6px 30px;
+  padding: 2px 0 6px 32px;
 }
 
 .rowNotes {
