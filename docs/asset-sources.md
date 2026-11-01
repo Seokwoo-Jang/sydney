@@ -4,7 +4,7 @@ Attribution is kept here only; it is not shown in the app.
 
 | Asset | Source | Licence / attribution |
 | --- | --- | --- |
-| `public/images/cover/day-*.{avif,webp}` | `sydney-opera-house-day.png` (977×600) | Provided by the owner; use confirmed by the owner (2026-10-31) |
+| `public/images/cover/day-*.{avif,webp}` | `sydney-opera-house-day.jpg` (6000×4000) | Provided by the owner; use confirmed by the owner (2026-10-31) |
 | `public/images/cover/evening-*.{avif,webp}` | `sydney-opera-house-evening.jpg` (814×470) | Provided by the owner; use confirmed by the owner (2026-10-31) |
 | `public/images/cover/night-*.{avif,webp}` | `sydney-opera-house-night.jpg` (2560×1435) | Provided by the owner; use confirmed by the owner (2026-10-31) |
 | `public/images/prelude/grand-piano.webp` | `grand-piano.webp` (960×480, unchanged) | Provided by the owner; use confirmed by the owner (2026-10-31) |

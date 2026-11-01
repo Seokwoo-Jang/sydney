@@ -4,10 +4,10 @@
   gap: var(--s2-5);
 }
 
-/* Day/Evening cover sources are ~750–814px wide: cap the cover so they are not upscaled much. */
+/* The cover takes the width; the Prelude shortcut stays a small card beside it. */
 .coverRow {
   display: grid;
-  grid-template-columns: minmax(0, 860px) minmax(300px, 1fr);
+  grid-template-columns: minmax(0, 1fr) clamp(260px, 24%, 320px);
   gap: var(--s2-5);
 }
 
