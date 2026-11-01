@@ -1,7 +1,7 @@
 'use client';
 // Small form pieces shared by the Checklist, Budget, Library and Journal sheets.
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { Button, ConflictNotice } from '@/components/ui';
+import { Button, ConflictNotice, IconButton } from '@/components/ui';
 import type { Member } from '@/lib/types';
 import { S } from '@/lib/strings';
 import { conflictSource } from './useSaveFlow';
@@ -162,5 +162,31 @@ export function ConflictBlock<T extends { updatedBy: string | null; version: num
         setReviewed(latest);
       }}
     />
+  );
+}
+
+/** Chosen links (bookings, plans, Library entries), each with a remove button; gone records are skipped. */
+export function PickedList({
+  ids,
+  label,
+  removeLabel,
+  onRemove,
+}: {
+  ids: string[];
+  label: (id: string) => string | null;
+  removeLabel: (text: string) => string;
+  onRemove: (id: string) => void;
+}) {
+  const shown = ids.map((id) => ({ id, text: label(id) })).filter((x): x is { id: string; text: string } => !!x.text);
+  if (!shown.length) return null;
+  return (
+    <ul className={styles.pickList}>
+      {shown.map((x) => (
+        <li key={x.id} className={styles.pickItem}>
+          <span className={styles.pickTitle}>{x.text}</span>
+          <IconButton icon="close" label={removeLabel(x.text)} onClick={() => onRemove(x.id)} />
+        </li>
+      ))}
+    </ul>
   );
 }

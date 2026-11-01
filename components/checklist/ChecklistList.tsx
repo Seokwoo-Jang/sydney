@@ -150,7 +150,7 @@ export function ChecklistList({
                     <ChecklistRow
                       key={item.id}
                       item={item}
-                      resource={item.resourceId ? resources.get(item.resourceId) : null}
+                      resources={item.resourceIds.map((id) => resources.get(id)).filter((r): r is Resource => !!r)}
                       due={due}
                       busy={pending.has(item.id)}
                       highlighted={item.id === highlight}

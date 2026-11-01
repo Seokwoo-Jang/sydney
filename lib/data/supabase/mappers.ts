@@ -110,7 +110,7 @@ const CHECKLIST: Cols<EditableFields<ChecklistItem>> = {
   notes: 'notes',
   bookingId: 'booking_id',
   documentId: 'document_id',
-  resourceId: 'resource_id',
+  resourceIds: 'resource_ids',
   sortOrder: 'sort_order',
 };
 

@@ -76,9 +76,9 @@ export default function LibrarySection({ layout }: SectionProps) {
       const act = l.preludeActivityId ? activities.find((x) => x.id === l.preludeActivityId && !x.deletedAt) : undefined;
       if (act) planTag(act, l.id);
     }
-    // Checklist items keep their link on the item (the ETA guide on "Apply for the ETA").
+    // Checklist items keep their links on the item (the ETA guide on "Apply for the ETA").
     for (const c of checklistItems) {
-      if (!c.deletedAt && c.resourceId === r.id) {
+      if (!c.deletedAt && c.resourceIds.includes(r.id)) {
         tags.push({ id: c.id, label: S.library.checklistTag(c.title), onClick: () => leave('ready', { view: c.kind, mark: c.id }) });
       }
     }

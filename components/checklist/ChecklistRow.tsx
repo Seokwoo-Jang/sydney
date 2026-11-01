@@ -2,7 +2,7 @@
 // One Packing or To-do row: native checkbox (44px target) marks it done; the
 // title opens the notes below it; chips for assignee / quantity / due date /
 // priority (to-dos: High in red, Middle in ink, Low in grey); an edit button. Its
-// Library link (the ETA guide) opens the page itself, under the notes.
+// Library links (the ETA guide) open the pages themselves, under the notes.
 import { useId, useState } from 'react';
 import { Icon, IconButton, MemberMarks } from '@/components/ui';
 import type { ChecklistItem, Resource } from '@/lib/types';
@@ -19,7 +19,7 @@ export function assigneeLabel(a: ChecklistItem['assignee']): string {
 
 export function ChecklistRow({
   item,
-  resource,
+  resources = [],
   due,
   busy,
   onToggle,
@@ -28,7 +28,8 @@ export function ChecklistRow({
   highlighted,
 }: {
   item: ChecklistItem;
-  resource?: Resource | null;
+  /** The item's Library entries (already resolved), opened straight from the details. */
+  resources?: Resource[];
   due: DueContext | null;
   busy: boolean;
   onToggle: (item: ChecklistItem) => void;
@@ -116,17 +117,17 @@ export function ChecklistRow({
         {item.notes.trim() ? (
           <p className={styles.rowNotes}>{item.notes}</p>
         ) : (
-          !resource && <p className={styles.rowNoNotes}>{S.checklist.noNotes}</p>
+          !resources.length && <p className={styles.rowNoNotes}>{S.checklist.noNotes}</p>
         )}
-        {resource && (
-          <p className={styles.rowLink}>
+        {resources.map((r) => (
+          <p key={r.id} className={styles.rowLink}>
             <Icon name="link" size={14} />
-            <a href={resource.url} target="_blank" rel="noopener noreferrer">
-              {resource.title}
+            <a href={r.url} target="_blank" rel="noopener noreferrer">
+              {r.title}
               <span className="sr-only"> ({S.ui.externalLink})</span>
             </a>
           </p>
-        )}
+        ))}
       </div>
     </li>
   );

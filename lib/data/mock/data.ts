@@ -313,7 +313,7 @@ type Ck = [
   title: string,
   assignee: ChecklistItem['assignee'],
   checked: boolean,
-  extra?: Partial<Pick<ChecklistItem, 'quantity' | 'dueDate' | 'priority' | 'notes' | 'bookingId' | 'documentId' | 'resourceId'>>,
+  extra?: Partial<Pick<ChecklistItem, 'quantity' | 'dueDate' | 'priority' | 'notes' | 'bookingId' | 'documentId' | 'resourceIds'>>,
 ];
 
 const PACKING: Ck[] = [
@@ -340,14 +340,14 @@ const TASKS: Ck[] = [
   ['td-terminals', 'bookings_documents', 'Confirm terminals for SB101 and SB202', 'both', false, { dueDate: '2030-12-19' }],
   ['td-baggage', 'bookings_documents', 'Decide on checked baggage', 'both', false, { dueDate: '2030-12-14' }],
   ['td-amy-ticket', 'bookings_documents', 'Add Amy’s e-ticket and booking numbers', 'amy', false],
-  ['td-eta-eren', 'bookings_documents', 'Apply for an Australian ETA', 'eren', true, { dueDate: '2030-12-12', priority: 'high', resourceId: 'res-eta' }],
-  ['td-eta-amy', 'bookings_documents', 'Apply for an Australian ETA', 'amy', false, { dueDate: '2030-12-12', priority: 'high', resourceId: 'res-eta' }],
+  ['td-eta-eren', 'bookings_documents', 'Apply for an Australian ETA', 'eren', true, { dueDate: '2030-12-12', priority: 'high', resourceIds: ['res-eta'] }],
+  ['td-eta-amy', 'bookings_documents', 'Apply for an Australian ETA', 'amy', false, { dueDate: '2030-12-12', priority: 'high', resourceIds: ['res-eta'] }],
   ['td-card', 'payments_connectivity', 'Turn on overseas card payments', 'both', true],
   ['td-data', 'payments_connectivity', 'Choose a mobile data plan', 'both', false, { dueDate: '2030-12-20' }],
   ['td-home', 'before_leaving', 'Lock windows and check the gas', 'both', false, { dueDate: '2030-12-26' }],
   ['td-bio', 'music_connections', 'Polish a short English bio', 'amy', false, { dueDate: '2030-12-15' }],
   ['td-video', 'music_connections', 'Choose a performance video', 'amy', false],
-  ['td-pianos', 'music_connections', 'Check the public pianos are still available', 'amy', false, { dueDate: '2030-12-19', resourceId: 'res-popup-pianos' }],
+  ['td-pianos', 'music_connections', 'Check the public pianos are still available', 'amy', false, { dueDate: '2030-12-19', resourceIds: ['res-popup-pianos'] }],
 ];
 
 const checklist = (): ChecklistItem[] =>
@@ -368,7 +368,7 @@ const checklist = (): ChecklistItem[] =>
     notes: extra.notes ?? '',
     bookingId: extra.bookingId ?? null,
     documentId: extra.documentId ?? null,
-    resourceId: extra.resourceId ?? null,
+    resourceIds: extra.resourceIds ?? [],
     sortOrder: i * 10,
   }));
 

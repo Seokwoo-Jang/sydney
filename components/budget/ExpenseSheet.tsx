@@ -3,12 +3,12 @@
 // minor units; the split follows the budget (Shared halves, Eren / Amy pays all);
 // rates lock on payment or by hand.
 import { useMemo, useState } from 'react';
-import { ConfirmDelete, ConflictBlock } from '@/components/checklist/FormBits';
+import { ConfirmDelete, ConflictBlock, PickedList } from '@/components/checklist/FormBits';
 import { bookingName } from '@/components/checklist/bookingUtils';
 import { useDraft } from '@/components/checklist/useDraft';
 import { useDueContext } from '@/components/checklist/useDueContext';
 import { useSaveFlow } from '@/components/checklist/useSaveFlow';
-import { Button, Field, IconButton, SaveStatus, SegmentedControl, Select, Sheet, TextInput } from '@/components/ui';
+import { Button, Field, SaveStatus, SegmentedControl, Select, Sheet, TextInput } from '@/components/ui';
 import { newId, useBookings, useBudget, useDays, useItinerary, useTrip } from '@/lib/data';
 import { formatMoney, rateForExpense, splitAmount, toMinor } from '@/lib/money';
 import type { BudgetScope, Currency, Expense, ExpenseCategory, ExpenseStatus } from '@/lib/types';
@@ -16,7 +16,6 @@ import { S } from '@/lib/strings';
 import { formatDayLabel } from '@/lib/time/zone';
 import { rateForDate, scopeForSplit, splitForParticipants, splitForScope } from './budgetCalc';
 import form from '@/components/checklist/Form.module.css';
-import styles from './Budget.module.css';
 
 const CATEGORIES: ExpenseCategory[] = ['flights', 'stays', 'food', 'transport', 'sightseeing', 'business', 'shopping', 'other'];
 
@@ -309,6 +308,7 @@ export function ExpenseSheet({
           <PickedList
             ids={draft.bookingIds}
             label={bookingLabel}
+            removeLabel={S.budget.removeLink}
             onRemove={(id) => edit({ bookingIds: draft.bookingIds.filter((x) => x !== id) })}
           />
           <Select
@@ -325,6 +325,7 @@ export function ExpenseSheet({
           <PickedList
             ids={draft.itineraryItemIds}
             label={planLabel}
+            removeLabel={S.budget.removeLink}
             onRemove={(id) => edit({ itineraryItemIds: draft.itineraryItemIds.filter((x) => x !== id) })}
           />
           <Select
@@ -353,21 +354,5 @@ export function ExpenseSheet({
         <button type="submit" hidden />
       </form>
     </Sheet>
-  );
-}
-
-/** Chosen links (bookings or plans), each with a remove button; gone records are skipped. */
-function PickedList({ ids, label, onRemove }: { ids: string[]; label: (id: string) => string | null; onRemove: (id: string) => void }) {
-  const shown = ids.map((id) => ({ id, text: label(id) })).filter((x): x is { id: string; text: string } => !!x.text);
-  if (!shown.length) return null;
-  return (
-    <ul className={styles.pickList}>
-      {shown.map((x) => (
-        <li key={x.id} className={styles.pickItem}>
-          <span className={styles.pickTitle}>{x.text}</span>
-          <IconButton icon="close" label={S.budget.removeLink(x.text)} onClick={() => onRemove(x.id)} />
-        </li>
-      ))}
-    </ul>
   );
 }

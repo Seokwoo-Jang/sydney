@@ -34,7 +34,7 @@ const task = (id: string, p: Partial<ChecklistItem> = {}): ChecklistItem => ({
   notes: '',
   bookingId: null,
   documentId: null,
-  resourceId: null,
+  resourceIds: [],
   sortOrder: 0,
   ...p,
 });

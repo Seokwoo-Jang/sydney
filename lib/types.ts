@@ -177,7 +177,8 @@ export interface ChecklistItem extends RowMeta {
   notes: string;
   bookingId: string | null;
   documentId: string | null;
-  resourceId: string | null;
+  /** Library entries linked to this item (several). */
+  resourceIds: string[];
   sortOrder: number;
 }
 

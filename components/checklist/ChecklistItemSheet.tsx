@@ -5,7 +5,7 @@ import { Button, Field, SaveStatus, SegmentedControl, Select, Sheet, TextArea, T
 import { newId, PACKING_CATEGORIES, TASK_CATEGORIES, useChecklist } from '@/lib/data';
 import type { Booking, ChecklistItem, ChecklistKind, Member, Resource } from '@/lib/types';
 import { S } from '@/lib/strings';
-import { CheckField, ConfirmDelete, ConflictBlock } from './FormBits';
+import { CheckField, ConfirmDelete, ConflictBlock, PickedList } from './FormBits';
 import { useDraft } from './useDraft';
 import { useSaveFlow } from './useSaveFlow';
 import form from './Form.module.css';
@@ -25,7 +25,7 @@ interface Draft {
   isApplicable: boolean;
   notes: string;
   /** Library link ('' = none). */
-  resourceId: string;
+  resourceIds: string[];
 }
 
 function toDraft(item: ChecklistItem | null, kind: ChecklistKind, category: string | null, me: Member | null): Draft {
@@ -41,7 +41,7 @@ function toDraft(item: ChecklistItem | null, kind: ChecklistKind, category: stri
     checked: item?.checked ?? false,
     isApplicable: item?.isApplicable ?? true,
     notes: item?.notes ?? '',
-    resourceId: item?.resourceId ?? '',
+    resourceIds: item?.resourceIds ?? [],
   };
 }
 
@@ -114,7 +114,7 @@ export function ChecklistItemSheet({
       checked: draft.checked,
       isApplicable: draft.isApplicable,
       notes: draft.notes.trim(),
-      resourceId: draft.resourceId || null,
+      resourceIds: draft.resourceIds,
     };
     const result = await save.run(() =>
       isNew
@@ -138,7 +138,8 @@ export function ChecklistItemSheet({
   };
 
   const booking = item?.bookingId ? bookings.find((b) => b.id === item.bookingId) : null;
-  const resource = draft.resourceId ? resources.find((r) => r.id === draft.resourceId && !r.deletedAt) : null;
+  const liveResources = resources.filter((r) => !r.deletedAt);
+  const linked = draft.resourceIds.map((id) => liveResources.find((r) => r.id === id)).filter((r): r is Resource => !!r);
   const title = isNew
     ? k === 'packing'
       ? S.checklist.newPacking
@@ -238,12 +239,19 @@ export function ChecklistItemSheet({
           <TextArea rows={3} value={draft.notes} onChange={(e) => edit({ notes: e.target.value })} />
         </Field>
         <Field label={S.checklist.libraryLink} optional hint={S.checklist.libraryLinkHint}>
+          <PickedList
+            ids={draft.resourceIds}
+            label={(id) => liveResources.find((r) => r.id === id)?.title ?? null}
+            removeLabel={S.budget.removeLink}
+            onRemove={(id) => edit({ resourceIds: draft.resourceIds.filter((x) => x !== id) })}
+          />
           <Select
-            value={draft.resourceId}
-            onChange={(e) => edit({ resourceId: e.target.value })}
+            value=""
+            disabled={!liveResources.some((r) => !draft.resourceIds.includes(r.id))}
+            onChange={(e) => e.target.value && edit({ resourceIds: [...draft.resourceIds, e.target.value] })}
             options={[
-              { value: '', label: S.checklist.noLibraryLink },
-              ...resources.filter((r) => !r.deletedAt).map((r) => ({ value: r.id, label: r.title })),
+              { value: '', label: liveResources.length ? S.checklist.addLibraryLink : S.checklist.noLibraryLink },
+              ...liveResources.filter((r) => !draft.resourceIds.includes(r.id)).map((r) => ({ value: r.id, label: r.title })),
             ]}
           />
         </Field>
@@ -258,19 +266,19 @@ export function ChecklistItemSheet({
           checked={!draft.isApplicable}
           onChange={(na) => edit({ isApplicable: !na })}
         />
-        {(booking || resource) && (
+        {(booking || linked.length > 0) && (
           <div className={form.related}>
             {booking && (
               <Button variant="secondary" size="sm" iconStart="plane" onClick={() => onOpenBooking(booking.id)}>
                 {S.checklist.relatedBooking}: {booking.title}
               </Button>
             )}
-            {resource && (
-              <a className={form.hint} href={resource.url} target="_blank" rel="noopener noreferrer">
-                {S.checklist.relatedLink}: {resource.title}
+            {linked.map((r) => (
+              <a key={r.id} className={form.hint} href={r.url} target="_blank" rel="noopener noreferrer">
+                {S.checklist.relatedLink}: {r.title}
                 <span className="sr-only"> ({S.ui.externalLink})</span>
               </a>
-            )}
+            ))}
           </div>
         )}
         <button type="submit" hidden />
