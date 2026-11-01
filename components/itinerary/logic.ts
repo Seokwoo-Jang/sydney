@@ -14,9 +14,40 @@ import type {
 
 export type PeopleFilter = Participants;
 
-/** Together = everything; Eren/Amy = together + their own (plan §7.2). */
+/** Together = everything; Eren/Amy = together + their own. The Route builds everyone's map with it. */
 export const matchesFilter = (item: Pick<ItineraryItem, 'participants'>, filter: PeopleFilter): boolean =>
   filter === 'together' || item.participants === 'together' || item.participants === filter;
+
+/**
+ * The List shows one lane, as the Route does (owner, 2026-11-02): Together = the plans
+ * we do together; Eren / Amy = that person's own plans, plus the Together plans where
+ * their own line starts (we split up) or ends (we meet again). Walked per day over timed,
+ * live, not-cancelled plans, the way the Route walks them.
+ */
+export function laneItems(items: ItineraryItem[], filter: PeopleFilter): ItineraryItem[] {
+  if (filter === 'together') return items.filter((i) => i.participants === 'together');
+  const ends = new Set<string>();
+  const byDay = new Map<string, ItineraryItem[]>();
+  for (const i of items) {
+    if (i.deletedAt || i.status === 'cancelled' || i.timeKind !== 'timed' || !i.startTime) continue;
+    byDay.set(i.date, [...(byDay.get(i.date) ?? []), i]);
+  }
+  for (const day of byDay.values()) {
+    let mine: ItineraryItem | null = null; // where this person last was
+    let theirs: ItineraryItem | null = null; // and the other person
+    for (const it of day.sort((a, b) => startMs(a) - startMs(b) || a.sortOrder - b.sortOrder)) {
+      if (it.participants === 'together') {
+        // Arriving here on their own line (we were apart): both ends are on it.
+        if (mine && mine !== theirs) ends.add(mine.id).add(it.id);
+        mine = theirs = it;
+      } else if (it.participants === filter) {
+        if (mine) ends.add(mine.id);
+        mine = it;
+      } else theirs = it;
+    }
+  }
+  return items.filter((i) => i.participants === filter || ends.has(i.id));
+}
 
 export interface DayRow {
   item: ItineraryItem;

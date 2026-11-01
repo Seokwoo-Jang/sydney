@@ -588,6 +588,7 @@ export const S = {
     viewsLabel: 'Itinerary view',
     daysLabel: 'Trip days',
     filterLabel: 'Show plans for',
+    noneInLane: (who: string) => `Nothing for ${who} on this day.`,
     dayHeading: (n: number, label: string) => `Day ${n} · ${label}`,
     renameDay: (n: number) => `Rename Day ${n}`,
     dayTitleLabel: (n: number) => `Day ${n} title`,

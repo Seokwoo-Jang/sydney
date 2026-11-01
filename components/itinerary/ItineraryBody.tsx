@@ -21,7 +21,7 @@ import {
   buildDayRows,
   defaultDay,
   isPassed,
-  matchesFilter,
+  laneItems,
   mixLabel,
   overviewWindow,
   type DayRow,
@@ -116,7 +116,10 @@ export function ItineraryBody({
 
   // ── derived ───────────────────────────────────────────────────
   const live = useMemo(() => items.filter((i) => !i.deletedAt), [items]);
-  const visible = useMemo(() => live.filter((i) => matchesFilter(i, filter)), [live, filter]);
+  const visible = useMemo(() => laneItems(live, filter), [live, filter]);
+  /** Whether `item` shows under `f` (a just-saved row may be newer than `live`). */
+  const shownUnder = (item: ItineraryItem, f: PeopleFilter) =>
+    laneItems([...live.filter((i) => i.id !== item.id), item], f).some((i) => i.id === item.id);
   const nowInfo = useMemo(() => (now && today ? computeNow(visible, now, today, tz) : NO_NOW), [visible, now, today, tz]);
   const rowsByDay = useMemo(() => new Map(days.map((d) => [d.date, buildDayRows(visible, d.date, tz)])), [days, visible, tz]);
 
@@ -224,7 +227,7 @@ export function ItineraryBody({
     if (!item) return;
     setMode('day');
     setView('list');
-    setFilter((f) => (matchesFilter(item, f) ? f : 'together'));
+    setFilter((f) => (shownUnder(item, f) ? f : item.participants));
     setShowAllDay(item.date);
     expanded.open(item.id);
     setHighlight(item.id);
@@ -286,7 +289,9 @@ export function ItineraryBody({
     const all = [...rows.timed, ...rows.untimed];
     const add = () => setSheet({ kind: 'add', date });
     if (!all.length) {
-      return <EmptyState title={S.empty.day} actionLabel={S.empty.dayAction} onAction={add} compact className={styles.empty} />;
+      // Plans that day, just none in this lane.
+      const title = live.some((i) => i.date === date) ? S.itinerary.noneInLane(S.people.participants[filter]) : S.empty.day;
+      return <EmptyState title={title} actionLabel={S.empty.dayAction} onAction={add} compact className={styles.empty} />;
     }
     const focus = new Set(date === today ? [...nowInfo.nowIds, ...nowInfo.upNextIds] : []);
     const collapsible = limit && all.length > OVERVIEW_LIMIT;
@@ -404,7 +409,7 @@ export function ItineraryBody({
       onClose={() => setSheet(null)}
       onSaved={(row) => {
         setSheet(null);
-        if (!matchesFilter(row, filter)) setFilter('together');
+        if (!shownUnder(row, filter)) setFilter(row.participants);
         if (mode !== 'day') return;
         if (row.date !== selectedDay) push({ day: row.date });
         queueScroll(row.date, rowKeyFor(row.date, { item: row, continuation: false }));

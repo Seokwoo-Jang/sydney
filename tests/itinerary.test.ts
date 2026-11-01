@@ -8,6 +8,7 @@ import {
   libraryLinkChanges,
   planResourceIds,
   linkedActivityStatus,
+  laneItems,
   matchesFilter,
   mixLabel,
   overviewWindow,
@@ -16,7 +17,7 @@ import {
 } from '@/components/itinerary/logic';
 import { sortActivities, whenLine } from '@/components/prelude/logic';
 import { SEOUL_TZ, SYDNEY_TZ, zonedToInstant } from '@/lib/time/zone';
-import type { PreludeActivity, TripDay } from '@/lib/types';
+import type { ItineraryItem, PreludeActivity, TripDay } from '@/lib/types';
 import { item } from './fixtures';
 
 const syd = (date: string, time: string) => zonedToInstant(date, time, SYDNEY_TZ);
@@ -60,6 +61,29 @@ describe('filter', () => {
     expect([t, a, e].filter((i) => matchesFilter(i, 'together')).map((i) => i.id)).toEqual(['t', 'a', 'e']);
     expect([t, a, e].filter((i) => matchesFilter(i, 'amy')).map((i) => i.id)).toEqual(['t', 'a']);
     expect([t, a, e].filter((i) => matchesFilter(i, 'eren')).map((i) => i.id)).toEqual(['t', 'e']);
+  });
+
+  it('List lanes: Together alone; a person gets their own plus where we split up and meet again', () => {
+    const at = (id: string, startTime: string, participants: ItineraryItem['participants'], p: Partial<ItineraryItem> = {}) =>
+      item(id, { date: '2030-12-29', startTime, endTime: null, participants, status: 'planned', ...p });
+    const day = [
+      at('breakfast', '08:00', 'together'),
+      at('split', '09:00', 'together'),
+      at('eSolo', '10:00', 'eren'),
+      at('aSolo', '11:00', 'amy'),
+      at('meet', '18:30', 'together'),
+      at('late', '21:00', 'together'),
+      at('aNote', '', 'amy', { timeKind: 'unscheduled', startTime: null }),
+      at('gone', '12:00', 'together', { status: 'cancelled' }),
+    ];
+    const ids = (f: 'together' | 'eren' | 'amy') => laneItems(day, f).map((i) => i.id);
+    expect(ids('together')).toEqual(['breakfast', 'split', 'meet', 'late', 'gone']);
+    expect(ids('eren')).toEqual(['split', 'eSolo', 'meet']);
+    expect(ids('amy')).toEqual(['split', 'aSolo', 'meet', 'aNote']);
+    // Amy away on her own while Eren stays put: his line still runs from the split to the meet.
+    const amyOnly = [at('t1', '09:00', 'together'), at('a1', '10:00', 'amy'), at('t2', '12:00', 'together')];
+    expect(laneItems(amyOnly, 'eren').map((i) => i.id)).toEqual(['t1', 't2']);
+    expect(laneItems(amyOnly, 'amy').map((i) => i.id)).toEqual(['t1', 'a1', 't2']);
   });
 });
 
