@@ -128,7 +128,7 @@ export const S = {
     notifyKinds: [
       'Plans: 30 minutes before a planned activity, and before meeting up again.',
       'Flights & car: check-in, when to be at the airport, and the car return.',
-      'Partner updates: when the other person changes the plan, bundled and held 10 pm–8 am.',
+      'Partner updates: right away, whenever the other person adds, edits or deletes something, with the section, the day and what changed.',
       'Countdown: 9 am Korea time on D-30, D-7, D-1 and the day we fly.',
     ],
     notifyPrivacy: 'They show titles, times and places only. Never booking numbers, notes or amounts.',
@@ -481,7 +481,8 @@ export const S = {
     kindHint: {
       schedule: '30 minutes before plans and meet-ups',
       flightsCar: 'Check-in, airport and car return reminders',
-      partnerUpdates: (name: string | null) => (name ? `When ${name} changes plans or bookings` : 'When plans or bookings change'),
+      partnerUpdates: (name: string | null) =>
+        name ? `Right away when ${name} changes anything: the section, the day and what` : 'Right away when anything changes',
       countdown: 'D-30, D-7, D-1 and the day, at 9 am in Korea',
     },
     unsupported: 'This browser can’t show notifications. Try Chrome on Android, or the home-screen app on iPhone.',

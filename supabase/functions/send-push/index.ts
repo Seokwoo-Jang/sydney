@@ -1,6 +1,8 @@
 // Push notifications (plan §8.5). Called every minute by pg_cron (see the
-// *_push.sql migration) with the shared x-cron-secret header; deployed with
-// --no-verify-jwt because the caller is the database, not a user.
+// *_push.sql migration), and at once when a member changes something (the
+// partner-change trigger, *_partner_updates_all.sql), with the shared
+// x-cron-secret header; deployed with --no-verify-jwt because the caller is the
+// database, not a user.
 //
 // 1. Loads each trip's snapshot and asks plan.ts what is due now.
 // 2. Claims every (notification, member) pair in notification_log; a pair that
@@ -8,7 +10,8 @@
 //    run failed for a reason worth retrying (then it is retried while due).
 // 3. Sends to each of that member's devices that has the kind switched on.
 //    404/410 → the subscription is gone and is deleted.
-// 4. Marks the partner changes it reported and prunes old ones.
+// 4. Marks the partner changes it reported and prunes old ones. Each run claims
+//    the pending changes it reports first, so overlapping runs never send one twice.
 //
 // Secrets: VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY, VAPID_SUBJECT, CRON_SECRET.
 import { createClient } from 'jsr:@supabase/supabase-js@2';
@@ -19,6 +22,8 @@ const TTL_S = 3600;
 const PRUNE_AFTER_MS = 14 * 86_400_000;
 const STALE_CLAIM_MS = 2 * 60_000; // a 'pending' claim this old belongs to a run that stopped
 const ID_CHUNK = 100; // ids per `in` filter (request URL length)
+/** Woken by a change: wait for the rest of the same save, so one save is one notification. */
+const SETTLE_MS = 3_000;
 
 /** A reminder sent as one of these is not sent again as the other when the day's plan changes. */
 const TWIN: Partial<Record<DueNotification['kind'], DueNotification['kind']>> = {
@@ -58,6 +63,11 @@ Deno.serve(async (req) => {
     subject: Deno.env.get('VAPID_SUBJECT') ?? '',
   };
   if (!vapid.publicKey || !vapid.privateKey || !vapid.subject) return json({ error: 'vapid_not_configured' }, 500);
+  const reason = await req
+    .json()
+    .then((b) => (b && typeof b === 'object' ? (b as { reason?: unknown }).reason : null))
+    .catch(() => null);
+  if (reason === 'change') await new Promise((r) => setTimeout(r, SETTLE_MS));
 
   const db = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!, {
     auth: { persistSession: false },
@@ -81,8 +91,8 @@ Deno.serve(async (req) => {
       try {
         const r = await buildPushRequest(d, payload, vapid, {
           ttl: TTL_S,
-          urgency: TIMED_KINDS.has(n.kind) ? 'high' : 'normal',
-          topic: n.kind === 'partner_update' ? 'partner-updates' : undefined,
+          // Partner updates go out at once and each one stays (no topic to replace an earlier one).
+          urgency: TIMED_KINDS.has(n.kind) || n.kind === 'partner_update' ? 'high' : 'normal',
         });
         const res = await fetch(r.url, {
           method: 'POST',
@@ -113,15 +123,15 @@ Deno.serve(async (req) => {
     return ok ? 'sent' : retry ? 'failed' : 'skipped';
   };
 
-  /** Marks partner changes as reported, in chunks that keep the request URL short. */
-  const markReported = async (ids: string[]): Promise<void> => {
+  /** Marks partner changes as reported (or, `release`, hands them back to the next run), in short chunks. */
+  const markReported = async (ids: string[], release = false): Promise<void> => {
     for (let i = 0; i < ids.length; i += ID_CHUNK) {
       const r = await db
         .from('partner_changes')
-        .update({ notified_at: new Date().toISOString() })
+        .update(release ? { claimed_at: null } : { notified_at: new Date().toISOString() })
         .in('id', ids.slice(i, i + ID_CHUNK));
       if (r.error) {
-        console.warn('partner_changes: mark failed'); // the next run finds the batch done and marks it again
+        console.warn('partner_changes: mark failed'); // the claim lapses after 2 min and the next run reports them
         return;
       }
     }
@@ -158,13 +168,14 @@ Deno.serve(async (req) => {
         .eq('checked', false)
         .is('deleted_at', null)
         .not('booking_id', 'is', null),
+      // Claimed, not just read: a row another run claimed (and has not given up on) is skipped.
       db
         .from('partner_changes')
-        .select('id, actor_member_id, entity, entity_id, day_date, changed_at, notified_at')
+        .update({ claimed_at: now.toISOString() })
         .eq('trip_id', trip.id)
         .is('notified_at', null)
-        .order('changed_at')
-        .limit(500),
+        .or(`claimed_at.is.null,claimed_at.lt."${new Date(now.getTime() - STALE_CLAIM_MS).toISOString()}"`)
+        .select('id, actor_member_id, entity, entity_id, day_date, changed_at, notified_at, action, label'),
     ]);
     if (members.error || items.error || bookings.error || tasks.error || changes.error) {
       return json({ error: 'read_failed' }, 500);
@@ -248,12 +259,13 @@ Deno.serve(async (req) => {
       return r.data?.status === 'sent' || r.data?.status === 'skipped';
     };
 
+    const retryChanges: string[] = [];
     for (const n of due) {
       for (const memberId of n.memberIds) {
         const id = await claim(n, memberId);
         if (!id) {
-          // A partner batch an earlier run handled but could not mark: mark it now.
-          if (n.changeIds && (await isDone(n, memberId))) await markReported(n.changeIds);
+          // Sent by an earlier run that could not mark it: reported. Otherwise try again later.
+          if (n.changeIds && !(await isDone(n, memberId))) retryChanges.push(...n.changeIds);
           continue;
         }
         stats.due++;
@@ -263,10 +275,16 @@ Deno.serve(async (req) => {
           .from('notification_log')
           .update({ status, sent_at: status === 'sent' ? new Date().toISOString() : null })
           .eq('id', id);
-        // A failed batch stays pending and is sent again (with any newer changes) next run.
-        if (n.changeIds && status !== 'failed') await markReported(n.changeIds);
+        // A failed one stays pending and is sent again (with any newer changes) by a later run.
+        if (n.changeIds && status === 'failed') retryChanges.push(...n.changeIds);
       }
     }
+    // Every change this run claimed is reported now (sent, switched off, or came and went),
+    // except those to retry, whose claim is handed back.
+    const retry = new Set(retryChanges);
+    const claimed = snapshot.changes.map((c) => c.id);
+    await markReported(claimed.filter((c) => !retry.has(c)));
+    await markReported([...retry], true);
   }
 
   await db

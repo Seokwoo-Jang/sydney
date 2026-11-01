@@ -29,9 +29,6 @@ export const TIMED_KINDS: ReadonlySet<NotificationKind> = new Set(['schedule', '
 export const WINDOW_MS = 15 * 60_000;
 const MIN = 60_000;
 const HOUR = 60 * MIN;
-const PARTNER_DELAY = 5 * MIN;
-const QUIET_FROM = 22;
-const QUIET_UNTIL = 8;
 
 // ── input rows ─────────────────────────────────────────────────
 
@@ -87,11 +84,14 @@ export interface TaskRow {
 export interface ChangeRow {
   id: string;
   actor_member_id: string;
-  entity: string; // 'itinerary' | 'booking'
+  /** itinerary | day | booking | checklist | document | prelude | goal | journal | photo | library | expense | settlement | budget */
+  entity: string;
   entity_id: string;
   day_date: string | null;
   changed_at: string;
   notified_at?: string | null;
+  action?: string; // added | edited | deleted | checked | unchecked
+  label?: string | null; // the record's title then (photo: 'cover' | 'layout' | 'order'; budget: its scope)
 }
 
 export interface Snapshot {
@@ -100,7 +100,7 @@ export interface Snapshot {
   items: ItemRow[];
   bookings: BookingRow[];
   tasks: TaskRow[];
-  changes: ChangeRow[]; // pending (notified_at is null)
+  changes: ChangeRow[]; // pending (notified_at is null), claimed by this run
 }
 
 export interface DueNotification {
@@ -112,7 +112,7 @@ export interface DueNotification {
   body: string;
   url: string; // relative query, resolved against the app scope by the service worker
   tag: string;
-  changeIds?: string[]; // partner_update: partner_changes rows to mark notified once handled
+  changeIds?: string[]; // partner_update: the partner_changes rows it reports
 }
 
 // ── time (Intl only; never the runtime's own zone) ─────────────
@@ -219,23 +219,6 @@ const clockAt = (instant: number, tz: string) => {
   const p = zonedParts(new Date(instant), tz);
   return formatClock(`${pad(p.hour)}:${pad(p.minute)}`);
 };
-
-/**
- * Where the recipient is: home until the outbound flight leaves (without one,
- * through the first day), the trip's zone during the trip, home after it.
- */
-export function recipientZone(trip: TripRow, now: Date, departsAt: number | null = null): string {
-  const before = departsAt != null ? now.getTime() < departsAt : zonedDate(now, trip.home_timezone) <= trip.start_date;
-  if (before) return trip.home_timezone;
-  if (zonedDate(now, trip.timezone) > trip.end_date) return trip.home_timezone;
-  return trip.timezone;
-}
-
-/** 22:00–08:00 where the recipient is: partner updates wait until 08:00. */
-export function isQuietHours(trip: TripRow, now: Date, departsAt: number | null = null): boolean {
-  const h = zonedParts(now, recipientZone(trip, now, departsAt)).hour;
-  return h >= QUIET_FROM || h < QUIET_UNTIL;
-}
 
 // ── text ───────────────────────────────────────────────────────
 
@@ -488,38 +471,170 @@ export function planNotifications(s: Snapshot, now: Date): DueNotification[] {
     });
   }
 
-  // ── partner updates: batched for 5 min, held during quiet hours ──
-  // The key names the batch's first and last change: a batch is sent once, and
-  // changes that arrive later (or a batch whose marking failed) form a new one.
-  const quiet = isQuietHours(s.trip, now, firstFlight?.dep ?? null);
-  const pending = s.changes.filter((c) => !c.notified_at && memberIds.has(c.actor_member_id));
-  for (const r of s.members) {
-    const theirs = pending
-      .filter((c) => c.actor_member_id !== r.id)
-      .sort((a, b) => Date.parse(a.changed_at) - Date.parse(b.changed_at) || a.id.localeCompare(b.id));
-    if (!theirs.length) continue;
-    const oldest = theirs[0];
-    const ready = Date.parse(oldest.changed_at) + PARTNER_DELAY;
-    if (!(ready <= nowMs) || quiet) continue;
-
-    const actor = s.members.find((m) => m.id === oldest.actor_member_id)?.display_name ?? 'Your partner';
-    const count = new Set(theirs.map((c) => `${c.entity}:${c.entity_id}`)).size;
-    const dates = new Set(theirs.map((c) => c.day_date));
-    const date = dates.size === 1 ? [...dates][0] : null;
-    const dayNo = date ? diffDays(date, s.trip.start_date) + 1 : 0;
-    const inTrip = dayNo >= 1 && dayNo <= diffDays(s.trip.end_date, s.trip.start_date) + 1;
-    out.push({
-      memberIds: [r.id],
-      kind: 'partner_update',
-      targetId: `${oldest.id}:${theirs[theirs.length - 1].id}`,
-      scheduledFor: new Date(ready).toISOString(),
-      title: TITLES.partner_update,
-      body: `${actor} updated ${count} ${count === 1 ? 'item' : 'items'}${inTrip ? ` on Day ${dayNo}` : ''}`,
-      url: date ? dayUrl(date) : theirs.every((c) => c.entity === 'booking') ? '?section=ready&view=bookings' : '?section=days',
-      tag: 'partner-updates',
-      changeIds: theirs.map((c) => c.id),
-    });
-  }
+  // ── partner updates: each save of the other person, at once, any hour ──
+  out.push(...partnerUpdates(s));
 
   return out.sort((a, b) => a.scheduledFor.localeCompare(b.scheduledFor) || a.targetId.localeCompare(b.targetId));
+}
+
+// ── partner updates (owner, 2026-11-01: every section, at once, any hour) ──
+// "Amy · Itinerary" / "Day 3 · Edited “Blue Mountains train”". One notification
+// per section and day; a record saved several times counts once.
+
+/** The section each kind of record lives in, as the contents name it. */
+const AREA: Record<string, string> = {
+  itinerary: 'Itinerary',
+  day: 'Itinerary',
+  booking: 'Checklist',
+  checklist: 'Checklist',
+  document: 'Checklist',
+  prelude: 'Amy’s Prelude',
+  goal: 'Amy’s Prelude',
+  journal: 'Journal',
+  photo: 'Journal',
+  library: 'Library',
+  expense: 'Budget',
+  settlement: 'Budget',
+  budget: 'Budget',
+};
+
+const AREA_SECTION: Record<string, string> = {
+  Itinerary: 'days',
+  Checklist: 'ready',
+  'Amy’s Prelude': 'prelude',
+  Journal: 'journal',
+  Library: 'links',
+  Budget: 'wallet',
+};
+
+/** More sections than this in one run become a single summary. */
+const MAX_PARTNER_NOTES = 4;
+
+const VERB: Record<string, string> = {
+  added: 'Added',
+  edited: 'Edited',
+  deleted: 'Deleted',
+  checked: 'Checked off',
+  unchecked: 'Unchecked',
+};
+
+const quoted = (s: string) => `“${s}”`;
+
+/** One record's saves in this run as one: added + edited is added; added then deleted is nothing. */
+function settle(list: ChangeRow[]): ChangeRow | null {
+  const first = list[0];
+  const last = list[list.length - 1];
+  if (first.action === 'added' && last.action === 'deleted') return null;
+  const action = last.action === 'deleted' ? 'deleted' : list.some((c) => c.action === 'added') ? 'added' : (last.action ?? 'edited');
+  const label = [...list].reverse().find((c) => c.label)?.label ?? null;
+  return { ...last, action, label };
+}
+
+/** What happened, in words. Titles only: never journal text, notes or amounts. */
+export function partnerPhrase(c: Pick<ChangeRow, 'entity' | 'action' | 'label'>, names: Record<string, string> = {}): string {
+  const verb = VERB[c.action ?? 'edited'] ?? 'Edited';
+  const title = clean(c.label, 48);
+  switch (c.entity) {
+    case 'journal':
+      return `${verb} a post`;
+    case 'photo':
+      if (c.label === 'cover') return 'Changed the cover photo';
+      if (c.label === 'layout') return 'Shuffled the photo layout';
+      if (c.label === 'order') return 'Rearranged the photos';
+      return `${verb} a photo`;
+    case 'settlement':
+      return `${verb} a settlement`;
+    case 'goal':
+      return 'Edited the goal for this trip';
+    case 'budget':
+      return c.label === 'eren' || c.label === 'amy' ? `Changed ${names[c.label] ?? c.label}’s budget` : 'Changed the shared budget';
+    case 'day':
+      return title ? `Renamed the day ${quoted(title)}` : 'Edited the day';
+    case 'booking':
+      return title ? `${verb} the booking ${quoted(title)}` : `${verb} a booking`;
+    default:
+      return title ? `${verb} ${quoted(title)}` : `${verb} an item`;
+  }
+}
+
+function partnerUpdates(s: Snapshot): DueNotification[] {
+  const out: DueNotification[] = [];
+  const memberIds = new Set(s.members.map((m) => m.id));
+  const nameOf = (id: string) => s.members.find((m) => m.id === id)?.display_name ?? 'Your partner';
+  const names = Object.fromEntries(s.members.map((m) => [m.profile_key, m.display_name]));
+  const lastDay = diffDays(s.trip.end_date, s.trip.start_date) + 1;
+  const dayNo = (date: string | null) => {
+    if (!date) return 0;
+    const n = diffDays(date, s.trip.start_date) + 1;
+    return n >= 1 && n <= lastDay ? n : 0;
+  };
+  const byTime = (a: ChangeRow, b: ChangeRow) => Date.parse(a.changed_at) - Date.parse(b.changed_at) || a.id.localeCompare(b.id);
+  const pending = s.changes.filter((c) => !c.notified_at && memberIds.has(c.actor_member_id) && AREA[c.entity]).sort(byTime);
+
+  for (const r of s.members) {
+    const theirs = pending.filter((c) => c.actor_member_id !== r.id);
+    if (!theirs.length) continue;
+
+    // Each record once, then one note per section and day, in the order they happened.
+    const perRecord = new Map<string, ChangeRow[]>();
+    for (const c of theirs) {
+      const key = `${c.entity}:${c.entity_id}`;
+      perRecord.set(key, [...(perRecord.get(key) ?? []), c]);
+    }
+    const notes = new Map<string, { area: string; day: string | null; settled: ChangeRow[]; raw: ChangeRow[] }>();
+    for (const list of perRecord.values()) {
+      const one = settle(list);
+      const head = list[0];
+      const area = AREA[head.entity];
+      const day = dayNo(head.day_date) ? head.day_date : null;
+      const key = `${area}|${day ?? ''}`;
+      const note = notes.get(key) ?? { area, day, settled: [], raw: [] };
+      if (one) note.settled.push(one);
+      note.raw.push(...list);
+      notes.set(key, note);
+    }
+    const live = [...notes.values()].filter((n) => n.settled.length);
+    if (!live.length) continue;
+
+    const make = (raw: ChangeRow[], title: string, body: string, url: string): DueNotification => {
+      const ids = [...raw].sort(byTime).map((c) => c.id);
+      const last = [...raw].sort(byTime)[raw.length - 1];
+      return {
+        memberIds: [r.id],
+        kind: 'partner_update',
+        targetId: `${ids[0]}:${ids[ids.length - 1]}:${ids.length}`,
+        scheduledFor: new Date(Date.parse(last.changed_at)).toISOString(),
+        title,
+        body,
+        url,
+        tag: `partner-${ids[0]}`,
+        changeIds: ids,
+      };
+    };
+
+    if (live.length > MAX_PARTNER_NOTES) {
+      const actor = nameOf(live[0].settled[0].actor_member_id);
+      const areas = [...new Set(live.map((n) => n.area))];
+      const count = live.reduce((t, n) => t + n.settled.length, 0);
+      out.push(make(live.flatMap((n) => n.raw), `${actor} · ${count} updates`, areas.join(' · '), `?section=${AREA_SECTION[areas[0]]}`));
+      continue;
+    }
+    for (const n of live) {
+      const settled = n.settled.sort(byTime);
+      const actor = nameOf(settled[0].actor_member_id);
+      const phrases = settled.map((c) => partnerPhrase(c, names));
+      const shown = phrases.slice(0, 2).join(' · ') + (phrases.length > 2 ? ` · +${phrases.length - 2} more` : '');
+      const body = n.day ? `Day ${dayNo(n.day)} · ${shown}` : shown;
+      const section = AREA_SECTION[n.area];
+      const onlyBookings = settled.every((c) => c.entity === 'booking');
+      const url =
+        section === 'days' && n.day
+          ? dayUrl(n.day)
+          : onlyBookings
+            ? '?section=ready&view=bookings'
+            : `?section=${section}${n.day && section === 'journal' ? `&day=${n.day}` : ''}`;
+      out.push(make(n.raw, `${actor} · ${n.area}`, body, url));
+    }
+  }
+  return out;
 }

@@ -1,9 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { zonedToInstant } from '@/lib/time/zone';
 import {
-  isQuietHours,
+  partnerPhrase,
   planNotifications,
-  recipientZone,
   wallToUtc,
   type BookingRow,
   type ChangeRow,
@@ -412,6 +411,8 @@ describe('planNotifications', () => {
 });
 
 describe('partner updates', () => {
+  const T0 = '2030-12-29T12:00:00Z'; // 11 pm in Sydney: sent all the same
+  const T1 = '2030-12-29T12:00:02Z';
   const change = (id: string, at: string, extra: Partial<ChangeRow> = {}): ChangeRow => ({
     id,
     actor_member_id: AMY,
@@ -420,65 +421,96 @@ describe('partner updates', () => {
     day_date: '2030-12-29',
     changed_at: at,
     notified_at: null,
+    action: 'edited',
+    label: `Plan ${id}`,
     ...extra,
   });
   const partner = (s: Snapshot, iso: string) => planNotifications(s, new Date(iso)).filter((n) => n.kind === 'partner_update');
+  const lines = (ns: DueNotification[]) => ns.map((n) => [n.title, n.body, n.url]).sort();
 
-  it('batches five minutes and tells only the other profile', () => {
-    const s = snap({ changes: [change('c1', '2030-12-28T23:00:00Z'), change('c2', '2030-12-28T23:02:00Z')] });
-    expect(partner(s, '2030-12-28T23:04:00Z')).toHaveLength(0);
-    expect(partner(s, '2030-12-28T23:05:00Z')).toEqual([
+  it('tells only the other profile at once, any hour: who, which section, which day, what', () => {
+    const s = snap({ changes: [change('c1', T0, { label: 'Harbour walk' })] });
+    expect(partner(s, T0)).toEqual([
       expect.objectContaining({
         memberIds: [EREN],
-        targetId: 'c1:c2',
-        scheduledFor: '2030-12-28T23:05:00.000Z',
-        title: 'Partner updates',
-        body: 'Amy updated 2 items on Day 4',
+        targetId: 'c1:c1:1',
+        scheduledFor: '2030-12-29T12:00:00.000Z',
+        title: 'Amy · Itinerary',
+        body: 'Day 4 · Edited “Harbour walk”',
         url: '?section=days&day=2030-12-29',
-        changeIds: ['c1', 'c2'],
+        tag: 'partner-c1',
+        changeIds: ['c1'],
       }),
     ]);
   });
 
-  it('a later change makes a new batch key', () => {
-    const one = snap({ changes: [change('c1', '2030-12-28T23:00:00Z')] });
-    const two = snap({ changes: [change('c1', '2030-12-28T23:00:00Z'), change('c2', '2030-12-28T23:06:00Z')] });
-    expect(partner(one, '2030-12-28T23:07:00Z')[0].targetId).toBe('c1:c1');
-    expect(partner(two, '2030-12-28T23:07:00Z')[0].targetId).toBe('c1:c2');
-  });
-
-  it('counts items, not edits; bookings link to Bookings', () => {
+  it('a record saved twice counts once: added + edited is added, added then deleted is nothing', () => {
     const s = snap({
       changes: [
-        change('b1', '2030-12-28T23:00:00Z', { entity: 'booking', entity_id: 'bk-1', day_date: null }),
-        change('b2', '2030-12-28T23:01:00Z', { entity: 'booking', entity_id: 'bk-1', day_date: null }),
+        change('a1', T0, { entity_id: 'x', action: 'added', label: 'Lunch' }),
+        change('a2', T1, { entity_id: 'x', action: 'edited', label: 'Lunch at the pier' }),
+        change('b1', T0, { entity_id: 'y', action: 'added', label: 'Ferry' }),
+        change('b2', T1, { entity_id: 'y', action: 'deleted', label: 'Ferry' }),
       ],
     });
-    expect(partner(s, '2030-12-28T23:10:00Z')[0]).toMatchObject({ body: 'Amy updated 1 item', url: '?section=ready&view=bookings' });
+    const [n, ...rest] = partner(s, T1);
+    expect(rest).toEqual([]);
+    expect(n.body).toBe('Day 4 · Added “Lunch at the pier”');
+    expect(n.changeIds).toEqual(['a1', 'b1', 'a2', 'b2']); // every row is reported
   });
 
-  it('holds updates 22:00–08:00 where the recipient is', () => {
-    // 23:00 in Sydney during the trip: held until 08:00 Sydney.
-    const night = snap({ changes: [change('n1', '2030-12-29T12:00:00Z')] });
-    expect(partner(night, '2030-12-29T12:10:00Z')).toHaveLength(0);
-    expect(partner(night, '2030-12-29T20:59:00Z')).toHaveLength(0);
-    expect(partner(night, '2030-12-29T21:00:00Z')).toHaveLength(1);
-
-    // Day 1 morning, still in Korea: 06:00 KST is 08:00 in Sydney but still quiet.
-    const day1 = snap({ bookings: [OUT], changes: [change('d1', '2030-12-25T20:00:00Z', { day_date: '2030-12-26' })] });
-    expect(partner(day1, '2030-12-25T21:00:00Z')).toHaveLength(0);
-    expect(partner(day1, '2030-12-25T23:00:00Z')).toHaveLength(1);
+  it('one note per section and day; journal text, notes and amounts never show', () => {
+    const s = snap({
+      changes: [
+        change('e1', T0, { entity: 'expense', entity_id: 'e', day_date: null, action: 'added', label: 'Dinner' }),
+        change('j1', T0, { entity: 'journal', entity_id: 'j', action: 'added', label: null }),
+        change('k1', T0, { entity: 'checklist', entity_id: 'k', day_date: null, action: 'checked', label: 'Passport' }),
+        change('l1', T0, { entity: 'library', entity_id: 'l', day_date: null, action: 'added', label: 'Opal guide' }),
+        change('p1', T1, { entity: 'photo', entity_id: 'p', action: 'added', label: null }),
+      ],
+    });
+    expect(lines(partner(s, T1))).toEqual([
+      ['Amy · Budget', 'Added “Dinner”', '?section=wallet'],
+      ['Amy · Checklist', 'Checked off “Passport”', '?section=ready'],
+      ['Amy · Journal', 'Day 4 · Added a post · Added a photo', '?section=journal&day=2030-12-29'],
+      ['Amy · Library', 'Added “Opal guide”', '?section=links'],
+    ]);
   });
 
-  it('recipient zone: home until the outbound flight leaves, home again after the trip', () => {
-    const dep = Date.parse('2030-12-26T12:50:00Z');
-    expect(recipientZone(TRIP, new Date('2030-12-26T12:49:00Z'), dep)).toBe(SEL);
-    expect(recipientZone(TRIP, new Date('2030-12-26T12:51:00Z'), dep)).toBe(SYD);
-    expect(recipientZone(TRIP, new Date('2031-01-03T13:00:00Z'), dep)).toBe(SEL); // 2031-01-04 in Sydney
-    // Without a flight: home through the first day.
-    expect(recipientZone(TRIP, new Date('2030-12-26T10:00:00Z'))).toBe(SEL);
-    expect(recipientZone(TRIP, new Date('2030-12-27T10:00:00Z'))).toBe(SYD);
-    expect(isQuietHours(TRIP, new Date('2030-12-25T21:00:00Z'), dep)).toBe(true); // 06:00 KST
+  it('more than four sections at once become one summary', () => {
+    const areas: Array<Partial<ChangeRow>> = [
+      { entity: 'expense' },
+      { entity: 'journal' },
+      { entity: 'checklist' },
+      { entity: 'library' },
+      { entity: 'prelude' },
+    ];
+    const s = snap({ changes: areas.map((x, k) => change(`s${k}`, T0, { ...x, entity_id: `r${k}`, day_date: null })) });
+    const ns = partner(s, T0);
+    expect(ns).toHaveLength(1);
+    expect(ns[0]).toMatchObject({ title: 'Amy · 5 updates', body: 'Budget · Journal · Checklist · Library · Amy’s Prelude' });
+    expect(ns[0].changeIds).toHaveLength(5);
+  });
+
+  it('bookings link to Bookings; phrases for every kind of record', () => {
+    const s = snap({ changes: [change('b1', T0, { entity: 'booking', entity_id: 'bk', day_date: null, label: 'Harbour Hotel' })] });
+    expect(partner(s, T0)[0]).toMatchObject({ title: 'Amy · Checklist', body: 'Edited the booking “Harbour Hotel”', url: '?section=ready&view=bookings' });
+    expect(partnerPhrase({ entity: 'budget', action: 'edited', label: 'shared' })).toBe('Changed the shared budget');
+    expect(partnerPhrase({ entity: 'budget', action: 'edited', label: 'amy' }, { amy: 'Amy' })).toBe('Changed Amy’s budget');
+    expect(partnerPhrase({ entity: 'goal', action: 'edited', label: null })).toBe('Edited the goal for this trip');
+    expect(partnerPhrase({ entity: 'photo', action: 'edited', label: 'cover' })).toBe('Changed the cover photo');
+    expect(partnerPhrase({ entity: 'photo', action: 'edited', label: 'order' })).toBe('Rearranged the photos');
+    expect(partnerPhrase({ entity: 'day', action: 'edited', label: 'Into the Hills' })).toBe('Renamed the day “Into the Hills”');
+    expect(partnerPhrase({ entity: 'settlement', action: 'added', label: null })).toBe('Added a settlement');
+    expect(partnerPhrase({ entity: 'checklist', action: 'unchecked', label: 'Charger' })).toBe('Unchecked “Charger”');
+    expect(partnerPhrase({ entity: 'itinerary', action: 'edited', label: 'Lookout -33.8568, 151.2153' })).toBe('Edited “Lookout”');
+  });
+
+  it('a notified change is not sent again; my own changes never reach me', () => {
+    const s = snap({
+      changes: [change('n1', T0, { notified_at: T1 }), change('m1', T0, { actor_member_id: EREN, label: 'Mine' })],
+    });
+    expect(partner(s, T1).map((n) => [n.memberIds, n.body])).toEqual([[[AMY], 'Day 4 · Edited “Mine”']]);
   });
 });
 
