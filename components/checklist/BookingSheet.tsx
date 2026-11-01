@@ -10,6 +10,7 @@ import type { Booking, BookingKind, BookingStatus, CarDetail, FlightDetail, Memb
 import { formatWallTime, S } from '@/lib/strings';
 import { formatDayLabel } from '@/lib/time/zone';
 import { StatusBadges } from './BookingCards';
+import { BookingFiles } from './BookingFiles';
 import { flightDuration, rentalDays, stayNights, terminalText, wallLine, ZONES } from './bookingUtils';
 import { ConfirmDelete, ConflictBlock } from './FormBits';
 import { useDraft } from './useDraft';
@@ -317,14 +318,7 @@ export function BookingSheet({
               )}
               <p className={form.hint}>{S.checklist.expensesInBudget}</p>
             </section>
-            <div className={form.disabledNote}>
-              <Button variant="secondary" size="sm" disabled aria-describedby="booking-attach-note">
-                {S.checklist.attachFile}
-              </Button>
-              <p id="booking-attach-note" className={form.hint}>
-                {S.checklist.attachLater}
-              </p>
-            </div>
+            <BookingFiles booking={booking} />
           </div>
         ) : (
           <form

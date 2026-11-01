@@ -457,6 +457,7 @@ export const S = {
     discardUpload: (n: number) => (n === 1 ? 'Discard this photo and its text?' : `Discard these ${n} photos?`),
     openFailed: 'Couldn’t open the file. Try again.',
     unavailable: 'File uploads aren’t available here.',
+    untitled: 'File',
   },
 
   // ── shared: notifications (phase 4) ─────────────────────────
@@ -744,8 +745,7 @@ export const S = {
     linkedExpenses: 'Linked expenses',
     noLinkedExpense: 'No expense linked yet.',
     expensesInBudget: 'Add expenses in Budget and link this booking there.',
-    attachFile: 'Attach file',
-    attachLater: 'File uploads arrive once shared storage is connected.',
+    bookingFiles: 'Files',
     sensitiveNote: 'Passport, card and licence numbers are never stored here.',
     subject: 'For',
     nobody: 'Both of us',

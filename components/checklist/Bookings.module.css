@@ -456,6 +456,33 @@
   padding: 0;
 }
 
+/* An attached file: its name opens it (signed URL), Remove beside it. */
+.fileRow {
+  display: flex;
+  align-items: center;
+  gap: var(--s1);
+  border-top: 1px solid var(--line);
+}
+
+.fileOpen {
+  flex: 1;
+  min-width: 0;
+  min-height: var(--touch);
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--harbour);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  text-align: left;
+  overflow-wrap: anywhere;
+}
+
+.fileOpen:hover {
+  text-decoration: underline;
+  text-underline-offset: 0.18em;
+}
+
 /* A linked expense: opens it in Budget. */
 .expenseRow {
   display: flex;
