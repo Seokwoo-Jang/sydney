@@ -493,7 +493,8 @@ export function BookingSheet({
             <Field label={S.fields.title} optional hint={autoTitle(kind, draft) || undefined}>
               <TextInput value={draft.title} onChange={(e) => edit({ title: e.target.value })} placeholder={autoTitle(kind, draft)} />
             </Field>
-            <div className={form.grid2}>
+            {/* Full width each: three choices side by side need the room ('Considering'). */}
+            <>
               <Field label={S.checklist.bookingStatus}>
                 <SegmentedControl
               label={S.checklist.bookingStatus}
@@ -514,7 +515,7 @@ export function BookingSheet({
                   options={(['unpaid', 'paid'] as const).map((v) => ({ value: v, label: S.labels.paymentStatus[v] }))}
                 />
               </Field>
-            </div>
+            </>
             {kind !== 'flight' && (
               <Field label={S.checklist.reference} optional>
                 <TextInput value={draft.reference} autoComplete="off" onChange={(e) => edit({ reference: e.target.value })} />

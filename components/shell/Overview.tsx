@@ -27,7 +27,10 @@ function useTripFacts() {
   };
 }
 
-/** The trip title; it is also the way home (the main page at the top, URL without query). */
+/**
+ * The trip title; it is also the way home (the main page at the top, URL without query).
+ * Its link covers the whole cover (stretched), like the Prelude card.
+ */
 function Title({ as: Tag = 'h1', className }: { as?: 'h1' | 'p'; className?: string }) {
   const { goToSection } = useShellNav();
   return (
@@ -50,7 +53,7 @@ function Title({ as: Tag = 'h1', className }: { as?: 'h1' | 'p'; className?: str
 export function TripCover() {
   const facts = useTripFacts();
   return (
-    <TimeOfDayBackdrop variant="cover" className={styles.cover}>
+    <TimeOfDayBackdrop variant="cover" className={[styles.cover, styles.homeCover].join(' ')}>
       <div className={styles.coverInner}>
         <div>
           <p className={`eyebrow ${styles.coverEyebrow}`}>{S.brand.subtitle}</p>
@@ -77,7 +80,7 @@ export function MobileHero() {
   const countdown = useCountdown();
   const t = countdown ? countdownText(countdown) : null;
   return (
-    <TimeOfDayBackdrop variant="hero" className={styles.hero}>
+    <TimeOfDayBackdrop variant="hero" className={[styles.hero, styles.homeCover].join(' ')}>
       <div className={styles.heroInner}>
         <p className={`eyebrow ${styles.coverEyebrow}`}>{S.brand.subtitle}</p>
         <Title className={styles.heroTitle} />

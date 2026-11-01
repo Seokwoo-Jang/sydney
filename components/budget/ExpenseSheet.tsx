@@ -224,7 +224,8 @@ export function ExpenseSheet({
             onUseLatest={(l) => patch(toDraft(l, {}, today, me?.id ?? ''))}
           />
         )}
-        <div className={form.grid2}>
+        {/* Full width each: three status choices need the room ('Cancelled'). */}
+        <>
           <Field label={S.fields.date} error={err('date')}>
             <TextInput type="date" value={draft.date} onChange={(e) => edit({ date: e.target.value })} />
           </Field>
@@ -238,7 +239,7 @@ export function ExpenseSheet({
               options={(['planned', 'paid', 'cancelled'] as const).map((s) => ({ value: s, label: S.labels.expenseStatus[s] }))}
             />
           </Field>
-        </div>
+        </>
         <Field label={S.fields.title} error={err('title')}>
           <TextInput value={draft.title} onChange={(e) => edit({ title: e.target.value })} />
         </Field>

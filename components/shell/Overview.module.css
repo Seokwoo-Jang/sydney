@@ -405,10 +405,33 @@
   padding-top: var(--s1);
 }
 
-/* The hero title links home; it looks like the title, not a link. */
+/* The hero title links home; it looks like the title, not a link. Its ::after
+   stretches over the whole cover, so the photo itself is the button. */
 .homeLink {
   color: inherit;
   text-decoration: none;
+}
+
+.homeLink::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+}
+
+/* Like the Prelude card: the photo grows a little under the pointer. */
+.homeCover img {
+  transition: transform var(--motion-slow) var(--ease);
+}
+
+.homeCover:hover img {
+  transform: scale(1.02);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .homeCover img {
+    transition: none;
+  }
 }
 
 .homeLink:focus-visible {
