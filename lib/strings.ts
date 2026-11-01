@@ -98,9 +98,12 @@ export const S = {
     checking: 'Opening the journey…',
   },
 
-  // ── phones: first-visit guide before the name (owner, 2026-11-01) ──
+  // ── first-visit guide: before the name on phones, beside it on computers (owner, 2026-11-01) ──
   entryGuide: {
     heading: 'Before you start',
+    pcTitle: 'Open it on your phone',
+    pcIntro: 'Scan with your phone’s camera to open Side by Side there, then put it on your Home Screen.',
+    qrLabel: 'QR code with the address of Side by Side',
     homeTitle: 'Put it on your Home Screen',
     homeIntro: 'It opens full screen, like an app, and can send notifications.',
     platform: 'Phone',

@@ -3,12 +3,16 @@
 // one of two shared profiles; it is not identity verification and never says so.
 // `checking` renders the same brand frame without the form (static HTML).
 // Phones in the browser first see a short guide: how to put the app on the Home
-// Screen (iPhone / Android) and which notifications exist (owner, 2026-11-01).
+// Screen (iPhone / Android) and which notifications exist. Computers show the same
+// guide next to the form, with a QR code that opens the site on a phone
+// (owner, 2026-11-01).
 import { useEffect, useState, type FormEvent } from 'react';
 import { Button, Field, SegmentedControl, TextInput } from '@/components/ui';
 import { normalizeEntryName, useSession } from '@/lib/data';
 import { isIOS, isStandalone, useInstall } from '@/lib/pwa';
 import { S } from '@/lib/strings';
+import { publicAsset } from '@/lib/url';
+import { QrCode } from './QrCode';
 import { TimeOfDayBackdrop } from './TimeOfDayBackdrop';
 import styles from './EntryScreen.module.css';
 
@@ -24,44 +28,95 @@ export function EntryScreen({ checking }: { checking: boolean }) {
           <p className={styles.intro}>{S.brand.intro}</p>
         </div>
       </TimeOfDayBackdrop>
-      <main className={styles.panel}>
-        {checking ? (
+      {checking ? (
+        <main className={styles.panel}>
           <p className={styles.checking} role="status">
             {S.entry.checking}
           </p>
-        ) : (
-          <EntryFlow />
-        )}
-      </main>
+        </main>
+      ) : (
+        <EntryFlow />
+      )}
     </div>
   );
 }
 
 type Phone = 'iphone' | 'android';
 
-/** Guide first on a phone's browser (not the installed app, not a computer); then the name. */
+/**
+ * Phone browser: the guide first, then the name. Computer: the name with the guide and a
+ * QR code beside it. The installed app goes straight to the name.
+ */
 function EntryFlow() {
-  const [step, setStep] = useState<'guide' | 'form' | null>(null);
+  const [device, setDevice] = useState<'phone' | 'computer' | 'app' | null>(null);
+  const [step, setStep] = useState<'guide' | 'form'>('guide');
   const [phone, setPhone] = useState<Phone>('iphone');
   useEffect(() => {
     const android = /Android/i.test(navigator.userAgent);
     setPhone(android ? 'android' : 'iphone');
-    setStep((isIOS() || android) && !isStandalone() ? 'guide' : 'form');
+    setDevice(isStandalone() ? 'app' : isIOS() || android ? 'phone' : 'computer');
   }, []);
-  if (step === 'guide') return <EntryGuide phone={phone} onPhone={setPhone} onContinue={() => setStep('form')} />;
-  return step === 'form' ? <EntryForm /> : null;
+  if (!device) return <main className={styles.panel} />;
+  if (device === 'computer') {
+    return (
+      <div className={styles.panels}>
+        <main className={styles.panel}>
+          <EntryForm />
+        </main>
+        <aside className={[styles.panel, styles.side].join(' ')} aria-labelledby="entry-guide-heading">
+          <PhoneLink />
+          <GuideBlocks phone={phone} onPhone={setPhone} />
+        </aside>
+      </div>
+    );
+  }
+  return (
+    <main className={styles.panel}>
+      {device === 'phone' && step === 'guide' ? (
+        <section className={styles.guide} aria-labelledby="entry-guide-heading">
+          <h2 id="entry-guide-heading" className={styles.guideHeading}>
+            {S.entryGuide.heading}
+          </h2>
+          <GuideBlocks phone={phone} onPhone={setPhone} />
+          <Button variant="primary" fullWidth onClick={() => setStep('form')}>
+            {S.entryGuide.continue}
+          </Button>
+        </section>
+      ) : (
+        <EntryForm />
+      )}
+    </main>
+  );
 }
 
-function EntryGuide({ phone, onPhone, onContinue }: { phone: Phone; onPhone: (p: Phone) => void; onContinue: () => void }) {
+/** Computer: a QR code of this site's address to open it on a phone. */
+function PhoneLink() {
+  const [url, setUrl] = useState('');
+  useEffect(() => setUrl(process.env.NEXT_PUBLIC_SITE_URL || new URL(publicAsset('/'), window.location.origin).href), []);
+  const G = S.entryGuide;
+  return (
+    <section className={styles.phoneLink}>
+      <h2 id="entry-guide-heading" className={styles.guideHeading}>
+        {G.pcTitle}
+      </h2>
+      <div className={styles.qrRow}>
+        {url ? <QrCode value={url} label={G.qrLabel} className={styles.qr} /> : <span className={styles.qr} />}
+        <div className={styles.qrText}>
+          <p className={styles.guideText}>{G.pcIntro}</p>
+          {url ? <p className={styles.url}>{url.replace(/^https?:\/\//, '')}</p> : null}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/** Home Screen steps (iPhone / Android) and the notification kinds; shared by phones and computers. */
+function GuideBlocks({ phone, onPhone }: { phone: Phone; onPhone: (p: Phone) => void }) {
   const install = useInstall();
   const G = S.entryGuide;
   const steps = phone === 'iphone' ? G.iphoneSteps : G.androidSteps;
   return (
-    <section className={styles.guide} aria-labelledby="entry-guide-heading">
-      <h2 id="entry-guide-heading" className={styles.guideHeading}>
-        {G.heading}
-      </h2>
-
+    <>
       <div className={styles.guideBlock}>
         <h3 className={styles.guideTitle}>{G.homeTitle}</h3>
         <p className={styles.guideText}>{G.homeIntro}</p>
@@ -98,11 +153,7 @@ function EntryGuide({ phone, onPhone, onContinue }: { phone: Phone; onPhone: (p:
         </ul>
         <p className={styles.guideNote}>{G.notifyPrivacy}</p>
       </div>
-
-      <Button variant="primary" fullWidth onClick={onContinue}>
-        {G.continue}
-      </Button>
-    </section>
+    </>
   );
 }
 
