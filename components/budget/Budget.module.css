@@ -433,9 +433,34 @@
   color: var(--muted);
 }
 
-.relText {
+/* The dashed rule sits under the whole entry: the row and its Related button. */
+.receiptItem {
+  border-bottom: 1px dashed var(--line-strong);
+}
+
+.receiptItem .receiptRow {
+  border-bottom: 0;
+}
+
+/* Related (Day N / booking) under the row: 44px tall, tucked into the row's bottom padding. */
+.receiptRel {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: var(--touch);
+  margin-top: -12px;
+  padding: 0 8px 0 0;
+  border: 0;
+  background: none;
   color: var(--harbour);
+  font-size: var(--text-sm);
   font-weight: 500;
+  text-align: left;
+}
+
+.receiptRel:hover {
+  text-decoration: underline;
+  text-underline-offset: 0.18em;
 }
 
 .note {

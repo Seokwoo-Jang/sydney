@@ -3,7 +3,7 @@
 // (PC) / receipt list (mobile), category bars, settlements. Totals show only the
 // AUD | KRW choice; the other currency appears on single expenses and settlements.
 import { Fragment } from 'react';
-import { Button, MemberMarks } from '@/components/ui';
+import { Button, Icon, MemberMarks } from '@/components/ui';
 import { balances, formatMoney, summarizeBudget } from '@/lib/money';
 import type { Booking, Currency, Expense, FxRate, ItineraryItem, Member, Settlement, TripBudget, TripDay } from '@/lib/types';
 import { S } from '@/lib/strings';
@@ -214,7 +214,7 @@ export function ExpenseReceipt({ rows, ctx }: { rows: Expense[]; ctx: RowContext
             {g.rows.map((e) => {
               const rel = related(e, ctx);
               return (
-                <li key={e.id} className={e.status === 'cancelled' ? styles.rowCancelled : undefined}>
+                <li key={e.id} className={[styles.receiptItem, e.status === 'cancelled' ? styles.rowCancelled : ''].filter(Boolean).join(' ')}>
                   <button type="button" className={styles.receiptRow} onClick={() => ctx.onOpen(e)}>
                     <span className={styles.receiptText}>
                       <span className={styles.itemTitle}>{e.title}</span>
@@ -222,11 +222,21 @@ export function ExpenseReceipt({ rows, ctx }: { rows: Expense[]; ctx: RowContext
                         <StatusDot e={e} />
                         <span>{S.labels.expenseCategory[e.category]}</span>
                         <span>{payerName(e, ctx.members)}</span>
-                        {rel && <span className={styles.relText}>{rel.label}</span>}
                       </span>
                     </span>
                     <Amount e={e} latest={ctx.latest} />
                   </button>
+                  {rel && (
+                    <button
+                      type="button"
+                      className={styles.receiptRel}
+                      aria-label={`${S.budget.columns.related}: ${rel.label}`}
+                      onClick={() => ctx.onRelated(rel.target)}
+                    >
+                      {rel.label}
+                      <Icon name="arrow" size={14} />
+                    </button>
+                  )}
                 </li>
               );
             })}
