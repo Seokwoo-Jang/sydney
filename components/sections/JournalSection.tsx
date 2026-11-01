@@ -1,13 +1,13 @@
 'use client';
 // Journal · Nine Notes (plan §7.6). Root id stays "section-journal".
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useDueContext } from '@/components/checklist/useDueContext';
 import { useSectionNav } from '@/components/checklist/useSectionNav';
 import { DaySheet } from '@/components/journal/DaySheet';
 import { Photo } from '@/components/journal/Photo';
-import { commentsByPhoto, defaultPhotoId, storePhoto } from '@/components/journal/photoKit';
+import { commentsByPhoto } from '@/components/journal/photoKit';
 import { EmptyState, ErrorState, LoadingState, MemberMarks, SectionHeading } from '@/components/ui';
-import { useAssets, useDays, useFiles, useJournal, useTrip } from '@/lib/data';
+import { useAssets, useDays, useJournal, useTrip } from '@/lib/data';
 import type { FileAsset, Member, Participants, TripDay } from '@/lib/types';
 import { S } from '@/lib/strings';
 import { defaultDayPhoto } from '@/lib/url';
@@ -40,7 +40,6 @@ export default function JournalSection({ layout }: SectionProps) {
   const days = useDays();
   const assets = useAssets();
   const journal = useJournal();
-  const files = useFiles();
   const trip = useTrip();
   const due = useDueContext();
   const nav = useSectionNav('journal', VIEWS, 'days');
@@ -63,55 +62,8 @@ export default function JournalSection({ layout }: SectionProps) {
     [journal, photosByDay],
   );
 
-  // Each day's own Nine Notes photo is filed once, by whoever opens the Journal first,
-  // as if added, chosen as the day cover and noted "No photos yet." (owner, 2026-11-01;
-  // the server sets the cover and the note). Once deleted it is not filed again.
-  const filing = useRef(new Set<string>());
-  useEffect(() => {
-    if (!files.available || !me || days.status !== 'ready' || assets.status !== 'ready') return;
-    const todo = days.data.filter(
-      (d) => !d.defaultPhotoRemoved && !filing.current.has(d.id) && !(photosByDay.get(d.id) ?? []).some((p) => p.isDefault),
-    );
-    if (!todo.length) return;
-    for (const d of todo) filing.current.add(d.id); // once per visit, even if it fails
-    void (async () => {
-      for (const d of todo) {
-        try {
-          const sample = defaultDayPhoto(d.dayNumber);
-          const res = await fetch(sample.src);
-          if (!res.ok) continue;
-          const blob = await res.blob();
-          const file = new File([blob], `day-${d.dayNumber}.webp`, { type: blob.type || 'image/webp' });
-          const { paths, width, height } = await storePhoto(files, file);
-          const others = photosByDay.get(d.id) ?? [];
-          const row = await assets.create({
-            id: defaultPhotoId(d.id),
-            storagePath: paths[0],
-            displayPath: paths[1],
-            thumbPath: paths[2],
-            width,
-            height,
-            focalX: 0.5,
-            focalY: 0.4,
-            zoom: 1,
-            mime: file.type,
-            bytes: file.size,
-            kind: 'photo',
-            isDefault: true,
-            dayId: d.id,
-            bookingId: null,
-            documentId: null,
-            caption: '',
-            sortOrder: Math.min(10, ...others.map((p) => p.sortOrder)) - 10, // first on the day
-          });
-          // Filed meanwhile on the other device (or deleted before): this copy of the files goes.
-          if (!row.ok || row.row.storagePath !== paths[0]) await files.remove(paths).catch(() => undefined);
-        } catch {
-          // Tried again the next time the Journal opens.
-        }
-      }
-    })();
-  }, [files, me, days, assets, photosByDay]);
+  // The day's own Nine Notes photo is no longer filed automatically (owner, 2026-11-01):
+  // it was for setting up; photos are now added by us. Photos filed before stay photos.
 
   const openDay = nav.item ? (dayRows.find((d) => d.id === nav.item) ?? null) : null;
   // Set by the empty state's Add a photo; a card click or close clears it.
