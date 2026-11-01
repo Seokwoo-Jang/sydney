@@ -38,7 +38,8 @@ function BoardLinks({ active, onNavigate, onGuide, variant }: BoardNavProps & { 
         </li>
       ))}
       <li className={styles.guideItem}>
-        <button type="button" className={[styles.link, styles.guide].join(' ')} onClick={onGuide}>
+        <button type="button" className={styles.guide} onClick={onGuide}>
+          <Icon name="help" size={16} />
           {S.guide.title}
         </button>
       </li>

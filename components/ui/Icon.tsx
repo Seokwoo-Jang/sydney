@@ -109,6 +109,13 @@ const PATHS = {
   check: <path d="M5 12.5l4.5 4.5L19 7.5" />,
   filter: <path d="M4 6h16M7 12h10M10 18h4" />,
   arrow: <path d="M5 12h14M13 6l6 6-6 6" />,
+  help: (
+    <>
+      <circle cx="12" cy="12" r="8" />
+      <path d="M9.8 9.6a2.3 2.3 0 1 1 3.3 2.1c-.7.3-1.1.9-1.1 1.6v.4" />
+      <path d="M12 16.6v.1" />
+    </>
+  ),
 } satisfies Record<string, ReactElement>;
 
 export type IconName = keyof typeof PATHS;

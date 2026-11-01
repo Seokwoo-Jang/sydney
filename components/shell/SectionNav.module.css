@@ -61,33 +61,46 @@
   color: var(--brass);
 }
 
-/* How to Use: opens a card, set a little apart from the section links. */
+/* How to Use: a button, not a section link, so it reads as one (Sky Wash, Harbour Blue),
+   set a little apart below the links. */
 .guideItem {
-  margin-top: var(--s1-5);
-  padding-top: var(--s1);
-  border-top: 1px solid var(--line);
+  margin-top: var(--s2);
 }
 
 .guide {
-  width: 100%;
-  border-top: 0;
-  border-right: 0;
-  border-bottom: 0;
-  background: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 36px;
+  padding: 0 12px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-button);
+  background: var(--sky);
+  color: var(--harbour);
   font: inherit;
   font-size: var(--text-sm);
-  text-align: left;
+  font-weight: 600;
+  white-space: nowrap;
   cursor: pointer;
+  transition:
+    background-color var(--motion-fast) var(--ease),
+    border-color var(--motion-fast) var(--ease);
 }
 
+.guide:hover {
+  border-color: var(--harbour);
+}
+
+.guide:focus-visible {
+  outline: 2px solid var(--harbour);
+  outline-offset: 2px;
+}
+
+/* Top links (1024–1439): at the right end of the bar, centred in it. */
 .linksList .guideItem {
+  display: flex;
+  align-items: center;
   margin: 0 0 0 auto;
-  padding: 0;
-  border-top: 0;
-}
-
-.linksList .guide {
-  width: auto;
 }
 
 /* ── sticky links (1024–1439) ─────────────── */
