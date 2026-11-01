@@ -126,11 +126,13 @@ describe('buildDayRoute', () => {
       item('e-nocoords', { date: D, participants: 'eren' }),
     ];
     const r = buildDayRoute(xs, D, 'eren', SYDNEY_TZ);
+    // Own-route numbers; Eren's route also counts t1 (we split) and t2 (we meet): e1 is his 2.
     expect(r.stops.map((s) => [s.item.id, s.n])).toEqual([
       ['t1', 1],
-      ['e1', 1],
+      ['e1', 2],
       ['t2', 2],
     ]);
+    expect(r.stops.map((s) => s.routes.eren)).toEqual([1, 2, 3]);
     expect(segs(r)).toEqual(['t1>e1:eren', 'e1>t2:eren']);
     expect(r.stops[2].meetUp).toBe(true);
     expect(r.notOnMap.map((i) => i.id)).toEqual(['e-nocoords']);
@@ -434,7 +436,7 @@ describe('flights', () => {
     expect(r.flights.map((x) => x.to.code)).toEqual(['SYD T1']);
   });
 
-  it('the list keeps to the chosen route: another person’s plan at the same place stays on theirs', () => {
+  it('Together keeps to its own plans; Eren’s route runs on to where we meet', () => {
     const all = buildDayRoute(
       [
         item('move', { date: D, startTime: '17:00', timezone: SEOUL_TZ, participants: 'eren', place: 'ICN T1' }),
@@ -449,7 +451,7 @@ describe('flights', () => {
     expect(placeRuns(narrowRoute(all, 'together').stops).map((p) => [p.n, ids(p.stops)])).toEqual([[1, ['checkin', 'fly']]]);
     expect(placeRuns(narrowRoute(all, 'eren').stops).map((p) => [p.n, ids(p.stops)])).toEqual([
       [1, ['elsewhere']],
-      [2, ['move']],
+      [2, ['move', 'checkin']], // we meet at the check-in: the same place, the same number
     ]);
   });
 
@@ -492,10 +494,14 @@ describe('flights', () => {
 });
 
 describe('people filter on the map', () => {
-  it('narrowRoute keeps only the chosen route, numbered 1, 2, … without gaps', () => {
+  it('narrowRoute: a person’s route starts where we split up and ends where we meet, 1, 2, 3', () => {
     const all = buildDayRoute([at('t1', '09:00'), at('a1', '10:00', { participants: 'amy' }), at('e1', '10:30', { participants: 'eren' }), at('t2', '11:00')], D, 'together', SYDNEY_TZ);
     const eren = narrowRoute(all, 'eren');
-    expect(eren.stops.map((x) => [x.item.id, x.n])).toEqual([['e1', 1]]);
+    expect(eren.stops.map((x) => [x.item.id, x.n])).toEqual([
+      ['t1', 1],
+      ['e1', 2],
+      ['t2', 3],
+    ]);
     expect(segs(eren).every((id) => id.endsWith(':eren'))).toBe(true);
     const together = narrowRoute(all, 'together');
     expect(together.stops.map((x) => [x.item.id, x.n])).toEqual([['t1', 1], ['t2', 2]]);

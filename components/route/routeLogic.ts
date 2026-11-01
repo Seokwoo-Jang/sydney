@@ -19,6 +19,11 @@ export interface RouteStop {
    * only when the place changes, so plans in a row at one place share the first one's.
    */
   n: number;
+  /**
+   * Its number on each route it is on: its own, and for a Together plan where we split
+   * up or meet again, Eren's and Amy's routes too (owner, 2026-11-01).
+   */
+  routes: Partial<Record<Lane, number>>;
   lat: number;
   lng: number;
   lane: Lane;
@@ -236,8 +241,16 @@ export function buildDayRoute(items: ItineraryItem[], date: string, filter: Peop
     }
   }
 
-  // Each person's route is numbered on its own, by place: the number goes up only when
-  // the place changes from that route's previous stop (measured from the first plan there).
+  // Which routes each plan is on: its own; a Together plan where Eren's or Amy's own
+  // line starts (we split up) or ends (we meet again) is on that person's route too.
+  const onRoutes = new Map<string, Set<Lane>>(placed.map((i) => [i.id, new Set<Lane>([laneOf(i)])]));
+  for (const r of raw) {
+    onRoutes.get(r.from.id)?.add(r.lane);
+    onRoutes.get(r.to.id)?.add(r.lane);
+  }
+
+  // Each route is numbered on its own, by place: the number goes up only when the place
+  // changes from that route's previous stop (measured from the first plan there).
   const at: Record<Lane, { n: number; first: (LatLng & { key: string | null }) | null }> = {
     together: { n: 0, first: null },
     eren: { n: 0, first: null },
@@ -249,12 +262,17 @@ export function buildDayRoute(items: ItineraryItem[], date: string, filter: Peop
       const p = spots.get(item.id)!;
       const lane = laneOf(item);
       const here = { lat: p.lat, lng: p.lng, key: placeKey(item) };
-      const run = at[lane];
-      if (!run.first || !samePlace(run.first, here)) {
-        run.n += 1;
-        run.first = here;
+      const routes: Partial<Record<Lane, number>> = {};
+      for (const l of ['together', 'eren', 'amy'] as const) {
+        if (!onRoutes.get(item.id)?.has(l)) continue;
+        const run = at[l];
+        if (!run.first || !samePlace(run.first, here)) {
+          run.n += 1;
+          run.first = here;
+        }
+        routes[l] = run.n;
       }
-      return { item, n: run.n, ...here, lane, timed: isTimed(item), meetUp: meetUps.has(item.id) };
+      return { item, n: routes[lane]!, routes, ...here, lane, timed: isTimed(item), meetUp: meetUps.has(item.id) };
     });
   const stopById = new Map(stops.map((s) => [s.item.id, s]));
   const segments: RouteSegment[] = [];
@@ -262,8 +280,10 @@ export function buildDayRoute(items: ItineraryItem[], date: string, filter: Peop
     const from = stopById.get(r.from.id);
     const to = stopById.get(r.to.id);
     if (!from || !to || !laneVisible(r.lane, filter)) continue;
-    // No line inside one place: on one route that is the same number; between routes, the same spot.
-    if (from.lane === to.lane ? from.n === to.n : samePlace(from, to)) continue;
+    // No line inside one place: the same number on the line's route.
+    const a = from.routes[r.lane];
+    const b = to.routes[r.lane];
+    if (a != null && b != null ? a === b : samePlace(from, to)) continue;
     segments.push({
       id: `${r.from.id}>${r.to.id}:${r.lane}`,
       from,
@@ -293,7 +313,8 @@ export function buildTripRoutes(items: ItineraryItem[], days: Pick<TripDay, 'dat
 export function narrowRoute(route: DayRoute, filter: PeopleFilter): DayRoute {
   return {
     ...route,
-    stops: route.stops.filter((s) => s.lane === filter),
+    // Eren's / Amy's route includes the Together plans where we split up and meet again.
+    stops: route.stops.filter((s) => s.routes[filter] != null).map((s) => ({ ...s, n: s.routes[filter]! })),
     segments: route.segments.filter((s) => s.lane === filter),
     flights: route.flights.filter((f) => f.lane === filter),
     notOnMap: route.notOnMap.filter((i) => i.participants === filter),
@@ -363,6 +384,7 @@ export function groupStops(stops: RouteStop[]): PinGroup[] {
   const groups: PinGroup[] = [];
   for (const s of stops) {
     const own = groups.find((g) => g.stops.some((t) => t.lane === s.lane && t.n === s.n));
+    // (a pin of one place on one route; the routes a stop is also on number it there)
     const fits = (g: PinGroup) => g.stops.every((t) => t.lane !== s.lane || samePlace(t, s));
     const named = s.key ? groups.find((g) => fits(g) && g.stops.some((t) => t.key === s.key)) : undefined;
     const g = own ?? named ?? nearest(groups.filter(fits), s, SAME_PLACE_M);
@@ -385,7 +407,7 @@ export function placeRuns(stops: RouteStop[]): Array<{ n: number; stops: RouteSt
   const runs: Array<{ n: number; stops: RouteStop[] }> = [];
   for (const s of stops) {
     const last = runs[runs.length - 1];
-    if (last && last.n === s.n && last.stops[0].lane === s.lane) last.stops.push(s);
+    if (last && last.n === s.n) last.stops.push(s);
     else runs.push({ n: s.n, stops: [s] });
   }
   return runs;
