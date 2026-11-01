@@ -145,6 +145,11 @@ function related(e: Expense, ctx: RowContext): Array<{ key: string; label: strin
   return out;
 }
 
+/** Plans on one line, bookings on the next (different kinds of link, owner 2026-11-01). */
+function relatedLines(rel: ReturnType<typeof related>) {
+  return [rel.filter((r) => r.target.kind === 'item'), rel.filter((r) => r.target.kind === 'booking')].filter((l) => l.length);
+}
+
 const payerName = (e: Expense, members: Member[]) => members.find((m) => m.id === e.payerId)?.displayName ?? '—';
 
 /** PC: Status / Date / Item·Category / Paid by / Amount / Related. Stacks below 560px of width. */
@@ -189,17 +194,21 @@ export function ExpenseTable({ rows, ctx }: { rows: Expense[]; ctx: RowContext }
                 <td data-label={S.budget.columns.related}>
                   {rel.length ? (
                     <span className={styles.relCell}>
-                      {rel.map((r, i) => (
-                        <Fragment key={r.key}>
-                          {i > 0 && (
-                            <span className={styles.relSep} aria-hidden="true">
-                              ·
-                            </span>
-                          )}
-                          <button type="button" className={styles.relButton} onClick={() => ctx.onRelated(r.target)}>
-                            {r.label}
-                          </button>
-                        </Fragment>
+                      {relatedLines(rel).map((line) => (
+                        <span key={line[0].target.kind} className={styles.relLine}>
+                          {line.map((r, i) => (
+                            <Fragment key={r.key}>
+                              {i > 0 && (
+                                <span className={styles.relSep} aria-hidden="true">
+                                  ·
+                                </span>
+                              )}
+                              <button type="button" className={styles.relButton} onClick={() => ctx.onRelated(r.target)}>
+                                {r.label}
+                              </button>
+                            </Fragment>
+                          ))}
+                        </span>
                       ))}
                     </span>
                   ) : (
@@ -246,17 +255,21 @@ export function ExpenseReceipt({ rows, ctx }: { rows: Expense[]; ctx: RowContext
                   </button>
                   {rel.length > 0 && (
                     <span className={styles.receiptRels}>
-                      {rel.map((r) => (
-                        <button
-                          key={r.key}
-                          type="button"
-                          className={styles.receiptRel}
-                          aria-label={`${S.budget.columns.related}: ${r.label}`}
-                          onClick={() => ctx.onRelated(r.target)}
-                        >
-                          {r.label}
-                          <Icon name="arrow" size={14} />
-                        </button>
+                      {relatedLines(rel).map((line) => (
+                        <span key={line[0].target.kind} className={styles.receiptRelLine}>
+                          {line.map((r) => (
+                            <button
+                              key={r.key}
+                              type="button"
+                              className={styles.receiptRel}
+                              aria-label={`${S.budget.columns.related}: ${r.label}`}
+                              onClick={() => ctx.onRelated(r.target)}
+                            >
+                              {r.label}
+                              <Icon name="arrow" size={14} />
+                            </button>
+                          ))}
+                        </span>
                       ))}
                     </span>
                   )}
