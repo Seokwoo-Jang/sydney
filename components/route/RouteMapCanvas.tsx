@@ -6,6 +6,8 @@
 import 'leaflet/dist/leaflet.css';
 import * as L from 'leaflet';
 import { useEffect, useLayoutEffect, useRef } from 'react';
+import { addLocateControl } from '@/components/location/locate';
+import { restackLabels } from '@/lib/mapLabels';
 import { S } from '@/lib/strings';
 import type { PeopleFilter } from '@/components/itinerary/logic';
 import type { ItineraryItem } from '@/lib/types';
@@ -23,10 +25,8 @@ import {
   pinText,
   placeLabel,
   stopTime,
-  visibleLabels,
   type DayRoute,
   type Lane,
-  type LatLng,
   type PinGroup,
 } from './routeLogic';
 import styles from './route.module.css';
@@ -42,11 +42,6 @@ export interface RouteMapCanvasProps {
   focus: { id: string; seq: number } | null;
   nowIds: string[];
   me: Lane | null;
-  pinMode: boolean;
-  draft: LatLng | null;
-  /** Accessible name of the draggable draft pin. */
-  draftLabel: string;
-  onDraft: (ll: LatLng) => void;
   onOpenItem: (item: ItineraryItem) => void;
   onSelectDay: (date: string) => void;
   ariaLabel: string;
@@ -58,8 +53,8 @@ const TILE_ATTRIBUTION =
 const DEFAULT_CENTER: [number, number] = [-33.8688, 151.2093]; // Sydney CBD
 // Labels sit to the right of pins: keep extra room on that side.
 const FIT: L.FitBoundsOptions = { paddingTopLeft: [36, 36], paddingBottomRight: [120, 36], maxZoom: 15, animate: false };
-/** The other person's lines and pins when one person is chosen: faded, still readable. */
-const OTHER = 0.45;
+/** The other person's lines, pins and names when one person is chosen: faded, still readable. */
+const OTHER = 0.5;
 
 const CHECK_SVG =
   '<svg viewBox="0 0 16 16" width="10" height="10" aria-hidden="true"><path d="M3.5 8.5l3 3 6-7" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
@@ -79,14 +74,13 @@ interface LaneLine {
 }
 
 export default function RouteMapCanvas(props: RouteMapCanvasProps) {
-  const { routes, people, dayNumbers, scope, focus, nowIds, me, pinMode, draft, ariaLabel } = props;
+  const { routes, people, dayNumbers, scope, focus, nowIds, me, ariaLabel } = props;
   const elRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
   const layerRef = useRef<L.LayerGroup | null>(null);
   const markersRef = useRef(new Map<string, L.Marker>());
   const lanesRef = useRef<LaneLine[]>([]);
-  const labelledRef = useRef<L.Marker[]>([]);
-  const draftRef = useRef<L.Marker | null>(null);
+  const labelledRef = useRef<Array<{ marker: L.Marker; faded: boolean }>>([]);
   const fittedRef = useRef<string | null>(null);
   const pendingFitRef = useRef<Bounds | null>(null);
   const focusDoneRef = useRef(-1);
@@ -106,17 +100,16 @@ export default function RouteMapCanvas(props: RouteMapCanvasProps) {
     }
   };
 
+  // Every name stays visible: overlapping labels stack, the chosen person's first.
   const relabel = () => {
-    const els = labelledRef.current.map((m) => m.getTooltip()?.getElement() ?? null);
-    for (const e of els) e?.classList.remove(styles.labelHidden);
-    const boxes = els.map((e) => {
-      if (!e) return null;
-      const r = e.getBoundingClientRect();
-      return r.width ? { x: r.left, y: r.top, w: r.width, h: r.height } : null;
-    });
-    visibleLabels(boxes).forEach((show, k) => {
-      if (!show) els[k]?.classList.add(styles.labelHidden);
-    });
+    const map = mapRef.current;
+    if (!map) return;
+    const ordered = [...labelledRef.current].sort((a, b) => Number(a.faded) - Number(b.faded));
+    restackLabels(
+      ordered.map((l) => l.marker.getTooltip()?.getElement()),
+      map.getContainer(),
+      styles.labelShifted,
+    );
   };
 
   // ── map, once ────────────────────────────────────────────────
@@ -130,15 +123,12 @@ export default function RouteMapCanvas(props: RouteMapCanvasProps) {
     // Wheel zoom only after the map is clicked or focused, so the page keeps scrolling.
     map.on('click focus', () => map.scrollWheelZoom.enable());
     map.on('blur mouseout', () => map.scrollWheelZoom.disable());
-    map.on('zoomend', () => {
-      reoffset();
-      relabel();
-    });
-    map.on('click', (e: L.LeafletMouseEvent) => {
-      if (cbRef.current.pinMode) cbRef.current.onDraft({ lat: e.latlng.lat, lng: e.latlng.lng });
-    });
+    map.on('zoomend', reoffset);
+    // After any move (zoom, pan, focus, popup autopan): labels near the edge restack against the new view.
+    map.on('moveend', relabel);
     layerRef.current = L.layerGroup().addTo(map);
     mapRef.current = map;
+    const removeLocate = addLocateControl(map);
     const ro = new ResizeObserver(() => {
       map.invalidateSize();
       const pending = pendingFitRef.current;
@@ -147,14 +137,16 @@ export default function RouteMapCanvas(props: RouteMapCanvasProps) {
         map.fitBounds(pending, FIT);
         pendingFitRef.current = null;
       }
+      // Labels drawn while the map was hidden (0 size) could not be measured.
+      if (size.x > 0 && size.y > 0) relabel();
     });
     ro.observe(node);
     return () => {
       ro.disconnect();
+      removeLocate();
       map.remove();
       mapRef.current = null;
       layerRef.current = null;
-      draftRef.current = null;
     };
   }, []);
 
@@ -268,17 +260,27 @@ export default function RouteMapCanvas(props: RouteMapCanvasProps) {
         const name = g.stops.map((s) => s.item.title).join(', ');
         marker.getElement()?.setAttribute('aria-label', S.route.stopLabel(pinText(g.stops.map((s) => s.n)), name));
         for (const s of g.stops) markersRef.current.set(s.item.id, marker);
-        // The other person's stops keep their pins but no name labels, so the chosen route reads first.
-        const label = !focused ? '' : numbered ? placeLabel(g.stops[0].item.place, g.stops[0].item.title) : k === firstFocused ? S.time.day(dayNumbers.get(route.date) ?? 0) : '';
+        // Every stop is named; the other person's names are faded like their pins. A shared pin
+        // lists each place once. A label moved off its pin (see relabel) shows the pin number.
+        const label = numbered
+          ? [...new Set(g.stops.map((s) => placeLabel(s.item.place, s.item.title)))].join(' · ')
+          : focused && k === firstFocused
+            ? S.time.day(dayNumbers.get(route.date) ?? 0)
+            : '';
         if (label) {
-          marker.bindTooltip(el('span', undefined, label), {
+          const content = el('span');
+          if (numbered) content.append(el('b', styles.labelNum, text));
+          content.append(label);
+          marker.bindTooltip(content, {
             permanent: true,
             direction: 'right',
             offset: [numbered ? 10 : 2, 0],
             className: numbered ? styles.label : styles.dayLabel,
+            // Leaflet sets the tooltip opacity inline, so the fade goes through its option.
+            opacity: focused ? 0.9 : 0.55,
             interactive: false,
           });
-          labelledRef.current.push(marker);
+          labelledRef.current.push({ marker, faded: !focused });
         }
       });
     };
@@ -286,13 +288,12 @@ export default function RouteMapCanvas(props: RouteMapCanvasProps) {
     // Only the chosen day (or every day on Trip); other days are not drawn.
     for (const r of routes) if (isActive(r)) drawRoute(r);
 
-    // Fit when the day or the person changes (not on every data refresh): the chosen person's
-    // stops (plus Together), else every stop of the day.
+    // Fit when the day or the person changes (not on every data refresh): every stop of the
+    // day, so the other person's faded route stays in view too.
     const fitKey = `${scope}|${people}`;
     const dayStops = routes.filter(isActive).flatMap((r) => r.stops);
-    const pts = dayStops.filter((s) => isFocusLane(s.lane, people));
     if (fittedRef.current !== fitKey) {
-      const all = pts.length ? pts : dayStops.length ? dayStops : routes.flatMap((r) => r.stops);
+      const all = dayStops.length ? dayStops : routes.flatMap((r) => r.stops);
       const b = boundsOf(all);
       if (b) {
         // A map that has no size yet (just shown) cannot fit; the resize observer fits it then.
@@ -321,40 +322,6 @@ export default function RouteMapCanvas(props: RouteMapCanvasProps) {
     map.setView(marker.getLatLng(), Math.max(map.getZoom(), 14), { animate: false });
     marker.openPopup();
   }, [focus, routes, scope]);
-
-  // ── pin mode: draggable draft marker ─────────────────────────
-  useEffect(() => {
-    const map = mapRef.current;
-    if (!map) return;
-    map.getContainer().classList.toggle(styles.picking, pinMode);
-    if (!pinMode) {
-      draftRef.current?.remove();
-      draftRef.current = null;
-      return;
-    }
-    if (!draft) {
-      const c = map.getCenter();
-      cbRef.current.onDraft({ lat: c.lat, lng: c.lng });
-      return;
-    }
-    if (!draftRef.current) {
-      const m = L.marker([draft.lat, draft.lng], {
-        draggable: true,
-        autoPan: true,
-        zIndexOffset: 3000,
-        icon: L.divIcon({ className: styles.hit, html: `<span class="${styles.draft}"></span>`, iconSize: [44, 44], iconAnchor: [22, 22] }),
-      }).addTo(map);
-      m.on('dragend', () => {
-        const ll = m.getLatLng();
-        cbRef.current.onDraft({ lat: ll.lat, lng: ll.lng });
-      });
-      m.getElement()?.setAttribute('aria-label', cbRef.current.draftLabel);
-      draftRef.current = m;
-      if (!map.getBounds().contains([draft.lat, draft.lng])) map.panTo([draft.lat, draft.lng]);
-    } else {
-      draftRef.current.setLatLng([draft.lat, draft.lng]);
-    }
-  }, [pinMode, draft]);
 
   return <div ref={elRef} className={styles.map} role="region" aria-label={ariaLabel} />;
 }

@@ -1,24 +1,23 @@
 'use client';
 // One Packing or To-do row: native checkbox (44px target) marks it done; the
 // title opens the notes below it; chips for assignee / quantity / due date /
-// priority; an edit button. High-priority open tasks are tinted.
+// priority (to-dos: High in red, Middle in ink, Low in grey); an edit button.
 import { useId, useState } from 'react';
 import { Icon, IconButton, MemberMarks } from '@/components/ui';
-import type { ChecklistItem, Member } from '@/lib/types';
+import type { ChecklistItem } from '@/lib/types';
 import { S } from '@/lib/strings';
 import { formatDayLabel } from '@/lib/time/zone';
 import { dueState, type DueContext } from './due';
 import styles from './Checklist.module.css';
 
-export function assigneeLabel(a: ChecklistItem['assignee'], me: Member | null): string {
+// No "(Me)" here: the meta line stays short enough for the priority on one line.
+export function assigneeLabel(a: ChecklistItem['assignee']): string {
   if (a === 'both' || a === null) return S.people.shared;
-  const name = S.people.participants[a];
-  return me?.profileKey === a ? `${name} (${S.people.me})` : name;
+  return S.people.participants[a];
 }
 
 export function ChecklistRow({
   item,
-  me,
   due,
   busy,
   onToggle,
@@ -26,7 +25,6 @@ export function ChecklistRow({
   compact,
 }: {
   item: ChecklistItem;
-  me: Member | null;
   due: DueContext | null;
   busy: boolean;
   onToggle: (item: ChecklistItem) => void;
@@ -37,7 +35,7 @@ export function ChecklistRow({
   const detailsId = useId();
   const [open, setOpen] = useState(false);
   const state = due ? dueState(item, due) : 'none';
-  const meta: Array<{ key: string; text: string; tone?: 'overdue' | 'soon' | 'high' }> = [];
+  const meta: Array<{ key: string; text: string; tone?: 'overdue' | 'soon' | 'high' | 'normal' | 'low' }> = [];
   if (!item.isApplicable) meta.push({ key: 'na', text: S.checklist.notNeeded });
   if (item.dueDate && item.kind === 'task') {
     const label = formatDayLabel(item.dueDate);
@@ -46,8 +44,10 @@ export function ChecklistRow({
     else meta.push({ key: 'due', text: S.checklist.due(label), tone: state === 'soon' ? 'soon' : undefined });
   }
   if (item.quantity && item.quantity > 1) meta.push({ key: 'qty', text: S.checklist.quantityShort(item.quantity) });
-  const high = item.kind === 'task' && item.priority === 'high' && !item.checked;
-  if (high) meta.push({ key: 'pri', text: S.checklist.highPriority, tone: 'high' });
+  if (item.kind === 'task') {
+    // A finished to-do keeps its label but drops the colour.
+    meta.push({ key: 'pri', text: S.checklist.priorityLabel[item.priority], tone: item.checked ? undefined : item.priority });
+  }
   const who = item.assignee === 'both' || item.assignee === null ? 'together' : item.assignee;
 
   return (
@@ -57,7 +57,6 @@ export function ChecklistRow({
         compact ? styles.rowCompact : '',
         item.isApplicable ? '' : styles.rowNa,
         item.checked ? styles.rowDone : '',
-        high ? styles.rowHigh : '',
       ]
         .filter(Boolean)
         .join(' ')}
@@ -91,7 +90,7 @@ export function ChecklistRow({
           <span aria-hidden="true">
             <MemberMarks who={who} size="sm" />
           </span>
-          <span>{assigneeLabel(item.assignee, me)}</span>
+          <span>{assigneeLabel(item.assignee)}</span>
         </span>
         {meta.map((m) => (
           <span key={m.key} className={m.tone ? styles[m.tone] : undefined}>

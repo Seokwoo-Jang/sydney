@@ -3,7 +3,6 @@
 import { useCallback, useMemo, useState } from 'react';
 import { useDueContext } from '@/components/checklist/useDueContext';
 import { useSectionNav } from '@/components/checklist/useSectionNav';
-import { AdjustPhotoSheet } from '@/components/journal/AdjustPhotoSheet';
 import { DaySheet } from '@/components/journal/DaySheet';
 import type { NoteDraft } from '@/components/journal/NoteEditor';
 import { Photo } from '@/components/journal/Photo';
@@ -17,16 +16,17 @@ import styles from '@/components/journal/Journal.module.css';
 
 const VIEWS = ['days'] as const;
 
+/** Day card photo: the chosen cover while it exists, else the first photo, else the sample. */
 function coverFor(day: TripDay, photos: FileAsset[]) {
   const asset = photos.find((p) => p.id === day.coverAssetId) ?? photos[0] ?? null;
   const fallback = defaultDayPhoto(day.dayNumber);
   if (asset?.url) {
     return {
       isDefault: asset.url === fallback.src,
-      photo: { src: asset.url, thumb: asset.thumbUrl, width: asset.width, height: asset.height, focalX: asset.focalX, focalY: asset.focalY, zoom: asset.zoom },
+      photo: { src: asset.url, thumb: asset.thumbUrl, width: asset.width, height: asset.height },
     };
   }
-  return { isDefault: true, photo: { src: fallback.src, thumb: fallback.thumb, width: fallback.width, height: fallback.height, focalX: 0.5, focalY: 0.4, zoom: 1 } };
+  return { isDefault: true, photo: fallback };
 }
 
 export default function JournalSection({ layout }: SectionProps) {
@@ -37,7 +37,6 @@ export default function JournalSection({ layout }: SectionProps) {
   const due = useDueContext();
   const nav = useSectionNav('journal', VIEWS, 'days');
   const [drafts, setDrafts] = useState<Record<string, NoteDraft>>({});
-  const [adjust, setAdjust] = useState<FileAsset | null>(null);
   const [focusMine, setFocusMine] = useState(false);
 
   const me = trip.status === 'ready' ? trip.data.me : null;
@@ -148,20 +147,10 @@ export default function JournalSection({ layout }: SectionProps) {
         drafts={drafts}
         focusMine={focusMine}
         onDraft={onDraft}
-        onAdjust={setAdjust}
         onClose={() => {
           setFocusMine(false);
           nav.closeItem();
         }}
-      />
-      <AdjustPhotoSheet
-        open={!!adjust}
-        asset={adjust ? ((assets.status === 'ready' ? assets.data.find((a) => a.id === adjust.id) : null) ?? adjust) : null}
-        day={adjust ? (dayRows.find((d) => d.id === adjust.dayId) ?? null) : null}
-        me={me}
-        partner={partner}
-        members={members}
-        onClose={() => setAdjust(null)}
       />
     </section>
   );

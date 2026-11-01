@@ -70,37 +70,51 @@ export function hasBudget(budgets: TripBudget[], scope: ScopeView): boolean {
   return budgets.some((b) => inScope(scope, b.scope) && b.amountMinor > 0);
 }
 
+/** A total in both currencies; `approx` marks a currency that includes a rate estimate (shown with '≈'). */
+export interface TwoCurrencyTotal {
+  aud: number;
+  krw: number;
+  approx: { aud: boolean; krw: boolean };
+}
+
+/** Adds rows in both currencies: each row's own amount plus its conversion (KRW charged wins). */
+function addRows(rows: Expense[], latest: FxRate | null): TwoCurrencyTotal {
+  const t: TwoCurrencyTotal = { aud: 0, krw: 0, approx: { aud: false, krw: false } };
+  for (const e of rows) {
+    const sign = e.kind === 'refund' ? -1 : 1;
+    const conv = convertedAmount(e, latest);
+    t.aud += sign * (e.currency === 'AUD' ? e.amountMinor : conv?.minor ?? 0);
+    t.krw += sign * (e.currency === 'KRW' ? e.amountMinor : conv?.minor ?? 0);
+    if (conv?.approx) t.approx[conv.currency === 'AUD' ? 'aud' : 'krw'] = true;
+  }
+  return t;
+}
+
 /** Paid + planned per category, in AUD cents and KRW (plan §7.5.1 category bars). */
 export function categoryTotals(
   expenses: Expense[],
   latest: FxRate | null,
   scope: ScopeView,
-): Array<{ category: ExpenseCategory; aud: number; krw: number }> {
-  const map = new Map<ExpenseCategory, { aud: number; krw: number }>();
+): Array<{ category: ExpenseCategory } & TwoCurrencyTotal> {
+  const map = new Map<ExpenseCategory, Expense[]>();
   for (const e of expenses) {
     if (e.deletedAt || e.status === 'cancelled' || !inScope(scope, e.budgetScope)) continue;
-    const sign = e.kind === 'refund' ? -1 : 1;
-    const conv = convertedAmount(e, latest);
-    const aud = e.currency === 'AUD' ? e.amountMinor : conv?.minor ?? 0;
-    const krw = e.currency === 'KRW' ? e.amountMinor : conv?.minor ?? 0;
-    const cur = map.get(e.category) ?? { aud: 0, krw: 0 };
-    map.set(e.category, { aud: cur.aud + sign * aud, krw: cur.krw + sign * krw });
+    map.set(e.category, [...(map.get(e.category) ?? []), e]);
   }
-  return [...map.entries()].map(([category, v]) => ({ category, ...v })).filter((c) => c.aud > 0 || c.krw > 0).sort((a, b) => b.aud - a.aud);
+  return [...map.entries()]
+    .map(([category, rows]) => ({ category, ...addRows(rows, latest) }))
+    .filter((c) => c.aud > 0 || c.krw > 0)
+    .sort((a, b) => b.aud - a.aud);
 }
 
-/** Paid amounts per payer in AUD cents (paid rows only). */
-export function paidByMember(expenses: Expense[], members: Member[], latest: FxRate | null): Array<{ member: Member; aud: number }> {
+/** Paid amounts per payer in both currencies (paid rows only). */
+export function paidByMember(expenses: Expense[], members: Member[], latest: FxRate | null): Array<{ member: Member } & TwoCurrencyTotal> {
   return members.map((m) => ({
     member: m,
-    aud: expenses
-      .filter((e) => !e.deletedAt && e.status === 'paid' && e.payerId === m.id)
-      .reduce((sum, e) => {
-        const sign = e.kind === 'refund' ? -1 : 1;
-        if (e.currency === 'AUD') return sum + sign * e.amountMinor;
-        const conv = convertedAmount(e, latest);
-        return sum + sign * (conv?.minor ?? 0);
-      }, 0),
+    ...addRows(
+      expenses.filter((e) => !e.deletedAt && e.status === 'paid' && e.payerId === m.id),
+      latest,
+    ),
   }));
 }
 

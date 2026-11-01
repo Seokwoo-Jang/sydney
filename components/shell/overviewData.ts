@@ -13,7 +13,7 @@ import { SYDNEY_TZ, formatDayLabel, zonedDate } from '@/lib/time/zone';
 import type { Currency, ItineraryItem, PreludeActivity, TripDay } from '@/lib/types';
 import { countdownText } from './countdownText';
 
-/** Whole units for the strip: 'A$1,111', '₩1,013,750'. */
+/** Whole units for the strip: 'A$1,111', '1,013,750₩'. */
 function compactMoney(minor: number, c: Currency, approx: boolean): string {
   const rounded = c === 'AUD' ? Math.round(minor / 100) * 100 : minor;
   return formatMoney(rounded, c, { approx }).replace(/\.00$/, '');

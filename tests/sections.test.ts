@@ -1,9 +1,9 @@
-// Checklist due dates, Budget view helpers, Library rules, Journal collage.
+// Checklist due dates, Budget view helpers, Library rules, Journal photo layout.
 // Fictional data only (trip year 2030).
 import { describe, expect, it } from 'vitest';
 import { approxFlags, categoryTotals, rateForDate, scopeForSplit, splitForParticipants, visibleExpenses, splitForScope } from '@/components/budget/budgetCalc';
 import { countDue, dueState, progress, upcomingTasks, type DueContext } from '@/components/checklist/due';
-import { collageLayout, maxOverlapShare } from '@/components/journal/collageLayout';
+import { MAX_TILT, isPortrait, photoLayout, type PhotoRow } from '@/components/journal/photoLayout';
 import { findDuplicate, hostOf, isHttpUrl, nextPinSlot, urlKey } from '@/components/library/libraryLogic';
 import type { ChecklistItem, FxRate, Resource, RowMeta, TripBudget } from '@/lib/types';
 import { expense } from './fixtures';
@@ -127,7 +127,10 @@ describe('budget helpers', () => {
       expense('b', { amountMinor: 90000, currency: 'KRW', category: 'food', fxRate: 900, fxLocked: true }),
       expense('c', { amountMinor: 5000, category: 'transport', status: 'cancelled' }),
     ];
-    expect(categoryTotals(rows, rates[0], 'all')).toEqual([{ category: 'food', aud: 20000, krw: 180000 }]);
+    expect(categoryTotals(rows, rates[0], 'all')).toEqual([{ category: 'food', aud: 20000, krw: 180000, approx: { aud: false, krw: false } }]);
+    // A planned row at the latest rate is an estimate in the other currency.
+    const planned = [expense('d', { amountMinor: 10000, category: 'stays', status: 'planned' })];
+    expect(categoryTotals(planned, rates[0], 'all')[0].approx).toEqual({ aud: false, krw: true });
   });
 });
 
@@ -164,43 +167,52 @@ describe('library rules', () => {
   });
 });
 
-describe('journal collage', () => {
-  const photos = (n: number, portrait = false) =>
-    Array.from({ length: n }, (_, i) => ({ id: `photo-${i}`, width: portrait ? 900 : 1200, height: portrait ? 1200 : 900 }));
+describe('journal photo layout', () => {
+  const P = (id: string, caption = '') => ({ id, width: 900, height: 1200, caption });
+  const L = (id: string, caption = '') => ({ id, width: 1200, height: 800, caption });
+  const ids = (rows: PhotoRow[]) => rows.flatMap((r) => (r.kind === 'pair' ? r.photos.map((p) => p.id) : [r.photo.id]));
 
-  it('keeps tilt within ±3° and overlap within 10% for 1–6 photos and every variant', () => {
-    for (let n = 1; n <= 6; n++) {
-      for (const portrait of [false, true]) {
-        for (let v = 0; v < 6; v++) {
-          const layout = collageLayout(photos(n, portrait), v);
-          expect(layout.slots).toHaveLength(n);
-          expect(maxOverlapShare(layout)).toBeLessThanOrEqual(0.1);
-          for (const s of layout.slots) {
-            expect(Math.abs(s.rotate)).toBeLessThanOrEqual(3);
-            expect(s.x).toBeGreaterThanOrEqual(0);
-            expect(s.x + s.w).toBeLessThanOrEqual(100);
-          }
-        }
-      }
+  it('puts portraits beside their note, alternating sides; landscapes go wide', () => {
+    const rows = photoLayout([P('a', 'one'), L('b', 'two'), P('c', 'three'), P('d', 'four')]);
+    expect(rows.map((r) => (r.kind === 'pair' ? 'pair' : `${r.kind}:${r.side}`))).toEqual(['side:left', 'wide:right', 'side:right', 'side:left']);
+    expect(rows.map((r) => (r.kind === 'pair' ? null : r.photo.shape))).toEqual(['portrait', 'landscape', 'portrait', 'portrait']);
+  });
+
+  it('counts squares, near-squares and unknown sizes as portrait', () => {
+    expect(isPortrait({ id: 's', width: 1000, height: 1000, caption: '' })).toBe(true);
+    expect(isPortrait({ id: 'n', width: 1000, height: 920, caption: '' })).toBe(true);
+    expect(isPortrait({ id: 'w', width: 1000, height: 880, caption: '' })).toBe(false);
+    expect(isPortrait({ id: 'u', width: null, height: null, caption: '' })).toBe(true);
+    expect(photoLayout([{ id: 'u', width: null, height: null, caption: 'x' }])[0]).toMatchObject({ kind: 'side', photo: { ratio: 0.75 } });
+  });
+
+  it('pairs consecutive portraits that have no note', () => {
+    const rows = photoLayout([P('a'), P('b'), P('c'), P('d', '  '), P('e', 'note')]);
+    expect(rows.map((r) => r.kind)).toEqual(['pair', 'pair', 'side']);
+    // A lone note-less portrait, or one next to a noted / landscape photo, stays single.
+    expect(photoLayout([P('a'), P('b', 'note')]).map((r) => r.kind)).toEqual(['side', 'side']);
+    expect(photoLayout([P('a'), L('b'), P('c')]).map((r) => r.kind)).toEqual(['side', 'wide', 'side']);
+  });
+
+  it('keeps every photo once, in order', () => {
+    const photos = [P('a'), L('b', 'x'), P('c'), P('d'), P('e', 'y'), L('f'), P('g')];
+    expect(ids(photoLayout(photos))).toEqual(photos.map((p) => p.id));
+    expect(photoLayout([])).toEqual([]);
+  });
+
+  it('is deterministic, tilts within ±2.5° and tapes most photos', () => {
+    const photos = Array.from({ length: 60 }, (_, i) => (i % 3 ? P(`photo-${i}`, 'n') : L(`photo-${i}`)));
+    const a = photoLayout(photos);
+    expect(a).toEqual(photoLayout(photos.map((p) => ({ ...p }))));
+    const placed = a.flatMap((r) => (r.kind === 'pair' ? r.photos : [r.photo]));
+    for (const p of placed) {
+      expect(Math.abs(p.tilt)).toBeLessThanOrEqual(MAX_TILT);
+      expect(Math.abs(p.tilt)).toBeGreaterThan(0.5);
     }
-  });
-
-  it('is deterministic for the same photos and variant, and keeps photo order', () => {
-    expect(collageLayout(photos(4), 2)).toEqual(collageLayout(photos(4), 2));
-    expect(collageLayout(photos(4), 0).slots.map((s) => s.id)).toEqual(['photo-0', 'photo-1', 'photo-2', 'photo-3']);
-  });
-
-  it('changes with Shuffle layout', () => {
-    const a = collageLayout(photos(4), 0);
-    const b = collageLayout(photos(4), 1);
-    expect(JSON.stringify(a.slots)).not.toBe(JSON.stringify(b.slots));
-  });
-
-  it('places six and counts the rest', () => {
-    const layout = collageLayout(photos(9), 0);
-    expect(layout.slots).toHaveLength(6);
-    expect(layout.more).toBe(3);
-    expect(collageLayout(photos(1)).slots[0].rotate).toBe(-1.5);
+    expect(new Set(placed.map((p) => Math.sign(p.tilt))).size).toBe(2);
+    const taped = placed.filter((p) => p.tape).length / placed.length;
+    expect(taped).toBeGreaterThan(0.5);
+    expect(taped).toBeLessThan(1);
   });
 });
 

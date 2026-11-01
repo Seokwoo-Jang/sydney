@@ -1,6 +1,6 @@
 'use client';
 // Small form pieces shared by the Checklist, Budget, Library and Journal sheets.
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Button, ConflictNotice } from '@/components/ui';
 import type { Member } from '@/lib/types';
 import { S } from '@/lib/strings';
@@ -32,30 +32,89 @@ export function CheckField({
   );
 }
 
-/** Two-step delete: the first press asks, the second deletes (soft delete). */
-export function ConfirmDelete({ onConfirm, busy }: { onConfirm: () => void; busy?: boolean }) {
+/**
+ * Two-step delete: the first press asks, the second deletes (soft delete).
+ * Focus moves into the question (so it is read out) and back to the trigger
+ * on Cancel; the question gives up after 6 s, but not while focus is on it.
+ */
+export function ConfirmDelete({
+  onConfirm,
+  busy,
+  label = S.actions.delete,
+  question = S.checklist.deleteConfirm,
+}: {
+  onConfirm: () => void;
+  busy?: boolean;
+  label?: string;
+  question?: string;
+}) {
   const [asking, setAsking] = useState(false);
+  const [back, setBack] = useState(false);
+  const group = useRef<HTMLSpanElement>(null);
   useEffect(() => {
     if (!asking) return;
-    const t = window.setTimeout(() => setAsking(false), 6000);
-    return () => window.clearTimeout(t);
+    const t = window.setInterval(() => {
+      if (!group.current?.contains(document.activeElement)) setAsking(false);
+    }, 6000);
+    return () => window.clearInterval(t);
   }, [asking]);
   if (!asking)
     return (
-      <Button variant="ghost" size="sm" onClick={() => setAsking(true)} className={styles.deleteButton}>
-        {S.actions.delete}
+      <Button
+        variant="ghost"
+        size="sm"
+        autoFocus={back}
+        onClick={() => {
+          setBack(false);
+          setAsking(true);
+        }}
+        className={styles.deleteButton}
+      >
+        {label}
       </Button>
     );
   return (
-    <span className={styles.confirm} role="group" aria-label={S.checklist.deleteConfirm}>
-      <span className={styles.confirmText}>{S.checklist.deleteConfirm}</span>
-      <Button variant="danger" size="sm" busy={busy} onClick={onConfirm}>
-        {S.actions.delete}
+    <span ref={group} className={styles.confirm} role="group" aria-label={question}>
+      <span className={styles.confirmText}>{question}</span>
+      <Button variant="danger" size="sm" busy={busy} autoFocus onClick={onConfirm}>
+        {label}
       </Button>
-      <Button variant="ghost" size="sm" onClick={() => setAsking(false)}>
+      <Button
+        variant="ghost"
+        size="sm"
+        onClick={() => {
+          setBack(true);
+          setAsking(false);
+        }}
+      >
         {S.actions.cancel}
       </Button>
     </span>
+  );
+}
+
+/** Close guard for unsaved input: stands in for the sheet footer until the user chooses. */
+export function ConfirmDiscard({
+  question = S.itinerary.discardConfirm,
+  onKeep,
+  onDiscard,
+}: {
+  question?: string;
+  onKeep: () => void;
+  onDiscard: () => void;
+}) {
+  return (
+    <div className={styles.footer} role="group" aria-label={question}>
+      <span className={styles.confirmText}>{question}</span>
+      <div className={styles.footerEnd}>
+        <Button variant="ghost" autoFocus onClick={onKeep}>
+          {S.actions.keepEditing}
+        </Button>
+        <Button variant="danger" onClick={onDiscard}>
+          {S.itinerary.discard}
+        </Button>
+      </div>
+    </div>
   );
 }
 

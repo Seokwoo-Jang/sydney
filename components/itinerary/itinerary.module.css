@@ -159,7 +159,7 @@
 }
 
 .row {
-  --detail-indent: 210px; /* time 112 + dot 18 + marks 34 + gaps + padding */
+  --detail-indent: 212px; /* time 112 + note 20 + marks 34 + gaps + padding */
   border-top: 1px solid var(--line);
 }
 
@@ -172,7 +172,7 @@
   flex: 1;
   min-width: 0;
   display: grid;
-  grid-template-columns: 112px 18px 34px minmax(0, 1fr) 16px;
+  grid-template-columns: 112px 20px 34px minmax(0, 1fr) 16px;
   gap: 14px;
   align-items: start;
   min-height: var(--touch);
@@ -210,20 +210,6 @@ button.toggle:hover .title {
   color: var(--muted);
 }
 
-.dot {
-  justify-self: center;
-  width: 10px;
-  height: 10px;
-  margin-top: 6px;
-  border: 2px solid var(--sand);
-  border-radius: 50%;
-  background: var(--porcelain);
-}
-
-.row[data-business] .dot {
-  border-color: var(--brass);
-}
-
 .marks {
   padding-top: 1px;
 }
@@ -233,13 +219,6 @@ button.toggle:hover .title {
   flex-direction: column;
   gap: 2px;
   min-width: 0;
-}
-
-.titleLine {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 4px var(--s1);
 }
 
 .title {
@@ -258,8 +237,19 @@ button.toggle:hover .title {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 4px var(--s1);
+  gap: 4px 6px;
   margin-top: 4px;
+}
+
+/* Transport / Explore / Dining / Rest / Business as a small caps label, apart from the place. */
+.kind {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  line-height: 1.6;
+  color: var(--ink);
+  white-space: nowrap;
 }
 
 .chevron {
@@ -309,18 +299,9 @@ button.toggle:hover .title {
   font-weight: 600;
 }
 
-.row[data-state='now'] .dot {
-  border-color: var(--harbour);
-  background: var(--harbour);
-  box-shadow: 0 0 0 4px var(--harbour-ring);
-}
-
-.row[data-state='upNext'] .dot {
-  border-color: var(--harbour);
-}
-
 .row[data-state='past'] .title,
 .row[data-state='past'] .time,
+.row[data-state='past'] .kind,
 .row[data-state='past'] .sub {
   color: var(--past);
 }
@@ -685,14 +666,13 @@ button.toggle:hover .title {
   color: var(--brass-deep);
 }
 
+/* Same 20px box and top as the E / A marks next to it (.marks), so both sit on one line. */
 .noteMark {
   justify-self: center;
-  margin-top: 3px;
+  margin-top: 1px;
 }
 
 .noteInline {
-  display: inline-block;
-  margin-right: 4px;
-  vertical-align: -1px;
+  flex: none;
   color: var(--brass-deep);
 }

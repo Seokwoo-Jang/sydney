@@ -66,9 +66,11 @@ export function ItineraryRow({
   const detailText = item.detail.trim();
   const hasDetail = Boolean(detailText || map || links.booking || links.activity || links.resources.length || links.expenses);
   const detailId = `itin-detail-${rowKey}`;
-  const summary = continuation
-    ? S.time.continuesFromPreviousDay
-    : item.summary.trim() || [S.labels.itineraryCategory[item.category], item.place.trim()].filter(Boolean).join(' · ');
+  // Three lines on PC and phones alike: the title alone; the kind (Transport, Dining …) as a small
+  // caps label with the status; the place (or the summary) on its own line.
+  const kind = continuation ? null : S.labels.itineraryCategory[item.category];
+  const where = continuation ? S.time.continuesFromPreviousDay : item.summary.trim() || item.place.trim();
+  const kindLabel = kind && <span className={styles.kind}>{kind}</span>;
 
   const shown = shownStatus(item.status, state === 'past');
   // Amy's Prelude: a Business plan or one linked to a Prelude activity gets a music note.
@@ -96,35 +98,31 @@ export function ItineraryRow({
     layout === 'board' ? (
       <>
         {timeCell}
-        {prelude ? (
-          <Icon name="note" size={14} className={styles.noteMark} label={S.itinerary.preludeMark} />
-        ) : (
-          <span className={styles.dot} aria-hidden="true" />
-        )}
+        {prelude ? <Icon name="note" size={20} className={styles.noteMark} label={S.itinerary.preludeMark} /> : <span aria-hidden="true" />}
         <span className={styles.marks}>
           <MemberMarks who={item.participants} />
         </span>
         <span className={styles.text}>
-          <span className={styles.titleLine}>
-            <span className={styles.title}>{item.title}</span>
+          <span className={styles.title}>{item.title}</span>
+          <span className={styles.subLine}>
+            {kindLabel}
             {badges}
           </span>
-          <span className={styles.sub}>{summary}</span>
+          {where && <span className={styles.sub}>{where}</span>}
         </span>
       </>
     ) : (
       <>
         {timeCell}
         <span className={styles.text}>
-          <span className={styles.title}>
-            {prelude && <Icon name="note" size={14} className={styles.noteInline} label={S.itinerary.preludeMark} />}
-            {item.title}
-          </span>
+          <span className={styles.title}>{item.title}</span>
           <span className={styles.subLine}>
+            {prelude && <Icon name="note" size={18} className={styles.noteInline} label={S.itinerary.preludeMark} />}
             <MemberMarks who={item.participants} size="sm" />
-            <span className={styles.sub}>{summary}</span>
+            {kindLabel}
             {badges}
           </span>
+          {where && <span className={styles.sub}>{where}</span>}
         </span>
       </>
     );

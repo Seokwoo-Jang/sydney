@@ -18,8 +18,8 @@ import {
   parseNominatim,
   pinText,
   placeLabel,
-  visibleLabels,
 } from '@/components/route/routeLogic';
+import { stackLabels } from '@/lib/mapLabels';
 import { SEOUL_TZ, SYDNEY_TZ } from '@/lib/time/zone';
 import type { ItineraryItem } from '@/lib/types';
 import { item } from './fixtures';
@@ -226,15 +226,26 @@ describe('pins and labels', () => {
     expect(placeLabel('  ', 'Lunch')).toBe('Lunch');
   });
 
-  it('visibleLabels hides labels overlapping earlier ones', () => {
+  it('stackLabels keeps every label, stepping overlapping ones down then up', () => {
+    // Two labels on the same pin: the second moves one label height (+2px gap) down.
     expect(
-      visibleLabels([
+      stackLabels([
         { x: 0, y: 0, w: 50, h: 20 },
-        { x: 40, y: 10, w: 50, h: 20 },
+        { x: 10, y: 0, w: 50, h: 20 },
         { x: 60, y: 0, w: 50, h: 20 },
         null,
       ]),
-    ).toEqual([true, false, true, false]);
+    ).toEqual([0, 22, 0, null]);
+    // At the bottom of the map there is no room below: the label goes up instead.
+    expect(
+      stackLabels(
+        [
+          { x: 0, y: 80, w: 50, h: 20 },
+          { x: 0, y: 80, w: 50, h: 20 },
+        ],
+        { x: 0, y: 0, w: 200, h: 100 },
+      ),
+    ).toEqual([0, -22]);
   });
 
   it('offsetSegment shifts perpendicular by px', () => {

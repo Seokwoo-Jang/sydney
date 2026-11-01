@@ -34,9 +34,9 @@ export interface RouteViewProps {
   onOpenItem: (item: ItineraryItem) => void;
 }
 
+/** Find on map for one unplaced item. */
 interface Edit {
   id: string;
-  mode: 'pin' | 'find';
   /** Version the edit started from; a newer row means a conflict. */
   baseVersion: number;
 }
@@ -69,7 +69,6 @@ export default function RouteView({
 
   const [focus, setFocus] = useState<{ id: string; seq: number } | null>(null);
   const [edit, setEdit] = useState<Edit | null>(null);
-  const [draft, setDraft] = useState<LatLng | null>(null);
   const [query, setQuery] = useState('');
   const [searchState, setSearchState] = useState<SearchState>('idle');
   const [candidates, setCandidates] = useState<PlaceCandidate[]>([]);
@@ -102,7 +101,6 @@ export default function RouteView({
   const stopEdit = () => {
     searchAbort.current?.abort();
     setEdit(null);
-    setDraft(null);
     setCandidates([]);
     setSearchState('idle');
   };
@@ -125,23 +123,12 @@ export default function RouteView({
   };
 
   const startFind = (item: ItineraryItem) => {
-    if (edit?.id === item.id && edit.mode === 'find') return stopEdit();
+    if (edit?.id === item.id) return stopEdit();
     flow.reset();
-    setDraft(null);
-    setEdit({ id: item.id, mode: 'find', baseVersion: item.version });
+    setEdit({ id: item.id, baseVersion: item.version });
     const q = placeLabel(item.place, item.title);
     setQuery(q);
     void runSearch(q); // one request per press
-  };
-
-  const startPin = (item: ItineraryItem) => {
-    searchAbort.current?.abort();
-    flow.reset();
-    setCandidates([]);
-    setSearchState('idle');
-    setDraft(null);
-    setEdit({ id: item.id, mode: 'pin', baseVersion: item.version });
-    scrollToMap();
   };
 
   const saveSpot = async (ll: LatLng, source: MapSource) => {
@@ -173,31 +160,20 @@ export default function RouteView({
 
   return (
     <div className={styles.route} data-layout={layout}>
+      {/* Trip on the first row; Day 1–9 share the second row in equal cells and never wrap. */}
       <ChipGroup label={S.route.scopeLabel} className={styles.scope}>
-        <Chip selected={scope === 'trip'} onClick={onTrip}>
+        <Chip selected={scope === 'trip'} onClick={onTrip} className={styles.tripChip}>
           {S.maps.trip}
         </Chip>
         {days.map((d) => (
-          <Chip key={d.id} selected={scope === 'day' && d.date === selectedDay} onClick={() => onSelectDay(d.date)}>
-            {S.time.day(d.dayNumber)}
+          <Chip key={d.id} selected={scope === 'day' && d.date === selectedDay} onClick={() => onSelectDay(d.date)} className={styles.dayChip}>
+            <span className={styles.dayWord}>{S.time.dayWord} </span>
+            {d.dayNumber}
           </Chip>
         ))}
       </ChipGroup>
 
       <div ref={boxRef} className={styles.mapArea}>
-        {edit?.mode === 'pin' && editItem && (
-          <div className={styles.pinBar}>
-            <p className={styles.pinPrompt}>{S.route.pinPrompt(editItem.title)}</p>
-            <div className={styles.pinActions}>
-              <Button variant="primary" size="sm" busy={flow.busy} disabled={!draft} onClick={() => draft && saveSpot(draft, 'pin')}>
-                {S.route.saveLocation}
-              </Button>
-              <Button variant="ghost" size="sm" onClick={stopEdit}>
-                {S.actions.cancel}
-              </Button>
-            </div>
-          </div>
-        )}
         <div className={styles.mapBox}>
           <RouteMapCanvas
             routes={mapRoutes}
@@ -207,10 +183,6 @@ export default function RouteView({
             focus={focus}
             nowIds={stableNowIds}
             me={meLane}
-            pinMode={edit?.mode === 'pin' && !!editItem}
-            draft={draft}
-            draftLabel={editItem ? S.route.pinFor(editItem.title) : ''}
-            onDraft={setDraft}
             onOpenItem={onOpenItem}
             onSelectDay={onSelectDay}
             ariaLabel={S.route.mapLabel(scopeName)}
@@ -289,7 +261,7 @@ export default function RouteView({
           <p className={styles.hint}>{S.route.notOnMapHint}</p>
           <ul className={styles.missingList}>
             {notOnMap.map((i) => {
-              const finding = edit?.id === i.id && edit.mode === 'find';
+              const finding = edit?.id === i.id;
               const meta = [scope === 'trip' ? S.time.day(dayNumbers.get(i.date) ?? 0) : null, stopTime(i), i.place.trim() || null]
                 .filter(Boolean)
                 .join(' · ');
@@ -302,9 +274,6 @@ export default function RouteView({
                   <div className={styles.missingActions}>
                     <Button variant="secondary" size="sm" aria-expanded={finding} onClick={() => startFind(i)}>
                       {S.maps.findOnMap}
-                    </Button>
-                    <Button variant="secondary" size="sm" aria-pressed={edit?.id === i.id && edit.mode === 'pin'} onClick={() => startPin(i)}>
-                      {S.maps.pinOnMap}
                     </Button>
                   </div>
                   {finding && (

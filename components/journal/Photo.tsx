@@ -1,23 +1,11 @@
-// A cropped photo that honours the saved focus point and zoom (plan §7.6.1).
-import type { CSSProperties } from 'react';
+// A photo with its size set up front, so its box is held before it loads (no
+// layout shift). Journal pages show it whole; Nine Notes cards crop it in CSS.
 
 export interface PhotoSource {
   src: string;
   thumb?: string | null;
   width?: number | null;
   height?: number | null;
-  focalX: number;
-  focalY: number;
-  zoom: number;
-}
-
-export function photoStyle(p: Pick<PhotoSource, 'focalX' | 'focalY' | 'zoom'>): CSSProperties {
-  const pos = `${(p.focalX * 100).toFixed(1)}% ${(p.focalY * 100).toFixed(1)}%`;
-  return {
-    objectPosition: pos,
-    transformOrigin: pos,
-    transform: p.zoom > 1 ? `scale(${p.zoom})` : undefined,
-  };
 }
 
 export function Photo({
@@ -46,7 +34,6 @@ export function Photo({
       loading={eager ? 'eager' : 'lazy'}
       decoding="async"
       draggable={false}
-      style={photoStyle(photo)}
     />
   );
 }

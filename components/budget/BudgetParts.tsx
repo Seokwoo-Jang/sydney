@@ -1,19 +1,25 @@
 'use client';
-// Budget building blocks (plan §7.5, §7.5.1): summary in two currencies,
-// ECB line, expense table (PC) / receipt list (mobile), category bars, settlements.
+// Budget building blocks (plan §7.5, §7.5.1): summary, ECB line, expense table
+// (PC) / receipt list (mobile), category bars, settlements. Totals show only the
+// AUD | KRW choice; the other currency appears on single expenses and settlements.
 import { Fragment } from 'react';
 import { Button, MemberMarks } from '@/components/ui';
 import { balances, formatMoney, summarizeBudget } from '@/lib/money';
 import type { Booking, Currency, Expense, FxRate, ItineraryItem, Member, Settlement, TripBudget, TripDay } from '@/lib/types';
 import { S } from '@/lib/strings';
 import { diffDays, formatDayLabel } from '@/lib/time/zone';
-import { approxFlags, categoryTotals, convertedAmount, hasBudget, paidByMember, trimCents, type ScopeView } from './budgetCalc';
+import { approxFlags, categoryTotals, convertedAmount, hasBudget, paidByMember, trimCents, type ScopeView, type TwoCurrencyTotal } from './budgetCalc';
 import styles from './Budget.module.css';
 
-const other = (c: Currency): Currency => (c === 'AUD' ? 'KRW' : 'AUD');
 const key = (c: Currency) => (c === 'AUD' ? 'aud' : 'krw') as 'aud' | 'krw';
 const money = (minor: number, c: Currency, approx = false) => trimCents(formatMoney(minor, c, { approx }));
-/** Summary figures in whole units ('A$6,000', '≈ ₩5,474,000'), like plan §7.5.1. */
+/** A total in the chosen currency; with no rate yet each currency is summed on its own ('A$120 + 30,000₩'). */
+function totalText(t: TwoCurrencyTotal, first: Currency, hasRate: boolean): string {
+  if (hasRate) return money(t[key(first)], first, t.approx[key(first)]);
+  const parts = [t.aud ? money(t.aud, 'AUD') : '', t.krw ? money(t.krw, 'KRW') : ''].filter(Boolean);
+  return parts.join(' + ') || money(0, first);
+}
+/** Summary figures in whole units ('A$6,000', '≈ 5,474,000₩'), like plan §7.5.1. */
 const whole = (minor: number, c: Currency, approx = false) => money(c === 'AUD' ? Math.round(minor / 100) * 100 : minor, c, approx);
 
 // ── summary ──────────────────────────────────────────────────────
@@ -31,11 +37,9 @@ export function BudgetSummary({
   first: Currency;
 }) {
   const sum = summarizeBudget({ budgets, expenses, latest, scope });
-  const second = other(first);
-  const flagsFirst = approxFlags({ budgets, expenses, latest, scope, display: first });
-  const flagsSecond = approxFlags({ budgets, expenses, latest, scope, display: second });
+  const flags = approxFlags({ budgets, expenses, latest, scope, display: first });
   const any = hasBudget(budgets, scope);
-  const showSecond = !sum.missingRate;
+  const second: Currency = first === 'AUD' ? 'KRW' : 'AUD';
 
   type CellKey = 'budget' | 'spent' | 'planned' | 'remaining' | 'afterPlanned';
   const cells: Array<{ k: CellKey; label: string; needsBudget: boolean }> = [
@@ -52,10 +56,15 @@ export function BudgetSummary({
         const pair = sum[k];
         const empty = needsBudget && !any;
         const over = !empty && (k === 'remaining' || k === 'afterPlanned') && pair.aud < 0;
+        // The '≈' is drawn smaller so the figure itself keeps the room (one line per card).
         const fmt = (c: Currency, approx: boolean) => {
-          const v = Math.abs(pair[key(c)]);
-          const text = whole(v, c, approx);
-          return over ? `${S.budgetWords.overBy} ${text}` : text;
+          const text = whole(Math.abs(pair[key(c)]), c);
+          return (
+            <>
+              {approx && <span className={styles.approx}>≈</span>}
+              {text}
+            </>
+          );
         };
         return (
           <div key={k} className={[styles.cell, over ? styles.cellOver : ''].join(' ')}>
@@ -65,8 +74,11 @@ export function BudgetSummary({
                 <span className={styles.cellEmpty}>{k === 'budget' ? S.overview.noBudget : '—'}</span>
               ) : (
                 <>
-                  <span className={styles.primary}>{fmt(first, flagsFirst[k])}</span>
-                  {showSecond && <span className={styles.secondary}>{fmt(second, flagsSecond[k])}</span>}
+                  {/* "Over by" sits above the figure so the amount keeps one line. */}
+                  {over && <span className={styles.overBy}>{S.budgetWords.overBy}</span>}
+                  <span className={styles.primary}>{fmt(first, flags[k])}</span>
+                  {/* No rate yet: one currency would leave the other's rows out, so both show. */}
+                  {sum.missingRate && <span className={styles.secondary}>{fmt(second, false)}</span>}
                 </>
               )}
             </dd>
@@ -81,7 +93,7 @@ export function FxLine({ latest, today }: { latest: FxRate | null; today: string
   if (!latest) return <p className={styles.fx}>{S.budget.noRate}</p>;
   const date = formatDayLabel(latest.rateDate);
   const stale = today ? diffDays(today, latest.rateDate) > 3 : false;
-  const rate = `₩${latest.rate.toFixed(2)}`;
+  const rate = `${latest.rate.toFixed(2)}₩`;
   return (
     <div className={styles.fxBlock}>
       <p className={[styles.fx, stale ? styles.fxStale : ''].join(' ')}>{S.fx.rateLine(rate, stale ? S.fx.rateFrom(date) : date)}</p>
@@ -251,10 +263,7 @@ export function CategoryBars({ expenses, latest, scope, first }: { expenses: Exp
         {rows.map((r) => (
           <li key={r.category} className={styles.barRow}>
             <span className={styles.barLabel}>{S.labels.expenseCategory[r.category]}</span>
-            <span className={styles.barValue}>
-              {money(r[k], first)}
-              <small>{money(r[key(other(first))], other(first), true)}</small>
-            </span>
+            <span className={styles.barValue}>{totalText(r, first, !!latest)}</span>
             <span className={styles.bar} aria-hidden="true">
               <i style={{ width: `${Math.max(2, Math.round((r[k] / max) * 100))}%` }} />
             </span>
@@ -297,7 +306,6 @@ export function Settlements({
   const paid = paidByMember(expenses, members, latest);
 
   const amountText = first === 'AUD' || krw == null ? formatMoney(abs, 'AUD') : formatMoney(krw, 'KRW', { approx: true });
-  const otherText = first === 'AUD' ? (krw != null ? formatMoney(krw, 'KRW', { approx: true }) : null) : formatMoney(abs, 'AUD');
 
   return (
     <section className={styles.block} aria-labelledby="budget-settlements">
@@ -317,7 +325,6 @@ export function Settlements({
             </span>
             <span className={styles.balanceAmount}>
               {amountText}
-              {otherText && <small>{otherText}</small>}
             </span>
           </>
         ) : (
@@ -327,7 +334,7 @@ export function Settlements({
       <p className={styles.paidTotals}>
         {paid.map((p) => (
           <span key={p.member.id}>
-            {S.budget.paidTotal(p.member.displayName)} · {money(p.aud, 'AUD')}
+            {S.budget.paidTotal(p.member.displayName)} · {totalText(p, first, !!latest)}
           </span>
         ))}
       </p>

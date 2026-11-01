@@ -4,7 +4,7 @@
 // server-corrected clock, re-checked every 30s and on visibilitychange,
 // 800ms crossfade (instant with reduced motion), next phase preloaded during
 // the 10 minutes before a boundary, 'Sydney · 7:42 pm' in the corner.
-import { useEffect, useState, type CSSProperties, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import type { CoverPhase } from '@/lib/time/cover';
 import { useCoverPhase } from '@/lib/hooks/useCoverPhase';
 import { useReducedMotion } from '@/lib/hooks/useReducedMotion';
@@ -16,8 +16,22 @@ export type BackdropVariant = 'cover' | 'hero' | 'compact' | 'entry';
 
 const FADE_MS = 800;
 
-function CoverPicture({ phase, preload }: { phase: CoverPhase; preload?: boolean }) {
+// The Day photo is a 3:2 close-up: wide, short boxes (PC cover, compact tab
+// covers) get a panorama with the whole building on its right edge
+// (scripts/make-wide-cover.mjs) instead of a crop that cuts the sails or the wall.
+const WIDE: Partial<Record<CoverPhase, true>> = { day: true };
+
+function CoverPicture({ phase, preload, wide }: { phase: CoverPhase; preload?: boolean; wide?: boolean }) {
   const base = publicAsset(`/images/cover/${phase}`);
+  const priority = preload ? 'low' : 'high';
+  if (wide && WIDE[phase]) {
+    return (
+      <picture>
+        <source type="image/avif" srcSet={`${base}-wide.avif`} />
+        <img className={[styles.img, styles.wide].join(' ')} src={`${base}-wide.webp`} alt="" decoding="async" loading="eager" fetchPriority={priority} draggable={false} />
+      </picture>
+    );
+  }
   return (
     <picture>
       <source media="(min-width: 768px)" type="image/avif" srcSet={`${base}-desktop.avif`} />
@@ -29,7 +43,7 @@ function CoverPicture({ phase, preload }: { phase: CoverPhase; preload?: boolean
         alt=""
         decoding="async"
         loading="eager"
-        fetchPriority={preload ? 'low' : 'high'}
+        fetchPriority={priority}
         draggable={false}
       />
     </picture>
@@ -49,6 +63,7 @@ export interface TimeOfDayBackdropProps {
 }
 
 export function TimeOfDayBackdrop({ variant, children, hideClock, className, as: Tag = 'div', ...rest }: TimeOfDayBackdropProps) {
+  const wide = variant === 'cover' || variant === 'compact';
   const { phase, preload, clock } = useCoverPhase();
   const reduced = useReducedMotion();
   // Bottom → top. The newest layer fades in over the previous one.
@@ -73,15 +88,13 @@ export function TimeOfDayBackdrop({ variant, children, hideClock, className, as:
             key={p}
             className={[styles.layer, i === layers.length - 1 && layers.length > 1 ? styles.fadeIn : '', i === 0 && layers.length === 1 ? styles.first : ''].join(' ')}
             data-cover-phase={p}
-            // Blurred fill behind a photo that is fitted rather than cropped (Day on wide covers).
-            style={{ '--cover-fill': `url("${publicAsset(`/images/cover/${p}-mobile.webp`)}")` } as CSSProperties}
           >
-            <CoverPicture phase={p} />
+            <CoverPicture phase={p} wide={wide} />
           </div>
         ))}
         {preload && preload !== phase && (
           <div className={styles.preload} data-cover-phase={preload}>
-            <CoverPicture phase={preload} preload />
+            <CoverPicture phase={preload} preload wide={wide} />
           </div>
         )}
       </div>

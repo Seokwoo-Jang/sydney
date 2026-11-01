@@ -224,6 +224,10 @@
   color: var(--muted);
 }
 
+.rowMeta > * {
+  white-space: nowrap;
+}
+
 .metaWho {
   display: inline-flex;
   align-items: center;
@@ -359,18 +363,19 @@
   color: var(--muted);
 }
 
-/* High-priority open task: a soft brass tint and edge, plus the chip in Brass Deep. */
-.rowHigh {
-  background: var(--brass-wash);
-  box-shadow: inset 3px 0 0 var(--brass);
-  border-radius: 8px;
-  padding-left: 10px;
-  padding-right: 4px;
-}
-
+/* To-do priority: only the label is coloured, never the row. */
 .high {
   font-weight: 500;
-  color: var(--brass-deep);
+  color: var(--danger);
+}
+
+.normal {
+  font-weight: 500;
+  color: var(--ink);
+}
+
+.low {
+  color: var(--past);
 }
 
 @media (prefers-reduced-motion: reduce) {

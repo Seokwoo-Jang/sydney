@@ -1,0 +1,64 @@
+/* "Show my location" map button (bottom left), shared by Where We Are and Route. */
+/* The message sits above the button, clear of "Fit both" at the bottom right. */
+.locate {
+  display: flex;
+  flex-direction: column-reverse;
+  align-items: flex-start;
+  gap: 6px;
+  margin: 0 0 10px 10px !important;
+}
+
+.button {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-button);
+  background: var(--porcelain);
+  box-shadow: var(--shadow-card);
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.button:hover {
+  color: var(--harbour);
+}
+
+.button:focus-visible {
+  outline: 2px solid var(--harbour);
+  outline-offset: 2px;
+}
+
+.button[aria-busy='true'] svg {
+  animation: pulse 1s ease-in-out infinite;
+}
+
+.note:empty {
+  display: none;
+}
+
+.note {
+  max-width: 220px;
+  padding: 4px 10px;
+  border-radius: var(--radius-chip);
+  background: rgba(255, 253, 249, 0.94);
+  box-shadow: var(--shadow-card);
+  font-family: var(--font-sans);
+  font-size: var(--text-xs);
+  line-height: 1.4;
+  color: var(--ink);
+}
+
+@keyframes pulse {
+  50% {
+    opacity: 0.35;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .button[aria-busy='true'] svg {
+    animation: none;
+  }
+}

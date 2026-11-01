@@ -3,7 +3,7 @@
 import type { BudgetScope, Currency, Expense, FxRate, Member, Settlement, SplitMode, TripBudget } from './types';
 
 export function toMinor(amount: string | number, c: Currency): number {
-  const s = String(amount).replace(/[,\s]/g, '').replace(/^(A\$|\$|₩)/, '');
+  const s = String(amount).replace(/[,\s]/g, '').replace(/^(A\$|\$|₩)/, '').replace(/₩$/, '');
   const m = /^(-?)(\d+)(?:\.(\d*))?$/.exec(s);
   if (!m) throw new Error(`Invalid amount: ${amount}`);
   const sign = m[1] ? -1 : 1;
@@ -25,7 +25,7 @@ export function formatMoney(minor: number, c: Currency, opts: { approx?: boolean
   const body =
     c === 'AUD'
       ? `A$${Math.floor(abs / 100).toLocaleString('en-AU')}.${String(abs % 100).padStart(2, '0')}`
-      : `₩${abs.toLocaleString('en-AU')}`;
+      : `${abs.toLocaleString('en-AU')}₩`; // won sign after the number (owner, 2026-11-01)
   return `${opts.approx ? '≈ ' : ''}${neg ? '-' : ''}${body}`;
 }
 

@@ -1,12 +1,16 @@
 'use client';
 // Where We Are map (plan §7.8): E / A markers with a faint accuracy circle.
 // Fits both people while nobody touches the map; after a pan or zoom it stays
-// put and offers "Fit both". Loaded only when the card is opened.
+// put and offers "Fit both". Names never cover each other (two people at one
+// spot get stacked labels). "Show my location" sits bottom left. Loaded only
+// when the card is opened.
 import 'leaflet/dist/leaflet.css';
 import * as L from 'leaflet';
 import { useEffect, useRef, useState } from 'react';
+import { restackLabels } from '@/lib/mapLabels';
 import type { ProfileKey } from '@/lib/types';
 import { S } from '@/lib/strings';
+import { addLocateControl } from './locate';
 import styles from './LiveMap.module.css';
 
 export interface LivePerson {
@@ -40,6 +44,7 @@ export default function LiveMapCanvas({
   const elRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
   const layerRef = useRef<L.LayerGroup | null>(null);
+  const labelsRef = useRef<L.Marker[]>([]);
   const autoRef = useRef(true);
   const programmatic = useRef(false);
   const [auto, setAuto] = useState(true);
@@ -53,6 +58,12 @@ export default function LiveMapCanvas({
     if (people.length === 1) map.setView([people[0].lat, people[0].lng], 15, { animate: false });
     else map.fitBounds(L.latLngBounds(people.map((p) => [p.lat, p.lng] as [number, number])), FIT);
     programmatic.current = false;
+  };
+
+  // Live first, so a sharing person's name keeps its place next to the pin.
+  const relabel = () => {
+    const map = mapRef.current;
+    if (map) restackLabels(labelsRef.current.map((m) => m.getTooltip()?.getElement()), map.getContainer());
   };
 
   // ── map, once ──
@@ -72,15 +83,23 @@ export default function LiveMapCanvas({
       autoRef.current = false;
       setAuto(false);
     });
+    map.on('moveend', relabel);
     layerRef.current = L.layerGroup().addTo(map);
     mapRef.current = map;
+    // Moving to the device is a choice like a pan: automatic fitting stops ("Fit both" returns).
+    const removeLocate = addLocateControl(map, () => {
+      autoRef.current = false;
+      setAuto(false);
+    });
     const ro = new ResizeObserver(() => {
       map.invalidateSize();
       if (autoRef.current) fit();
+      relabel();
     });
     ro.observe(node);
     return () => {
       ro.disconnect();
+      removeLocate();
       map.remove();
       mapRef.current = null;
       layerRef.current = null;
@@ -93,6 +112,7 @@ export default function LiveMapCanvas({
     const layer = layerRef.current;
     if (!layer) return;
     layer.clearLayers();
+    labelsRef.current = [];
     // The faded person first, so a live marker sits on top.
     const ordered = [...people].sort((a, b) => Number(a.state === 'live') - Number(b.state === 'live'));
     for (const p of ordered) {
@@ -116,8 +136,11 @@ export default function LiveMapCanvas({
         title: `${p.name} · ${p.seen}`,
       }).addTo(layer);
       marker.bindTooltip(`${p.name} · ${p.seen}`, { permanent: true, direction: 'bottom', offset: [0, 16], className: styles.label });
+      labelsRef.current.unshift(marker);
     }
     if (autoRef.current) fit();
+    const raf = requestAnimationFrame(relabel);
+    return () => cancelAnimationFrame(raf);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [people]);
 

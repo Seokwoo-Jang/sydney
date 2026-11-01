@@ -8,25 +8,34 @@
 }
 
 /* ── scope chips: Trip, Day 1–9 ─────────────────────── */
+/* Trip alone on the first row; Day 1–9 in nine equal cells on the second, never wrapping. */
 .scope {
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(9, minmax(0, 1fr));
+  gap: 6px 4px;
 }
 
-.route[data-layout='tabs'] .scope {
-  flex-wrap: nowrap;
-  overflow-x: auto;
-  margin-inline: calc(-1 * var(--gutter));
-  padding: 2px var(--gutter);
-  scrollbar-width: none;
-  scroll-padding-inline: var(--gutter);
+.tripChip {
+  grid-column: 1 / -1;
+  justify-self: start;
 }
 
-.route[data-layout='tabs'] .scope::-webkit-scrollbar {
-  display: none;
+.dayChip {
+  justify-content: center;
+  min-width: 0;
+  padding-inline: 0;
 }
 
-.route[data-layout='tabs'] .scope > * {
-  flex: none;
+/* Narrow screens: the cells only fit the number ("Day" stays for screen readers). */
+@media (max-width: 599px) {
+  .dayWord {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
 }
 
 /* ── map ────────────────────────────────────────────── */
@@ -62,11 +71,6 @@
 .map:focus-visible {
   outline: 2px solid var(--harbour);
   outline-offset: -2px;
-}
-
-.mapBox .picking,
-.mapBox .picking :global(.leaflet-interactive) {
-  cursor: crosshair;
 }
 
 .mapBox .map :global(.leaflet-bar) {
@@ -217,17 +221,6 @@
   pointer-events: none;
 }
 
-.draft {
-  display: block;
-  width: 26px;
-  height: 26px;
-  border: 3px solid var(--porcelain);
-  border-radius: 50% 50% 50% 0;
-  background: var(--harbour);
-  transform: translateY(-12px) rotate(-45deg);
-  box-shadow: 0 3px 8px rgba(23, 47, 59, 0.35);
-}
-
 /* Pin labels (Leaflet tooltips). Long names end with an ellipsis; the popup has the full text. */
 .mapBox .label,
 .mapBox .dayLabel {
@@ -258,8 +251,15 @@
   display: none;
 }
 
-.labelHidden {
-  visibility: hidden;
+/* Pin number, shown only on a label stacked away from its pin. */
+.labelNum {
+  display: none;
+  margin-right: 4px;
+  font-weight: 700;
+}
+
+.labelShifted .labelNum {
+  display: inline;
 }
 
 /* ── popups (DOM built in RouteMapCanvas) ──────────── */
@@ -355,30 +355,7 @@
   background: var(--harbour-wash);
 }
 
-/* ── pin mode bar + status ──────────────────────────── */
-.pinBar {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--s1);
-  padding: var(--s1) var(--s1-5);
-  border-radius: var(--radius-card-sm);
-  background: var(--sky);
-}
-
-.pinPrompt {
-  min-width: 0;
-  font-size: var(--text-sm);
-  color: var(--ink);
-  overflow-wrap: anywhere;
-}
-
-.pinActions {
-  display: flex;
-  gap: var(--s1);
-}
-
+/* ── save status ──────────────────────────────────── */
 .statusRow {
   display: flex;
   justify-content: flex-end;

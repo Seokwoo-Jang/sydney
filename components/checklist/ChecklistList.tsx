@@ -125,7 +125,6 @@ export function ChecklistList({
                     <ChecklistRow
                       key={item.id}
                       item={item}
-                      me={me}
                       due={due}
                       busy={pending.has(item.id)}
                       onToggle={onToggle}

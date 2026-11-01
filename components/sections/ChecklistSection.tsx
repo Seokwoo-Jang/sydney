@@ -76,7 +76,7 @@ export default function ChecklistSection({ layout }: SectionProps) {
       <>
         <div className={board ? styles.summaryBoard : styles.summaryTabs}>
           <ChecklistProgress items={items} />
-          <ComingUp items={items} me={me} due={due} pending={pending} onToggle={toggle} onEdit={openItem} />
+          <ComingUp items={items} due={due} pending={pending} onToggle={toggle} onEdit={openItem} />
           {board && <NextUp bookings={bookingRows} now={now} today={due?.today ?? null} onOpen={openBooking} />}
         </div>
         <SegmentedControl<View>

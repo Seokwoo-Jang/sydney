@@ -201,24 +201,6 @@ export function offsetSegment(a: Pt, b: Pt, px: number): [Pt, Pt] {
   ];
 }
 
-export interface Box {
-  x: number;
-  y: number;
-  w: number;
-  h: number;
-}
-
-/** Greedy label placement in priority order: a label is shown only if it overlaps none already shown. */
-export function visibleLabels(boxes: Array<Box | null>): boolean[] {
-  const kept: Box[] = [];
-  return boxes.map((b) => {
-    if (!b) return false;
-    const hit = kept.some((k) => b.x < k.x + k.w && k.x < b.x + b.w && b.y < k.y + k.h && k.y < b.y + b.h);
-    if (!hit) kept.push(b);
-    return !hit;
-  });
-}
-
 /** Stops sharing a spot share one pin. */
 export interface PinGroup {
   key: string;
