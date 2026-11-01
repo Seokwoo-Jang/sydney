@@ -81,7 +81,6 @@ export const S = {
   guide: {
     title: 'How to Use',
     intro: 'What each part of the app is for.',
-    cardSub: 'What each part of the app is for',
     lines: {
       overview: 'The countdown, today’s plans and a quick look at everything.',
       days: 'Our plans day by day. Tap one for details and the map.',

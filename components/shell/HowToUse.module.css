@@ -69,52 +69,26 @@
   color: var(--muted);
 }
 
-/* Phone card at the bottom of the main screen. */
-.card {
-  display: grid;
-  grid-template-columns: 36px minmax(0, 1fr) 18px;
-  gap: var(--s1-5);
-  align-items: center;
-  width: 100%;
-  min-height: 64px;
-  padding: var(--s1-5) var(--s2);
-  border: 0;
+/* Amy's Prelude under Itinerary on phones, as in the bottom tabs. */
+.item[data-nested] {
+  margin-left: var(--s2-5);
+  padding-left: var(--s1-5);
+  border-top: 0;
+  border-left: 2px solid var(--sand);
+}
+
+/* Phones: written out at the bottom of the main screen. */
+.inline {
+  padding: var(--s2-5) var(--s2);
   border-radius: var(--radius-card);
   background: var(--porcelain);
   box-shadow: var(--shadow-card);
-  color: var(--ink);
-  text-align: left;
 }
 
-.cardIcon {
-  display: grid;
-  place-items: center;
-  width: 36px;
-  height: 36px;
-  border-radius: 10px;
-  background: var(--sky);
-  color: var(--harbour);
-}
-
-.cardText {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
-}
-
-.cardTitle {
+.inlineTitle {
+  margin-bottom: var(--s1-5);
   font-family: var(--font-serif);
   font-size: var(--title-xs);
   font-weight: 500;
   line-height: var(--leading-tight);
-}
-
-.cardSub {
-  font-size: var(--text-sm);
-  color: var(--muted);
-}
-
-.cardArrow {
-  color: var(--muted);
 }
