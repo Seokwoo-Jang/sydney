@@ -331,6 +331,24 @@
   color: var(--ink);
 }
 
+/* A plan's title in a pin popup: tap to open the plan. */
+.popTitleButton {
+  display: block;
+  width: 100%;
+  min-height: 32px;
+  padding: 2px 0;
+  border: 0;
+  background: none;
+  color: var(--ink);
+  font: inherit;
+  font-weight: 600;
+  text-align: left;
+  text-decoration: underline;
+  text-decoration-color: var(--line-strong);
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
 .popPlace {
   font-size: var(--text-sm);
   color: var(--muted);

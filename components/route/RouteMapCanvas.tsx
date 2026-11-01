@@ -172,28 +172,32 @@ export default function RouteMapCanvas(props: RouteMapCanvasProps) {
     const popupFor = (g: PinGroup, route: DayRoute): HTMLElement => {
       const root = el('div', styles.popup);
       if (trip) root.append(el('p', styles.popDay, S.time.day(dayNumbers.get(route.date) ?? 0)));
-      for (const s of g.stops) {
+      // Only the chosen person's plans here (owner, 2026-11-01); a faded pin lists its own.
+      // Kept short for phones: each plan is its time and a tappable title (opens it),
+      // the place and Directions come once for the pin.
+      const mine = g.stops.filter((s) => isFocusLane(s.lane, people));
+      const shown = mine.length ? mine : g.stops;
+      for (const s of shown) {
         const block = el('div', styles.popStop);
         const head = el('p', styles.popHead);
-        // Numbers belong to the chosen person's route; other plans here are listed without one.
-        if (isFocusLane(s.lane, people)) head.append(el('span', styles.popNum, String(s.n)));
+        if (mine.length) head.append(el('span', styles.popNum, String(s.n)));
         head.append(el('span', undefined, stopTime(s.item)));
         if (s.meetUp) head.append(el('span', styles.popMeet, S.maps.meetUp));
-        block.append(head, el('p', styles.popTitle, s.item.title));
-        if (s.item.place.trim()) block.append(el('p', styles.popPlace, s.item.place));
-        const actions = el('div', styles.popActions);
-        const seg = incomingSegment(route, s.item.id, me);
-        const dir = el('a', styles.popLink, S.maps.directions);
-        dir.href = directionsUrl(s, seg ? seg.from : null);
-        dir.target = '_blank';
-        dir.rel = 'noopener noreferrer';
-        const more = el('button', styles.popButton, S.actions.viewDetails);
-        more.type = 'button';
-        more.addEventListener('click', () => cbRef.current.onOpenItem(s.item));
-        actions.append(dir, more);
-        block.append(actions);
+        const title = el('button', styles.popTitleButton, s.item.title);
+        title.type = 'button';
+        title.setAttribute('aria-label', `${S.actions.viewDetails}: ${s.item.title}`);
+        title.addEventListener('click', () => cbRef.current.onOpenItem(s.item));
+        block.append(head, title);
         root.append(block);
       }
+      const first = shown[0];
+      if (first.item.place.trim()) root.append(el('p', styles.popPlace, first.item.place));
+      const seg = incomingSegment(route, first.item.id, me);
+      const dir = el('a', styles.popLink, S.maps.directions);
+      dir.href = directionsUrl(first, seg ? seg.from : null);
+      dir.target = '_blank';
+      dir.rel = 'noopener noreferrer';
+      root.append(dir);
       if (trip) {
         const open = el('button', styles.popButton, S.route.openDay(dayNumbers.get(route.date) ?? 0));
         open.type = 'button';
