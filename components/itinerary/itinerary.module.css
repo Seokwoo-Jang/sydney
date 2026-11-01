@@ -140,6 +140,13 @@
   line-height: 1.2;
 }
 
+.tlTheme {
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-size: var(--text-md);
+  color: var(--muted);
+}
+
 .tlControls {
   display: flex;
   flex-wrap: wrap;

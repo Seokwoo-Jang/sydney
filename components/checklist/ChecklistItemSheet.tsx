@@ -1,7 +1,7 @@
 'use client';
 // Add / edit one Packing item or To-do (plan §7.4 A–B).
 import { useMemo, useState } from 'react';
-import { Button, Field, SaveStatus, SegmentedControl, Sheet, TextArea, TextInput } from '@/components/ui';
+import { Button, Field, SaveStatus, SegmentedControl, Select, Sheet, TextArea, TextInput } from '@/components/ui';
 import { newId, PACKING_CATEGORIES, TASK_CATEGORIES, useChecklist } from '@/lib/data';
 import type { Booking, ChecklistItem, ChecklistKind, Member, Resource } from '@/lib/types';
 import { S } from '@/lib/strings';
@@ -24,6 +24,8 @@ interface Draft {
   checked: boolean;
   isApplicable: boolean;
   notes: string;
+  /** Library link ('' = none). */
+  resourceId: string;
 }
 
 function toDraft(item: ChecklistItem | null, kind: ChecklistKind, category: string | null, me: Member | null): Draft {
@@ -39,6 +41,7 @@ function toDraft(item: ChecklistItem | null, kind: ChecklistKind, category: stri
     checked: item?.checked ?? false,
     isApplicable: item?.isApplicable ?? true,
     notes: item?.notes ?? '',
+    resourceId: item?.resourceId ?? '',
   };
 }
 
@@ -111,6 +114,7 @@ export function ChecklistItemSheet({
       checked: draft.checked,
       isApplicable: draft.isApplicable,
       notes: draft.notes.trim(),
+      resourceId: draft.resourceId || null,
     };
     const result = await save.run(() =>
       isNew
@@ -120,7 +124,6 @@ export function ChecklistItemSheet({
             ...fields,
             bookingId: null,
             documentId: null,
-            resourceId: null,
             sortOrder: (ops.status === 'ready' ? Math.max(0, ...ops.data.map((r) => r.sortOrder)) : 0) + 10,
           })
         : ops.update(draft.id, fields, draft.version),
@@ -135,7 +138,7 @@ export function ChecklistItemSheet({
   };
 
   const booking = item?.bookingId ? bookings.find((b) => b.id === item.bookingId) : null;
-  const resource = item?.resourceId ? resources.find((r) => r.id === item.resourceId) : null;
+  const resource = draft.resourceId ? resources.find((r) => r.id === draft.resourceId && !r.deletedAt) : null;
   const title = isNew
     ? k === 'packing'
       ? S.checklist.newPacking
@@ -233,6 +236,16 @@ export function ChecklistItemSheet({
         )}
         <Field label={S.fields.notes} optional>
           <TextArea rows={3} value={draft.notes} onChange={(e) => edit({ notes: e.target.value })} />
+        </Field>
+        <Field label={S.checklist.libraryLink} optional hint={S.checklist.libraryLinkHint}>
+          <Select
+            value={draft.resourceId}
+            onChange={(e) => edit({ resourceId: e.target.value })}
+            options={[
+              { value: '', label: S.checklist.noLibraryLink },
+              ...resources.filter((r) => !r.deletedAt).map((r) => ({ value: r.id, label: r.title })),
+            ]}
+          />
         </Field>
         <CheckField
           label={k === 'packing' ? S.labels.packed : S.labels.done}

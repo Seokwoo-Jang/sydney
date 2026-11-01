@@ -28,6 +28,7 @@ import {
   type PeopleFilter,
 } from './logic';
 import { useExpanded } from './useExpanded';
+import { DayTitle } from './DayTitle';
 import styles from './itinerary.module.css';
 
 export type ItineraryMode = 'day' | 'full';
@@ -402,9 +403,12 @@ export function ItineraryBody({
         <DayGrid days={days} info={dayInfo} selected={mode === 'day' ? selectedDay : null} today={today} onSelect={(d) => selectDay(d, 'click')} />
         <div className={styles.timeline}>
           <div className={styles.tlHead}>
-            <h3 className={styles.tlTitle}>
-              {mode === 'full' ? S.itinerary.allDays : S.itinerary.dayHeading(day.dayNumber, formatDayLabel(day.date))}
-            </h3>
+            <div>
+              <h3 className={styles.tlTitle}>
+                {mode === 'full' ? S.itinerary.allDays : S.itinerary.dayHeading(day.dayNumber, formatDayLabel(day.date))}
+              </h3>
+              {mode === 'day' && <DayTitle day={day} className={styles.tlTheme} />}
+            </div>
             <div className={styles.tlControls}>
               {jumpButton}
               {viewToggle}
@@ -438,7 +442,7 @@ export function ItineraryBody({
       />
       <div className={styles.dayHead}>
         <div className={styles.dayHeadText}>
-          <h3 className={styles.mTitle}>{mode === 'full' ? S.itinerary.allDays : day.title}</h3>
+          {mode === 'full' ? <h3 className={styles.mTitle}>{S.itinerary.allDays}</h3> : <DayTitle day={day} as="h3" className={styles.mTitle} />}
           <p className={styles.mSub}>{mode === 'full' ? S.itinerary.allDaysSub : [formatDayLabel(day.date), mix].filter(Boolean).join(' · ')}</p>
         </div>
         {jumpButton}

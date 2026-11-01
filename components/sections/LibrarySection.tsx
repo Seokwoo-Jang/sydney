@@ -7,7 +7,7 @@ import { ResourceCard, type LinkTag } from '@/components/library/ResourceCard';
 import { RESOURCE_CATEGORIES, ResourceSheet } from '@/components/library/ResourceSheet';
 import { useShellNav } from '@/components/shell/ShellNav';
 import { Button, Chip, ChipGroup, EmptyState, ErrorState, Field, LoadingState, SectionHeading, TextInput, useToast } from '@/components/ui';
-import { useDays, useItinerary, useLibrary, usePrelude, useTrip } from '@/lib/data';
+import { useChecklist, useDays, useItinerary, useLibrary, usePrelude, useTrip } from '@/lib/data';
 import type { Resource, ResourceCategory } from '@/lib/types';
 import { S } from '@/lib/strings';
 import type { SectionProps } from './types';
@@ -21,6 +21,7 @@ export default function LibrarySection({ layout }: SectionProps) {
   const lib = useLibrary();
   const itinerary = useItinerary();
   const prelude = usePrelude();
+  const checklist = useChecklist();
   const days = useDays();
   const trip = useTrip();
   const toast = useToast();
@@ -38,12 +39,13 @@ export default function LibrarySection({ layout }: SectionProps) {
   const links = lib.status === 'ready' ? lib.data.links : [];
   const items = itinerary.status === 'ready' ? itinerary.data : [];
   const activities = prelude.status === 'ready' ? prelude.data.activities : [];
+  const checklistItems = checklist.status === 'ready' ? checklist.data : [];
   const dayNo = useMemo(() => new Map((days.status === 'ready' ? days.data : []).map((d) => [d.id, d.dayNumber])), [days]);
 
   // Where a link is used (shown here, made on the itinerary plan): its items, and a
   // Prelude plan that is not on the itinerary yet.
-  const tagsFor = (r: Resource): LinkTag[] =>
-    links
+  const tagsFor = (r: Resource): LinkTag[] => [
+    ...links
       .filter((l) => l.resourceId === r.id)
       .flatMap((l) => {
         const item = l.itineraryItemId ? items.find((i) => i.id === l.itineraryItemId) : undefined;
@@ -60,7 +62,12 @@ export default function LibrarySection({ layout }: SectionProps) {
         const act = l.preludeActivityId ? activities.find((a) => a.id === l.preludeActivityId) : undefined;
         if (act) return [{ id: l.id, label: S.library.preludeTag(act.title), onClick: () => goToSection('prelude', { item: act.id }) }];
         return [];
-      });
+      }),
+    // Checklist items keep their link on the item (the ETA guide on "Apply for the ETA").
+    ...checklistItems
+      .filter((c) => !c.deletedAt && c.resourceId === r.id)
+      .map((c) => ({ id: c.id, label: S.library.checklistTag(c.title), onClick: () => goToSection('ready', { view: c.kind, item: c.id }) })),
+  ];
 
   const togglePin = async (r: Resource) => {
     let pinnedOrder: number | null = null;

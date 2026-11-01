@@ -167,7 +167,7 @@ export function DocumentRow({ doc, members, onOpen }: { doc: TripDocument; membe
     <li>
       <button type="button" className={styles.doc} onClick={() => onOpen(doc.id)}>
         <span className={styles.docIcon} aria-hidden="true">
-          <Icon name="note" size={18} />
+          <Icon name="document" size={18} />
         </span>
         <span className={styles.docText}>
           <b>{doc.title}</b>

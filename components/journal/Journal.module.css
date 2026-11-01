@@ -679,3 +679,11 @@
     scale: 1;
   }
 }
+
+/* The day's title, renamed here or in the Itinerary (one field of the day). */
+.dayTheme {
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-size: var(--text-lg);
+  color: var(--ink);
+}

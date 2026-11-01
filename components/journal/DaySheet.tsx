@@ -11,6 +11,7 @@ import type { FileAsset, JournalEntry, Member, TripDay } from '@/lib/types';
 import { S } from '@/lib/strings';
 import { formatDayLabel } from '@/lib/time/zone';
 import { defaultDayPhoto } from '@/lib/url';
+import { DayTitle } from '@/components/itinerary/DayTitle';
 import { AddPhotos } from './AddPhotos';
 import { Photo } from './Photo';
 import { PhotoPages } from './PhotoPages';
@@ -144,6 +145,7 @@ export function DaySheet({
     >
       {day && (
         <section ref={photoBox} className={styles.photos} aria-label={S.journal.photos}>
+          <DayTitle day={day} className={styles.dayTheme} />
           {reordering && <p className={styles.hint}>{S.journal.reorderHint}</p>}
           {photos.length ? (
             <PhotoPages
