@@ -113,6 +113,17 @@
   padding-bottom: 6px;
 }
 
+/* Where a Library tag landed: a ring for a moment. */
+.row[data-highlight] {
+  border-top-color: transparent;
+  border-radius: var(--radius-button-lg);
+  box-shadow: 0 0 0 2px var(--harbour);
+}
+
+.row[data-highlight] + .row {
+  border-top-color: transparent;
+}
+
 .check {
   grid-area: check;
   display: flex;

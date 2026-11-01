@@ -565,7 +565,6 @@ export const S = {
     tripOverview: 'Trip Overview',
     fullItinerary: 'Full Itinerary',
     relatedPlan: 'Related plan',
-    viewPlan: 'View plan',
     relatedExpenses: 'Related expenses',
     resources: 'Resources',
     todaysJournal: 'Today’s journal',

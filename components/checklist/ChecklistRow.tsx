@@ -23,6 +23,7 @@ export function ChecklistRow({
   onToggle,
   onEdit,
   compact,
+  highlighted,
 }: {
   item: ChecklistItem;
   due: DueContext | null;
@@ -30,6 +31,7 @@ export function ChecklistRow({
   onToggle: (item: ChecklistItem) => void;
   onEdit: (item: ChecklistItem) => void;
   compact?: boolean;
+  highlighted?: boolean;
 }) {
   const metaId = useId();
   const detailsId = useId();
@@ -60,6 +62,8 @@ export function ChecklistRow({
       ]
         .filter(Boolean)
         .join(' ')}
+      data-check-id={item.id}
+      data-highlight={highlighted || undefined}
     >
       <div className={styles.check}>
         <label className={styles.boxHit}>

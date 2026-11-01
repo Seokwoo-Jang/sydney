@@ -10,7 +10,7 @@ import type { SectionKey, UrlPatch } from '@/lib/url';
 
 export interface ShellNavApi {
   layout: SectionLayout;
-  /** `null` = overview. Clears `view` and `item` unless given in `extra`; keeps `day`. */
+  /** `null` = overview. Clears `view`, `item` and `mark` unless given in `extra`; keeps `day`. */
   goToSection(section: SectionKey | null, extra?: Omit<UrlPatch, 'section'>): void;
 }
 

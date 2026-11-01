@@ -45,7 +45,7 @@ export function PreludeBody({ layout, data }: { layout: 'board' | 'tabs'; data: 
 
   const viewItinerary = (item: ItineraryItem) => goToSection('days', { day: item.date, item: item.id });
 
-  // "View plan" from the itinerary: ?section=prelude&item=<activity id> → reveal and mark that card.
+  // A Related plan link (itinerary) or a Library tag: ?section=prelude&item=<activity id> → reveal and mark that card.
   const handledSeq = useRef(-1);
   const [scrollTarget, setScrollTarget] = useState<{ id: string } | null>(null);
   useEffect(() => {
@@ -72,7 +72,7 @@ export function PreludeBody({ layout, data }: { layout: 'board' | 'tabs'; data: 
         el?.focus({ preventScroll: true });
       });
     });
-    // The ring marks where "View plan" landed, then steps back.
+    // The ring marks where the link landed, then steps back.
     const fade = window.setTimeout(() => setHighlight((h) => (h === id ? null : h)), 4000);
     return () => {
       cancelAnimationFrame(raf);

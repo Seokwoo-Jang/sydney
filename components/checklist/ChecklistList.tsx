@@ -1,7 +1,7 @@
 'use client';
 // Packing or To-do list: person filter, "hide finished", four collapsible
 // category groups (plan §4.3, §7.4). Progress ignores not-needed rows.
-import { useId, useState } from 'react';
+import { useEffect, useId, useState } from 'react';
 import { Button, Chip, ChipGroup, EmptyState, Icon } from '@/components/ui';
 import { PACKING_CATEGORIES, TASK_CATEGORIES } from '@/lib/data';
 import type { ChecklistItem, ChecklistKind, Member } from '@/lib/types';
@@ -20,6 +20,7 @@ export function ChecklistList({
   me,
   due,
   pending,
+  highlight,
   defaultOpen,
   onToggle,
   onEdit,
@@ -30,6 +31,8 @@ export function ChecklistList({
   me: Member | null;
   due: DueContext | null;
   pending: ReadonlySet<string>;
+  /** A row a Library tag points at: shown (filter, group) and ringed. */
+  highlight?: string | null;
   defaultOpen: boolean;
   onToggle: (item: ChecklistItem) => void;
   onEdit: (item: ChecklistItem) => void;
@@ -39,6 +42,19 @@ export function ChecklistList({
   // Collapsed state is per session; groups not yet touched follow the layout default.
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
   const baseId = useId();
+
+  // Make the ringed row visible: a filter that shows it, its group open. Only when a
+  // new row is pointed at; later edits to it keep the user's choices.
+  const target = highlight ? items.find((i) => i.id === highlight && i.kind === kind) : undefined;
+  const targetId = target?.id;
+  useEffect(() => {
+    if (!target) return;
+    const done = target.checked || !target.isApplicable;
+    const mine = (p: PersonFilter) => p === 'all' || target.assignee === p || target.assignee === 'both' || target.assignee === null;
+    setPerson((p) => (done ? 'finished' : p !== 'finished' && mine(p) ? p : 'all'));
+    setOpenGroups((o) => ({ ...o, [target.category]: true }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [targetId]);
 
   const categories: readonly string[] = kind === 'packing' ? PACKING_CATEGORIES : TASK_CATEGORIES;
   const labels: Record<string, string> = kind === 'packing' ? S.labels.packingCategories : S.labels.taskCategories;
@@ -131,6 +147,7 @@ export function ChecklistList({
                       item={item}
                       due={due}
                       busy={pending.has(item.id)}
+                      highlighted={item.id === highlight}
                       onToggle={onToggle}
                       onEdit={onEdit}
                     />

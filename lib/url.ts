@@ -1,5 +1,6 @@
 // URL state (plan §4.5): one root page, state in the query string.
 //   ?section=days&day=2030-12-29   ?section=ready&view=bookings&item=<id>   ?section=prelude
+//   ?section=ready&view=task&mark=<id>  (a Library tag: show that row with a ring, no sheet)
 // Clicks push history; scroll-spy and programmatic changes replace it.
 // Only the search string changes, so the basePath in location.pathname is kept.
 
@@ -15,6 +16,7 @@ export interface UrlState {
   day: string | null; // 'YYYY-MM-DD'
   view: string | null; // section-specific sub-view, e.g. 'bookings'
   item: string | null; // record id whose detail panel/sheet is open
+  mark: string | null; // record id to show with a ring for a moment (Library tags)
 }
 
 /** `undefined` keeps the current value, `null` removes the param. */
@@ -22,7 +24,7 @@ export type UrlPatch = Partial<{ [K in keyof UrlState]: UrlState[K] | null }>;
 
 export type NavKind = 'initial' | 'push' | 'replace' | 'pop';
 
-const KEYS: Array<keyof UrlState> = ['section', 'day', 'view', 'item'];
+const KEYS: Array<keyof UrlState> = ['section', 'day', 'view', 'item', 'mark'];
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
 export const isSectionKey = (v: unknown): v is SectionKey =>
@@ -37,6 +39,7 @@ export function parseUrlState(search: string): UrlState {
     day: day && DATE_RE.test(day) ? day : null,
     view: p.get('view') || null,
     item: p.get('item') || null,
+    mark: p.get('mark') || null,
   };
 }
 

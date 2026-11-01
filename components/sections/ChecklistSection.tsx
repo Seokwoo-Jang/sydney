@@ -1,6 +1,6 @@
 'use client';
 // Checklist · Before We Go (plan §4.3, §7.1, §7.4). Root id stays "section-ready".
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { NextUp } from '@/components/checklist/BookingCards';
 import { BookingSheet } from '@/components/checklist/BookingSheet';
 import { BookingsView, type NewBookingKind } from '@/components/checklist/BookingsView';
@@ -12,6 +12,8 @@ import { useDueContext } from '@/components/checklist/useDueContext';
 import { useSectionNav } from '@/components/checklist/useSectionNav';
 import { Card, ErrorState, LoadingState, SectionHeading, SegmentedControl, useToast } from '@/components/ui';
 import { useBookings, useChecklist, useDocuments, useLibrary, useServerNow, useTrip } from '@/lib/data';
+import { useReducedMotion } from '@/lib/hooks/useReducedMotion';
+import { useUrlState } from '@/lib/url';
 import type { ChecklistItem, ChecklistKind } from '@/lib/types';
 import { S } from '@/lib/strings';
 import type { SectionProps } from './types';
@@ -34,6 +36,10 @@ export default function ChecklistSection({ layout }: SectionProps) {
   const nav = useSectionNav<View>('ready', VIEWS, 'packing');
   const [pending, setPending] = useState<ReadonlySet<string>>(new Set());
   const [adding, setAdding] = useState<Adding | null>(null);
+  const { state: url, nav: urlNav, replace } = useUrlState();
+  const reduced = useReducedMotion();
+  const listRef = useRef<HTMLDivElement>(null);
+  const [highlight, setHighlight] = useState<string | null>(null);
 
   const me = trip.status === 'ready' ? trip.data.me : null;
   const partner = trip.status === 'ready' ? trip.data.partner : null;
@@ -56,6 +62,35 @@ export default function ChecklistSection({ layout }: SectionProps) {
     },
     [checklist, toast],
   );
+
+  // A Library tag: ?section=ready&view=task&mark=<id> → show that row with a ring, no sheet.
+  const handledSeq = useRef(-1);
+  useEffect(() => {
+    if (handledSeq.current === urlNav.seq) return;
+    handledSeq.current = urlNav.seq;
+    if (urlNav.kind === 'replace' || url.section !== 'ready' || !url.mark) return;
+    const item = items.find((i) => i.id === url.mark && !i.deletedAt);
+    if (!item) return;
+    setHighlight(item.id);
+    replace({ mark: null });
+  }, [urlNav, url.section, url.mark, items, replace]);
+
+  useEffect(() => {
+    if (!highlight) return;
+    // Two frames: the list switches view and opens the row's group first.
+    let raf = requestAnimationFrame(() => {
+      raf = requestAnimationFrame(() => {
+        const el = listRef.current?.querySelector<HTMLElement>(`[data-check-id="${highlight}"]`);
+        el?.scrollIntoView({ block: 'center', behavior: reduced ? 'auto' : 'smooth' });
+      });
+    });
+    // The ring marks where the link landed, then steps back.
+    const fade = window.setTimeout(() => setHighlight(null), 4000);
+    return () => {
+      cancelAnimationFrame(raf);
+      window.clearTimeout(fade);
+    };
+  }, [highlight, reduced]);
 
   const openItem = (item: ChecklistItem) => nav.openItem(item.id, { view: item.kind });
   const openBooking = (id: string) => nav.openItem(id, { view: 'bookings' });
@@ -88,7 +123,7 @@ export default function ChecklistSection({ layout }: SectionProps) {
           onChange={nav.setView}
           options={VIEWS.map((v) => ({ value: v, label: S.labels.checklistViews[v] }))}
         />
-        <div className={styles.viewBody}>
+        <div ref={listRef} className={styles.viewBody}>
           {nav.view === 'bookings' ? (
             <BookingsView
               bookings={bookingRows}
@@ -106,6 +141,7 @@ export default function ChecklistSection({ layout }: SectionProps) {
               me={me}
               due={due}
               pending={pending}
+              highlight={highlight}
               defaultOpen={!board}
               onToggle={toggle}
               onEdit={openItem}

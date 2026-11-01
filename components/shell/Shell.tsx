@@ -181,7 +181,7 @@ function ShellLayout({ mode }: { mode: LayoutMode }) {
   // ── navigation API for sections ─────────────────────────────────
   const goToSection = useCallback<ShellNavApi['goToSection']>(
     (section, extra = {}) => {
-      const patch = { view: null, item: null, ...extra, section };
+      const patch = { view: null, item: null, mark: null, ...extra, section };
       if (layout === 'board') {
         lastSection.current = section;
         push(patch);

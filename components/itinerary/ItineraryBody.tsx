@@ -109,6 +109,7 @@ export function ItineraryBody({
   const [view, setView] = useState<'list' | 'route'>('list');
   const [showAllDay, setShowAllDay] = useState<string | null>(null);
   const [sheet, setSheet] = useState<SheetTarget | null>(null);
+  const [highlight, setHighlight] = useState<string | null>(null);
   const rootRef = useRef<HTMLDivElement>(null);
   const pendingScroll = useRef<{ date: string; key?: string } | null>(null);
   const [scrollSeq, setScrollSeq] = useState(0);
@@ -207,7 +208,8 @@ export function ItineraryBody({
     return () => cancelAnimationFrame(raf);
   }, [scrollSeq, selectedDay, mode, reduced]);
 
-  // Deep link / "View itinerary": ?section=days&day=…&item=<id> expands and shows that row.
+  // Deep link / "View itinerary" / a Library tag: ?section=days&day=…&item=<id> expands,
+  // shows and rings that row.
   const handledSeq = useRef(-1);
   useEffect(() => {
     if (handledSeq.current === nav.seq) return;
@@ -220,9 +222,17 @@ export function ItineraryBody({
     setFilter((f) => (matchesFilter(item, f) ? f : 'together'));
     setShowAllDay(item.date);
     expanded.open(item.id);
+    setHighlight(item.id);
     replace({ day: item.date, item: null });
     queueScroll(item.date, rowKeyFor(item.date, { item, continuation: false }));
   }, [nav, url.section, url.item, live, expanded, replace, setMode]);
+
+  // The ring marks where the link landed, then steps back.
+  useEffect(() => {
+    if (!highlight) return;
+    const fade = window.setTimeout(() => setHighlight(null), 4000);
+    return () => window.clearTimeout(fade);
+  }, [highlight]);
 
   // ── rendering ─────────────────────────────────────────────────
   const rowState = (item: ItineraryItem, date: string): RowState => {
@@ -253,6 +263,7 @@ export function ItineraryBody({
             tripTz={tz}
             state={rowState(r.item, date)}
             open={expanded.isOpen(r.item.id)}
+            highlighted={highlight === r.item.id}
             links={linksFor(r.item)}
             onToggle={() => expanded.toggle(r.item.id)}
             onEdit={() => setSheet({ kind: 'edit', item: r.item })}

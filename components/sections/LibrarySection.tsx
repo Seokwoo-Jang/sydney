@@ -66,7 +66,7 @@ export default function LibrarySection({ layout }: SectionProps) {
     // Checklist items keep their link on the item (the ETA guide on "Apply for the ETA").
     ...checklistItems
       .filter((c) => !c.deletedAt && c.resourceId === r.id)
-      .map((c) => ({ id: c.id, label: S.library.checklistTag(c.title), onClick: () => goToSection('ready', { view: c.kind, item: c.id }) })),
+      .map((c) => ({ id: c.id, label: S.library.checklistTag(c.title), onClick: () => goToSection('ready', { view: c.kind, mark: c.id }) })),
   ];
 
   const togglePin = async (r: Resource) => {

@@ -42,6 +42,7 @@ export function ItineraryRow({
   tripTz,
   state,
   open,
+  highlighted,
   links,
   onToggle,
   onEdit,
@@ -55,6 +56,8 @@ export function ItineraryRow({
   tripTz: string;
   state: RowState;
   open: boolean;
+  /** Ringed for a moment after a link (Library, Amy's Prelude) lands on it. */
+  highlighted?: boolean;
   links: RowLinks;
   onToggle: () => void;
   onEdit: () => void;
@@ -138,6 +141,7 @@ export function ItineraryRow({
       data-business={item.category === 'business' || undefined}
       data-cancelled={item.status === 'cancelled' || undefined}
       data-continuation={continuation || undefined}
+      data-highlight={highlighted || undefined}
     >
       <div className={styles.head}>
         {hasDetail ? (
@@ -171,7 +175,7 @@ export function ItineraryRow({
               <Icon name="note" size={16} />
               <span>
                 <span className={styles.metaLabel}>{S.itinerary.relatedPlan}</span>{' '}
-                {/* The plan's name opens it in Amy's Prelude, like View plan. */}
+                {/* The plan's name opens it in Amy's Prelude. */}
                 <a
                   href={hrefFor({ section: 'prelude', day: null, view: null, item: links.activity.id })}
                   className={styles.planLink}
@@ -208,11 +212,6 @@ export function ItineraryRow({
                 {map.kind === 'link' ? S.maps.open : S.maps.search}
                 <span className="sr-only"> ({S.ui.externalLink})</span>
               </ButtonLink>
-            )}
-            {links.activity && (
-              <Button variant="link" size="sm" iconStart="note" onClick={() => onViewPlan(links.activity!)}>
-                {S.itinerary.viewPlan}
-              </Button>
             )}
             {links.expenses > 0 && (
               <Button variant="link" size="sm" iconStart="budget" onClick={onOpenExpenses}>
