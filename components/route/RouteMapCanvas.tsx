@@ -34,7 +34,7 @@ import styles from './route.module.css';
 export interface RouteMapCanvasProps {
   /** Everyone's routes. */
   routes: DayRoute[];
-  /** Together = everyone at full strength; Eren / Amy = the other person is faded. */
+  /** The lane at full strength and framed (Together / Eren / Amy, each on its own); the rest faded. */
   people: PeopleFilter;
   dayNumbers: Map<string, number>;
   /** 'trip' or the selected date. */
@@ -288,12 +288,13 @@ export default function RouteMapCanvas(props: RouteMapCanvasProps) {
     // Only the chosen day (or every day on Trip); other days are not drawn.
     for (const r of routes) if (isActive(r)) drawRoute(r);
 
-    // Fit when the day or the person changes (not on every data refresh): every stop of the
-    // day, so the other person's faded route stays in view too.
+    // Fit when the day or the lane changes (not on every data refresh): zoom in on the chosen
+    // lane's stops; without any, on the whole day.
     const fitKey = `${scope}|${people}`;
     const dayStops = routes.filter(isActive).flatMap((r) => r.stops);
     if (fittedRef.current !== fitKey) {
-      const all = dayStops.length ? dayStops : routes.flatMap((r) => r.stops);
+      const chosen = dayStops.filter((s) => isFocusLane(s.lane, people));
+      const all = chosen.length ? chosen : dayStops.length ? dayStops : routes.flatMap((r) => r.stops);
       const b = boundsOf(all);
       if (b) {
         // A map that has no size yet (just shown) cannot fit; the resize observer fits it then.

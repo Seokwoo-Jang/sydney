@@ -27,10 +27,21 @@ function useTripFacts() {
   };
 }
 
+/** The trip title; it is also the way home (the main page at the top, URL without query). */
 function Title({ as: Tag = 'h1', className }: { as?: 'h1' | 'p'; className?: string }) {
+  const { goToSection } = useShellNav();
   return (
     <Tag className={className}>
-      {S.brand.titleLead} <em>{S.brand.titleAccent}</em>
+      <a
+        href={hrefFor({ section: null, view: null, item: null, day: null })}
+        className={styles.homeLink}
+        onClick={(e) => {
+          e.preventDefault();
+          goToSection(null, { day: null });
+        }}
+      >
+        {S.brand.titleLead} <em>{S.brand.titleAccent}</em>
+      </a>
     </Tag>
   );
 }

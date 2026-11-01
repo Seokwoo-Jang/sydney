@@ -212,7 +212,7 @@ function ShellLayout({ mode }: { mode: LayoutMode }) {
       <div className={styles.shell} data-layout={layout} data-mode={mode}>
         <div className={styles.page}>
           <header className={styles.topbar}>
-            <Brand onClick={() => goToSection(null)} />
+            <Brand onClick={() => goToSection(null, { day: null })} />
             <CountdownChip layout={layout} />
             <ProfileMenu layout={layout} />
           </header>

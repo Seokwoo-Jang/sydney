@@ -308,17 +308,20 @@ describe('place search', () => {
 });
 
 describe('people filter on the map', () => {
-  it('narrowRoute keeps the map numbers and drops the other person', () => {
+  it('narrowRoute keeps the map numbers and only the chosen lane', () => {
     const all = buildDayRoute([at('t1', '09:00'), at('a1', '10:00', { participants: 'amy' }), at('e1', '10:30', { participants: 'eren' }), at('t2', '11:00')], D, 'together', SYDNEY_TZ);
     const eren = narrowRoute(all, 'eren');
-    expect(eren.stops.map((x) => [x.item.id, x.n])).toEqual([['t1', 1], ['e1', 3], ['t2', 4]]);
-    expect(segs(eren).every((id) => !id.endsWith(':amy'))).toBe(true);
-    expect(narrowRoute(all, 'together')).toBe(all);
+    expect(eren.stops.map((x) => [x.item.id, x.n])).toEqual([['e1', 3]]);
+    expect(segs(eren).every((id) => id.endsWith(':eren'))).toBe(true);
+    const together = narrowRoute(all, 'together');
+    expect(together.stops.map((x) => [x.item.id, x.n])).toEqual([['t1', 1], ['t2', 4]]);
+    expect(segs(together).every((id) => id.endsWith(':together'))).toBe(true);
   });
-  it('isFocusLane fades only the other person', () => {
-    expect(isFocusLane('together', 'eren')).toBe(true);
+  it('isFocusLane keeps each lane on its own (Together excludes the solo plans)', () => {
+    expect(isFocusLane('together', 'eren')).toBe(false);
     expect(isFocusLane('eren', 'eren')).toBe(true);
     expect(isFocusLane('amy', 'eren')).toBe(false);
-    expect(isFocusLane('amy', 'together')).toBe(true);
+    expect(isFocusLane('amy', 'together')).toBe(false);
+    expect(isFocusLane('together', 'together')).toBe(true);
   });
 });

@@ -151,17 +151,20 @@ export function buildTripRoutes(items: ItineraryItem[], days: Pick<TripDay, 'dat
  * and their unplaced items.
  */
 export function narrowRoute(route: DayRoute, filter: PeopleFilter): DayRoute {
-  if (filter === 'together') return route;
   return {
     ...route,
-    stops: route.stops.filter((s) => matchesFilter(s.item, filter)),
-    segments: route.segments.filter((s) => laneVisible(s.lane, filter)),
-    notOnMap: route.notOnMap.filter((i) => matchesFilter(i, filter)),
+    stops: route.stops.filter((s) => s.lane === filter),
+    segments: route.segments.filter((s) => s.lane === filter),
+    notOnMap: route.notOnMap.filter((i) => i.participants === filter),
   };
 }
 
-/** Lanes drawn at full strength for a people filter; the other person's lane is faded. */
-export const isFocusLane = (lane: Lane, filter: PeopleFilter): boolean => laneVisible(lane, filter);
+/**
+ * The Route chooses one lane exactly (owner, 2026-11-01): Together = the plans we do
+ * together, Eren / Amy = that person's own plans. That lane is drawn at full strength
+ * and framed; the other lanes stay on the map, faded.
+ */
+export const isFocusLane = (lane: Lane, filter: PeopleFilter): boolean => lane === filter;
 
 // ── drawing ──────────────────────────────────────────────────────
 export interface LineStyle {
