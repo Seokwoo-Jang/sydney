@@ -354,6 +354,12 @@ button.toggle:hover .title {
   color: var(--brass-deep);
 }
 
+.planLink {
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
 .metaLabel {
   font-weight: 600;
   color: var(--ink);

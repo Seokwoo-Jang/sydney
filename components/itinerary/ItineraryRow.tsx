@@ -4,6 +4,7 @@
 import { Badge, Button, ButtonLink, ExampleMark, Icon, IconButton, MemberMarks, type BadgeTone, type IconName } from '@/components/ui';
 import { mapHref } from '@/lib/maps';
 import { S } from '@/lib/strings';
+import { hrefFor } from '@/lib/url';
 import type { Booking, ItineraryStatus, PreludeActivity, Resource } from '@/lib/types';
 import { shownStatus, timeLabel, type DayRow } from './logic';
 import styles from './itinerary.module.css';
@@ -169,7 +170,18 @@ export function ItineraryRow({
             <p className={styles.metaLine} data-tone="brass">
               <Icon name="note" size={16} />
               <span>
-                <span className={styles.metaLabel}>{S.itinerary.relatedPlan}</span> {links.activity.title}
+                <span className={styles.metaLabel}>{S.itinerary.relatedPlan}</span>{' '}
+                {/* The plan's name opens it in Amy's Prelude, like View plan. */}
+                <a
+                  href={hrefFor({ section: 'prelude', day: null, view: null, item: links.activity.id })}
+                  className={styles.planLink}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    onViewPlan(links.activity!);
+                  }}
+                >
+                  {links.activity.title}
+                </a>
               </span>
             </p>
           )}
