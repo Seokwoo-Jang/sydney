@@ -189,10 +189,17 @@ export function ExpenseTable({ rows, ctx }: { rows: Expense[]; ctx: RowContext }
                 <td data-label={S.budget.columns.related}>
                   {rel.length ? (
                     <span className={styles.relCell}>
-                      {rel.map((r) => (
-                        <button key={r.key} type="button" className={styles.relButton} onClick={() => ctx.onRelated(r.target)}>
-                          {r.label}
-                        </button>
+                      {rel.map((r, i) => (
+                        <Fragment key={r.key}>
+                          {i > 0 && (
+                            <span className={styles.relSep} aria-hidden="true">
+                              ·
+                            </span>
+                          )}
+                          <button type="button" className={styles.relButton} onClick={() => ctx.onRelated(r.target)}>
+                            {r.label}
+                          </button>
+                        </Fragment>
                       ))}
                     </span>
                   ) : (

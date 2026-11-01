@@ -205,24 +205,32 @@
   color: var(--muted);
 }
 
+/* Amount stays as wide as its figures; Related gets the room for plans and bookings. */
 .table th:nth-child(1) {
-  width: 15%;
+  width: 11%;
 }
 
 .table th:nth-child(2) {
-  width: 14%;
+  width: 12.5%;
 }
 
 .table th:nth-child(4) {
-  width: 12%;
+  width: 11%;
 }
 
 .table th:nth-child(5) {
-  width: 20%;
+  width: 14%;
 }
 
 .table th:nth-child(6) {
-  width: 13%;
+  width: 30%;
+}
+
+/* A gap between the right-aligned amounts and the left-aligned Related links. */
+.table th:nth-child(6),
+.table td:nth-child(6) {
+  padding-left: 16px;
+  padding-right: 4px;
 }
 
 .table td {
@@ -283,12 +291,17 @@
   text-align: left;
 }
 
-/* Several links in the PC table: a compact stack, centred in the row like the other cells. */
+/* Several links in the PC table: plans then bookings on one line, "·" between, wrapping
+   only when the column runs out; centred in the row like the other cells. */
 .relCell {
   display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 2px;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px 3px;
+}
+
+.relSep {
+  color: var(--muted);
 }
 
 .relCell .relButton {
